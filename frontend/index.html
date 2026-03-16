@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能救援系统</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary-color: #00f0ff;
+            --secondary-color: #0066ff;
+            --bg-color: #0a0e1a;
+            --card-bg: rgba(16, 28, 48, 0.9);
+            --text-color: #e0f7ff;
+            --accent-color: #ff6b35;
+            --success-color: #00ff88;
+        }
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #0a0e1a 0%, #1a1f3a 50%, #0a0e1a 100%);
+            color: var(--text-color);
+            min-height: 100vh;
+        }
+        .app-container {
+            max-width: 430px;
+            margin: 0 auto;
+            position: relative;
+            min-height: 100vh;
+            background: radial-gradient(ellipse at top, rgba(0, 240, 255, 0.1) 0%, transparent 50%);
+            padding-bottom: 80px;
+        }
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 430px;
+            background: rgba(10, 14, 26, 0.95);
+            border-top: 1px solid rgba(0, 240, 255, 0.3);
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0;
+            z-index: 1000;
+        }
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #5a6d7e;
+            cursor: pointer;
+        }
+        .nav-item.active { color: var(--primary-color); }
+        .nav-icon { width: 24px; height: 24px; margin-bottom: 4px; fill: currentColor; }
+        .nav-text { font-size: 11px; }
+        .page { display: none; padding: 20px; }
+        .page.active { display: block; }
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .action-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+        .action-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
+        }
+        .action-icon svg { width: 24px; height: 24px; fill: #fff; }
+        .action-text { font-size: 12px; }
+        .section-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 18px;
+            background: var(--primary-color);
+            border-radius: 2px;
+        }
+        .service-card {
+            background: var(--card-bg);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 15px;
+            display: flex;
+            gap: 15px;
+            cursor: pointer;
+        }
+        .service-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, rgba(0, 102, 255, 0.3), rgba(0, 240, 255, 0.2));
+        }
+        .service-icon svg { width: 30px; height: 30px; fill: var(--primary-color); }
+        .service-info { flex: 1; }
+        .service-name { font-size: 15px; font-weight: bold; margin-bottom: 5px; }
+        .service-desc { font-size: 12px; color: #5a6d7e; margin-bottom: 8px; }
+        .service-price { color: var(--accent-color); font-size: 14px; font-weight: bold; }
+        .service-btn {
+            background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .order-filter {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+        }
+        .filter-item {
+            padding: 8px 20px;
+            background: var(--card-bg);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 20px;
+            font-size: 13px;
+            color: #5a6d7e;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .filter-item.active {
+            background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+            color: #fff;
+        }
+        .order-card {
+            background: var(--card-bg);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 15px;
+            cursor: pointer;
+        }
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(0, 240, 255, 0.1);
+        }
+        .order-id { font-size: 12px; color: #5a6d7e; }
+        .order-status {
+            padding: 4px 12px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .status-pending { background: rgba(255, 107, 53, 0.2); color: var(--accent-color); }
+        .status-processing { background: rgba(0, 240, 255, 0.2); color: var(--primary-color); }
+        .status-completed { background: rgba(0, 255, 136, 0.2); color: var(--success-color); }
+        .order-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .order-price { font-size: 18px; font-weight: bold; color: var(--accent-color); }
+        .profile-header {
+            background: var(--card-bg);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 20px;
+            padding: 25px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .avatar svg { width: 40px; height: 40px; fill: #fff; }
+        .user-name { font-size: 20px; font-weight: bold; margin-bottom: 8px; }
+        .user-level {
+            display: inline-block;
+            padding: 4px 12px;
+            background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .stats-row {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .stat-item {
+            flex: 1;
+            background: var(--card-bg);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+        }
+        .stat-value { font-size: 24px; font-weight: bold; color: var(--primary-color); margin-bottom: 5px; }
+        .stat-label { font-size: 12px; color: #5a6d7e; }
+        .balance-card {
+            background: linear-gradient(135deg, rgba(0, 255, 136, 0.15), rgba(0, 204, 106, 0.1));
+            border: 2px solid var(--success-color);
+            border-radius: 20px;
+            padding: 25px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .balance-label { font-size: 14px; color: var(--success-color); margin-bottom: 10px; }
+        .balance-value { font-size: 36px; font-weight: bold; color: var(--success-color); margin-bottom: 20px; }
+        .recharge-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, var(--success-color), #00cc6a);
+            border: none;
+            border-radius: 12px;
+            color: #0a0e1a;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(10, 14, 26, 0.98);
+            z-index: 2000;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .modal.active { display: block; }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+            margin-bottom: 20px;
+        }
+        .modal-title { font-size: 18px; font-weight: bold; }
+        .modal-close {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: rgba(255, 107, 53, 0.2);
+            border: none;
+            color: var(--accent-color);
+            cursor: pointer;
+            font-size: 18px;
+        }
+        .form-group { margin-bottom: 15px; }
+        .form-label { display: block; font-size: 13px; color: #5a6d7e; margin-bottom: 8px; }
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            background: var(--card-bg);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 10px;
+            padding: 12px 15px;
+            color: var(--text-color);
+            font-size: 14px;
+        }
+        .submit-btn {
+            width: 100%;
+            background: linear-gradient(135deg, var(--accent-color), #ff8c00);
+            color: #fff;
+            border: none;
+            padding: 16px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        .alert {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--card-bg);
+            border: 2px solid var(--primary-color);
+            border-radius: 20px;
+            padding: 30px;
+            z-index: 3000;
+            min-width: 320px;
+            text-align: center;
+        }
+        .alert.success { border-color: var(--success-color); }
+        .alert.error { border-color: var(--accent-color); }
+        .alert-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 2999;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- 首页 -->
+        <div class="page active" id="homePage">
+            <div class="quick-actions">
+                <div class="action-item" onclick="openRescue('tow')">
+                    <div class="action-icon">
+                        <svg viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99z"/></svg>
+                    </div>
+                    <span class="action-text">道路救援</span>
+                </div>
+                <div class="action-item" onclick="openRescue('medical')">
+                    <div class="action-icon">
+                        <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-1.99.9-1.99 2L3 19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-1 11h-4v4h-4v-4H6v-4h4V6h4v4h4v4z"/></svg>
+                    </div>
+                    <span class="action-text">医疗救援</span>
+                </div>
+                <div class="action-item" onclick="openRescue('water')">
+                    <div class="action-icon">
+                        <svg viewBox="0 0 24 24"><path d="M20.13 3.87c-2.71-2.71-7.06-2.71-9.77 0L3.87 10.36c-2.71 2.71-2.71 7.06 0 9.77 2.71 2.71 7.06 2.71 9.77 0l6.49-6.49c2.71-2.71 2.71-7.06 0-9.77z"/></svg>
+                    </div>
+                    <span class="action-text">水上救援</span>
+                </div>
+                <div class="action-item" onclick="alert('紧急呼叫：110')">
+                    <div class="action-icon">
+                        <svg viewBox="0 0 24 24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+                    </div>
+                    <span class="action-text">紧急呼叫</span>
+                </div>
+            </div>
+
+            <div class="section-title">热门服务</div>
+            <div class="service-card" onclick="openRescue('tow')">
+                <div class="service-icon">
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/></svg>
+                </div>
+                <div class="service-info">
+                    <div class="service-name">车辆拖拽服务</div>
+                    <div class="service-desc">专业拖车团队，24 小时待命</div>
+                    <div class="service-price">¥200 起</div>
+                </div>
+                <button class="service-btn">立即下单</button>
+            </div>
+            <div class="service-card" onclick="openRescue('oil')">
+                <div class="service-icon">
+                    <svg viewBox="0 0 24 24"><path d="M19.77 7.23l-3.72-3.72L15 4.56l2.11 2.11c-.94.36-1.61 1.26-1.61 2.33 0 1.38 1.12 2.5 2.5 2.5.36 0 .69-.08 1-.21v7.21c0 .55-.45 1-1 1s-1-.45-1-1V14a2 2 0 0 0-2-2h-1V5c0-1.1-.9-2-2-2H6c-1.1 0-2 .9-2 2v16h10v-7.5h1.5v5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V9c0-.69-.28-1.32-.73-1.77z"/></svg>
+                </div>
+                <div class="service-info">
+                    <div class="service-name">紧急送油服务</div>
+                    <div class="service-desc">快速送达，解决油量不足</div>
+                    <div class="service-price">¥80 起</div>
+                </div>
+                <button class="service-btn">立即下单</button>
+            </div>
+            <div class="service-card" onclick="openRescue('battery')">
+                <div class="service-icon">
+                    <svg viewBox="0 0 24 24"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
+                </div>
+                <div class="service-info">
+                    <div class="service-name">电瓶搭电服务</div>
+                    <div class="service-desc">专业设备，快速启动</div>
+                    <div class="service-price">¥100 起</div>
+                </div>
+                <button class="service-btn">立即下单</button>
+            </div>
+            <div class="service-card" onclick="openRescue('tire')">
+                <div class="service-icon">
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+                </div>
+                <div class="service-info">
+                    <div class="service-name">轮胎更换服务</div>
+                    <div class="service-desc">专业更换，安全可靠</div>
+                    <div class="service-price">¥150 起</div>
+                </div>
+                <button class="service-btn">立即下单</button>
+            </div>
+        </div>
+
+        <!-- 订单页面 -->
+        <div class="page" id="ordersPage">
+            <div class="order-filter">
+                <div class="filter-item active" onclick="filterOrders('all', this)">全部订单</div>
+                <div class="filter-item" onclick="filterOrders('pending', this)">待处理</div>
+                <div class="filter-item" onclick="filterOrders('processing', this)">进行中</div>
+                <div class="filter-item" onclick="filterOrders('completed', this)">已完成</div>
+            </div>
+            <div id="ordersList"></div>
+        </div>
+
+        <!-- 个人中心页面 -->
+        <div class="page" id="profilePage">
+            <div class="profile-header">
+                <div class="avatar">
+                    <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                </div>
+                <div class="profile-info">
+                    <div class="user-name" id="userName">用户 8829</div>
+                    <span class="user-level" id="userLevel">VIP 会员</span>
+                </div>
+            </div>
+            <div class="stats-row">
+                <div class="stat-item">
+                    <div class="stat-value" id="totalOrders">28</div>
+                    <div class="stat-label">累计救援</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="totalSpent">¥5,680</div>
+                    <div class="stat-label">总消费</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="userPoints">3,200</div>
+                    <div class="stat-label">积分</div>
+                </div>
+            </div>
+            <div class="balance-card">
+                <div class="balance-label">账户余额</div>
+                <div class="balance-value" id="userBalance">¥ 1,286.00</div>
+                <button class="recharge-btn" onclick="openRechargeModal()">立即充值</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 底部导航 -->
+    <div class="bottom-nav">
+        <div class="nav-item active" onclick="switchPage('home')">
+            <svg class="nav-icon" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+            <span class="nav-text">首页</span>
+        </div>
+        <div class="nav-item" onclick="switchPage('orders')">
+            <svg class="nav-icon" viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+            <span class="nav-text">订单</span>
+        </div>
+        <div class="nav-item" onclick="switchPage('profile')">
+            <svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+            <span class="nav-text">我的</span>
+        </div>
+    </div>
+
+    <!-- 救援申请弹窗 -->
+    <div class="modal" id="rescueModal">
+        <div class="modal-header">
+            <span class="modal-title">申请救援</span>
+            <button class="modal-close" onclick="closeModal('rescueModal')">×</button>
+        </div>
+        <div class="form-group">
+            <label class="form-label">救援类型</label>
+            <select class="form-select" id="rescueType">
+                <option value="tow">车辆拖拽</option>
+                <option value="oil">紧急送油</option>
+                <option value="battery">电瓶搭电</option>
+                <option value="tire">轮胎更换</option>
+                <option value="water">水上救援</option>
+                <option value="medical">医疗救援</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">当前位置</label>
+            <input type="text" class="form-input" id="currentLocation" placeholder="请输入当前位置" value="北京市朝阳区建国路 88 号">
+        </div>
+        <div class="form-group">
+            <label class="form-label">问题描述</label>
+            <textarea class="form-textarea" id="problemDesc" placeholder="请描述问题" rows="3">车辆在路边突然熄火，无法启动</textarea>
+        </div>
+        <button class="submit-btn" onclick="submitRescue()">立即申请</button>
+    </div>
+
+    <!-- 充值弹窗 -->
+    <div class="modal" id="rechargeModal">
+        <div class="modal-header">
+            <span class="modal-title">账户充值</span>
+            <button class="modal-close" onclick="closeModal('rechargeModal')">×</button>
+        </div>
+        <div class="form-group">
+            <label class="form-label">充值金额</label>
+            <select class="form-select" id="rechargeAmount">
+                <option value="50">¥50 (赠送¥5)</option>
+                <option value="100">¥100 (赠送¥15)</option>
+                <option value="200">¥200 (赠送¥40)</option>
+                <option value="300">¥300 (赠送¥60)</option>
+                <option value="500">¥500 (赠送¥100)</option>
+                <option value="1000">¥1000 (赠送¥200)</option>
+            </select>
+        </div>
+        <button class="submit-btn" onclick="submitRecharge()">确认充值</button>
+    </div>
+
+    <!-- 提示框 -->
+    <div class="alert-overlay" id="alertOverlay" style="display:none;"></div>
+    <div class="alert" id="alertBox" style="display:none;">
+        <h3 id="alertTitle">提示</h3>
+        <p id="alertMessage" style="margin:15px 0;"></p>
+        <button class="submit-btn" onclick="hideAlert()" style="margin-top:10px;">确定</button>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        let currentFilter = 'all';
+
+        // 页面切换
+        function switchPage(page) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            
+            document.getElementById(page + 'Page').classList.add('active');
+            event.currentTarget.classList.add('active');
+            
+            if (page === 'orders') loadOrders();
+            if (page === 'profile') loadProfile();
+        }
+
+        // 打开救援申请
+        function openRescue(type) {
+            document.getElementById('rescueType').value = type;
+            document.getElementById('rescueModal').classList.add('active');
+        }
+
+        // 关闭弹窗
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        // 提交救援申请
+        async function submitRescue() {
+            const type = document.getElementById('rescueType').value;
+            const location = document.getElementById('currentLocation').value;
+            const desc = document.getElementById('problemDesc').value;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/orders`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        service_type: type,
+                        current_location: location,
+                        problem_description: desc
+                    })
+                });
+                const data = await res.json();
+                
+                if (res.ok) {
+                    showAlert('success', '提交成功', '救援申请已提交！我们会尽快安排救援人员。', () => {
+                        closeModal('rescueModal');
+                        switchPage('orders');
+                    });
+                } else {
+                    showAlert('error', '提交失败', data.error);
+                }
+            } catch (error) {
+                showAlert('error', '错误', '网络错误，请稍后重试');
+            }
+        }
+
+        // 加载订单
+        async function loadOrders() {
+            try {
+                const res = await fetch(`${API_BASE}/api/orders?status=${currentFilter}`);
+                const data = await res.json();
+                
+                const container = document.getElementById('ordersList');
+                if (data.orders.length === 0) {
+                    container.innerHTML = '<p style="text-align:center;color:#5a6d7e;padding:40px;">暂无订单</p>';
+                    return;
+                }
+
+                container.innerHTML = data.orders.map(order => `
+                    <div class="order-card" onclick="alert('订单详情：${order.order_no}')">
+                        <div class="order-header">
+                            <span class="order-id">${order.order_no}</span>
+                            <span class="order-status status-${order.status}">${order.status_text}</span>
+                        </div>
+                        <div style="margin-bottom:10px;">${order.service_type === 'tow' ? '车辆拖拽' : order.service_type === 'oil' ? '紧急送油' : order.service_type === 'battery' ? '电瓶搭电' : order.service_type}</div>
+                        <div class="order-footer">
+                            <span class="order-price">¥${order.price}</span>
+                            <span style="font-size:12px;color:#5a6d7e;">${new Date(order.created_at).toLocaleString('zh-CN')}</span>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('加载订单失败:', error);
+            }
+        }
+
+        // 订单筛选
+        function filterOrders(status, el) {
+            currentFilter = status;
+            document.querySelectorAll('.filter-item').forEach(f => f.classList.remove('active'));
+            el.classList.add('active');
+            loadOrders();
+        }
+
+        // 加载用户信息
+        async function loadProfile() {
+            try {
+                const res = await fetch(`${API_BASE}/api/users/profile`);
+                const data = await res.json();
+                
+                if (data.user) {
+                    document.getElementById('userName').textContent = data.user.username;
+                    document.getElementById('userLevel').textContent = data.user.level;
+                    document.getElementById('userBalance').textContent = '¥ ' + data.user.balance.toFixed(2);
+                    document.getElementById('userPoints').textContent = data.user.points.toLocaleString();
+                    document.getElementById('totalOrders').textContent = data.user.total_orders || 28;
+                    document.getElementById('totalSpent').textContent = '¥' + (data.user.total_spent || 5680).toLocaleString();
+                }
+            } catch (error) {
+                console.error('加载用户信息失败:', error);
+            }
+        }
+
+        // 打开充值
+        function openRechargeModal() {
+            document.getElementById('rechargeModal').classList.add('active');
+        }
+
+        // 提交充值
+        async function submitRecharge() {
+            const amount = document.getElementById('rechargeAmount').value;
+            
+            try {
+                const res = await fetch(`${API_BASE}/api/recharge`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount: parseFloat(amount) })
+                });
+                const data = await res.json();
+                
+                if (res.ok) {
+                    showAlert('success', '充值成功', `成功充值¥${amount}${data.bonus > 0 ? '，赠送¥' + data.bonus : ''}！`, () => {
+                        closeModal('rechargeModal');
+                        loadProfile();
+                    });
+                } else {
+                    showAlert('error', '充值失败', data.error);
+                }
+            } catch (error) {
+                showAlert('error', '错误', '网络错误，请稍后重试');
+            }
+        }
+
+        // 提示框
+        function showAlert(type, title, message, callback) {
+            const alert = document.getElementById('alertBox');
+            const overlay = document.getElementById('alertOverlay');
+            
+            alert.className = 'alert ' + type;
+            document.getElementById('alertTitle').textContent = title;
+            document.getElementById('alertMessage').innerHTML = message.replace(/\n/g, '<br>');
+            
+            alert.callback = callback;
+            alert.style.display = 'block';
+            overlay.style.display = 'block';
+        }
+
+        function hideAlert() {
+            const alert = document.getElementById('alertBox');
+            const overlay = document.getElementById('alertOverlay');
+            
+            alert.style.display = 'none';
+            overlay.style.display = 'none';
+            
+            if (alert.callback) {
+                alert.callback();
+                alert.callback = null;
+            }
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('智能救援系统已加载');
+        });
+    </script>
+</body>
+</html>
