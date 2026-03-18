@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
-const { db } = require('../config/database');
+const { run, all, get } = require('../config/database');
 
 // 模拟司机数据
 const mockDrivers = [
@@ -11,7 +11,7 @@ const mockDrivers = [
 ];
 
 // 创建订单
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const {
       service_type,
@@ -29,26 +29,14 @@ router.post('/', (req, res) => {
       return res.status(400).json({ error: '缺少必要参数' });
     }
 
-    // 生成订单号
     const orderNo = 'RZ' + new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14) + Math.random().toString(36).slice(2, 4).toUpperCase();
 
-    // 模拟价格
-    const prices = {
-      'tow': 200,
-      'oil': 80,
-      'battery': 100,
-      'tire': 150,
-      'water': 500,
-      'medical': 300,
-      'other': 100
-    };
+    const prices = { 'tow': 200, 'oil': 80, 'battery': 100, 'tire': 150, 'water': 500, 'medical': 300, 'other': 100 };
     const price = prices[service_type] || 100;
 
-    // 随机分配司机
     const driver = mockDrivers[Math.floor(Math.random() * mockDrivers.length)];
 
-    // 插入订单
-    const result = db.prepare(`
+    const result = await run(`
       INSERT INTO orders (
         order_no, user_id, service_type, vehicle_type, vehicle_plate,
         vehicle_brand, vehicle_color, current_location, destination,
@@ -56,38 +44,19 @@ router.post('/', (req, res) => {
         driver_id, driver_name, driver_phone, driver_rating,
         rescue_vehicle_plate, rescue_vehicle_model, progress
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'processing', ?, ?, ?, ?, ?, ?, ?, 0)
-    `).run(
-      orderNo,
-      1, // 默认用户 ID
-      service_type,
-      vehicle_type || 'sedan',
-      vehicle_plate || '京 A·88888',
-      vehicle_brand || '大众',
-      vehicle_color || '白色',
-      current_location,
-      destination || current_location,
-      address || '',
-      problem_description || '',
-      price,
-      driver.id,
-      driver.name,
-      driver.phone,
-      driver.rating,
-      driver.vehicle_plate,
-      driver.vehicle_model
-    );
+    `, [
+      orderNo, 1, service_type,
+      vehicle_type || 'sedan', vehicle_plate || '京 A·88888',
+      vehicle_brand || '大众', vehicle_color || '白色',
+      current_location, destination || current_location,
+      address || '', problem_description || '',
+      price, driver.id, driver.name, driver.phone, driver.rating,
+      driver.vehicle_plate, driver.vehicle_model
+    ]);
 
-    // 添加订单进度
-    db.prepare(`
-      INSERT INTO order_timeline (order_id, status, description)
-      VALUES (?, 'processing', '订单已提交')
-    `).run(result.lastInsertRowid);
+    await run(`INSERT INTO order_timeline (order_id, status, description) VALUES (?, 'processing', '订单已提交')`, [result.lastInsertRowid]);
 
-    res.status(201).json({
-      message: '订单创建成功',
-      orderId: result.lastInsertRowid,
-      orderNo
-    });
+    res.status(201).json({ message: '订单创建成功', orderId: result.lastInsertRowid, orderNo });
   } catch (error) {
     console.error('创建订单错误:', error);
     res.status(500).json({ error: '创建订单失败' });
@@ -95,11 +64,11 @@ router.post('/', (req, res) => {
 });
 
 // 获取订单列表
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { status, page = 1, limit = 10 } = req.query;
     
-    let query = 'SELECT * FROM orders WHERE user_id = 1'; // 默认用户 ID
+    let query = 'SELECT * FROM orders WHERE user_id = 1';
     const params = [];
 
     if (status && status !== 'all') {
@@ -110,9 +79,8 @@ router.get('/', (req, res) => {
     query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
     params.push(parseInt(limit), (parseInt(page) - 1) * parseInt(limit));
 
-    const orders = db.prepare(query).all(...params);
+    const orders = await all(query, params);
 
-    // 格式化订单数据
     const formattedOrders = orders.map(order => ({
       id: order.id,
       order_no: order.order_no,
@@ -145,16 +113,15 @@ router.get('/', (req, res) => {
 });
 
 // 获取订单详情
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
-    const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
-    
+    const order = await get('SELECT * FROM orders WHERE id = ?', [req.params.id]);
+
     if (!order) {
       return res.status(404).json({ error: '订单不存在' });
     }
 
-    // 获取订单进度
-    const timeline = db.prepare('SELECT * FROM order_timeline WHERE order_id = ? ORDER BY created_at').all(order.id);
+    const timeline = await all('SELECT * FROM order_timeline WHERE order_id = ? ORDER BY created_at', [order.id]);
 
     const formattedOrder = {
       id: order.id,

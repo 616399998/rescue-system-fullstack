@@ -11,8 +11,12 @@ const rechargeRoutes = require('./routes/recharge');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 初始化数据库
-initDatabase();
+// 初始化数据库（异步）
+initDatabase().then(() => {
+  console.log('✅ 数据库初始化完成');
+}).catch(err => {
+  console.error('❌ 数据库初始化失败:', err);
+});
 
 // 中间件
 app.use(cors());
