@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>拖车救援 - 司机端</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary-color: #00f0ff;
+            --secondary-color: #0066ff;
+            --bg-color: #0a0e1a;
+            --card-bg: rgba(16, 28, 48, 0.95);
+            --text-color: #e0f7ff;
+            --accent-color: #ff6b35;
+            --success-color: #00ff88;
+            --warning-color: #ffcc00;
+        }
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #0a0e1a 0%, #1a1f3a 50%, #0a0e1a 100%);
+            color: var(--text-color);
+            min-height: 100vh;
+        }
+        
+        /* 登录页面 */
+        .login-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .login-card {
+            background: var(--card-bg);
+            border: 2px solid rgba(0, 240, 255, 0.3);
+            border-radius: 20px;
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+        }
+        .login-title {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .login-subtitle {
+            text-align: center;
+            color: #5a6d7e;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .form-group { margin-bottom: 20px; }
+        .form-label { display: block; font-size: 13px; color: #5a6d7e; margin-bottom: 8px; }
+        .form-input {
+            width: 100%;
+            background: rgba(16, 28, 48, 0.8);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 10px;
+            padding: 14px 16px;
+            color: var(--text-color);
+            font-size: 15px;
+        }
+        .login-btn {
+            width: 100%;
+            background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+            color: #fff;
+            border: none;
+            padding: 16px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        /* 司机端主界面 */
+        .driver-container { display: none; }
+        .driver-container.active { display: block; }
+        
+        .driver-header {
+            background: var(--card-bg);
+            border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .driver-info { display: flex; align-items: center; gap: 15px; }
+        .driver-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        .driver-name { font-size: 16px; font-weight: bold; }
+        .driver-status {
+            font-size: 12px;
+            padding: 4px 12px;
+            border-radius: 10px;
+            margin-top: 5px;
+            display: inline-block;
+        }
+        .status-online { background: rgba(0, 255, 136, 0.2); color: var(--success-color); }
+        .status-offline { background: rgba(128, 128, 128, 0.2); color: #888; }
+        .status-busy { background: rgba(255, 107, 53, 0.2); color: var(--accent-color); }
+        
+        .logout-btn {
+            background: rgba(255, 107, 53, 0.2);
+            color: var(--accent-color);
+            border: 1px solid var(--accent-color);
+            padding: 8px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        
+        .driver-content {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        /* 状态切换 */
+        .status-toggle {
+            background: var(--card-bg);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .status-text { font-size: 14px; }
+        .status-switch {
+            width: 60px;
+            height: 32px;
+            background: rgba(0, 255, 136, 0.2);
+            border-radius: 16px;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .status-switch.offline { background: rgba(128, 128, 128, 0.2); }
+        .status-switch::after {
+            content: '';
+            position: absolute;
+            width: 28px;
+            height: 28px;
+            background: #fff;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: all 0.3s;
+        }
+        .status-switch.offline::after { left: 30px; }
+        
+        /* 统计卡片 */
+        .stats-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            flex: 1;
+            background: var(--card-bg);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+        }
+        .stat-value { font-size: 24px; font-weight: bold; color: var(--primary-color); margin-bottom: 5px; }
+        .stat-label { font-size: 12px; color: #5a6d7e; }
+        
+        /* 订单标签页 */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .tab {
+            flex: 1;
+            padding: 12px;
+            background: var(--card-bg);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #5a6d7e;
+            text-align: center;
+        }
+        .tab.active {
+            background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+            color: #fff;
+            border-color: transparent;
+        }
+        
+        /* 订单卡片 */
+        .order-card {
+            background: var(--card-bg);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(0, 240, 255, 0.1);
+        }
+        .order-no { font-size: 14px; font-family: monospace; color: var(--primary-color); }
+        .order-status {
+            padding: 4px 12px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-new { background: rgba(0, 240, 255, 0.2); color: var(--primary-color); }
+        .status-going { background: rgba(255, 204, 0, 0.2); color: var(--warning-color); }
+        .status-arrived { background: rgba(0, 102, 255, 0.2); color: var(--secondary-color); }
+        .status-completed { background: rgba(0, 255, 136, 0.2); color: var(--success-color); }
+        
+        .order-location {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+        .location-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        .location-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            margin-top: 4px;
+            flex-shrink: 0;
+        }
+        .location-dot.destination { background: var(--accent-color); }
+        .location-text { font-size: 14px; }
+        .location-label { font-size: 11px; color: #5a6d7e; margin-bottom: 3px; }
+        
+        .order-info {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+            padding: 15px;
+            background: rgba(0, 240, 255, 0.05);
+            border-radius: 10px;
+        }
+        .info-item { font-size: 13px; }
+        .info-label { color: #5a6d7e; margin-bottom: 3px; }
+        .info-value { font-size: 14px; }
+        
+        .order-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .action-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .btn-call { background: rgba(0, 240, 255, 0.2); color: var(--primary-color); }
+        .btn-navigate { background: rgba(0, 102, 255, 0.2); color: var(--secondary-color); }
+        .btn-start { background: linear-gradient(135deg, var(--success-color), #00cc6a); color: #0a0e1a; }
+        .btn-complete { background: linear-gradient(135deg, var(--accent-color), #ff8c00); color: #fff; }
+        
+        /* 地图 */
+        .map-container {
+            height: 250px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            border: 2px solid rgba(0, 240, 255, 0.3);
+        }
+        
+        /* 弹窗 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(10, 14, 26, 0.95);
+            z-index: 2000;
+            padding: 20px;
+        }
+        .modal.active { display: block; }
+        .modal-content {
+            background: var(--card-bg);
+            border: 2px solid rgba(0, 240, 255, 0.3);
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 500px;
+            margin: 50px auto;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+        }
+        .modal-title { font-size: 18px; font-weight: bold; }
+        .modal-close {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: rgba(255, 107, 53, 0.2);
+            border: none;
+            color: var(--accent-color);
+            cursor: pointer;
+            font-size: 18px;
+        }
+        
+        .alert {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--card-bg);
+            border: 2px solid var(--primary-color);
+            border-radius: 20px;
+            padding: 30px;
+            z-index: 3000;
+            min-width: 320px;
+            text-align: center;
+        }
+        .alert.success { border-color: var(--success-color); }
+        .alert.error { border-color: var(--accent-color); }
+        .alert-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 2999;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #5a6d7e;
+        }
+        .empty-icon { font-size: 64px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <!-- 登录页面 -->
+    <div class="login-container" id="loginPage">
+        <div class="login-card">
+            <div class="login-title">🚛 司机端</div>
+            <div class="login-subtitle">拖车救援系统</div>
+            <div class="form-group">
+                <label class="form-label">司机账号</label>
+                <input type="text" class="form-input" id="driverUsername" placeholder="请输入账号" value="driver001">
+            </div>
+            <div class="form-group">
+                <label class="form-label">密码</label>
+                <input type="password" class="form-input" id="driverPassword" placeholder="请输入密码" value="123456">
+            </div>
+            <button class="login-btn" onclick="login()">登录</button>
+        </div>
+    </div>
+
+    <!-- 司机端主界面 -->
+    <div class="driver-container" id="driverPanel">
+        <div class="driver-header">
+            <div class="driver-info">
+                <div class="driver-avatar">🚛</div>
+                <div>
+                    <div class="driver-name" id="driverName">王师傅</div>
+                    <div class="driver-status status-online" id="driverStatus">● 在线</div>
+                </div>
+            </div>
+            <button class="logout-btn" onclick="logout()">退出</button>
+        </div>
+
+        <div class="driver-content">
+            <!-- 状态切换 -->
+            <div class="status-toggle">
+                <div class="status-text">
+                    <div style="font-weight:bold;margin-bottom:5px;">接单状态</div>
+                    <div style="font-size:12px;color:#5a6d7e;" id="statusTip">在线可接收新订单</div>
+                </div>
+                <div class="status-switch" id="statusSwitch" onclick="toggleStatus()"></div>
+            </div>
+
+            <!-- 统计卡片 -->
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-value" id="todayOrders">0</div>
+                    <div class="stat-label">今日订单</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="completedToday">0</div>
+                    <div class="stat-label">已完成</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="todayIncome">¥0</div>
+                    <div class="stat-label">今日收入</div>
+                </div>
+            </div>
+
+            <!-- 订单标签页 -->
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('new', this)">新订单</div>
+                <div class="tab" onclick="switchTab('ongoing', this)">进行中</div>
+                <div class="tab" onclick="switchTab('history', this)">历史</div>
+            </div>
+
+            <!-- 订单列表 -->
+            <div id="orderList"></div>
+        </div>
+    </div>
+
+    <!-- 订单详情弹窗 -->
+    <div class="modal" id="orderModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">📋 订单详情</span>
+                <button class="modal-close" onclick="closeModal('orderModal')">×</button>
+            </div>
+            <div id="orderDetail"></div>
+            <div class="map-container" id="orderMap"></div>
+            <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap;">
+                <a id="callBtn" href="#" class="action-btn btn-call" style="flex:1;text-align:center;text-decoration:none;display:inline-block;padding:12px;">📞 联系客户</a>
+                <a id="navBtn" href="#" target="_blank" class="action-btn btn-navigate" style="flex:1;text-align:center;text-decoration:none;display:inline-block;padding:12px;">🗺️ 导航</a>
+            </div>
+            <div id="orderActions" style="margin-top:15px;"></div>
+        </div>
+    </div>
+
+    <!-- 提示框 -->
+    <div class="alert-overlay" id="alertOverlay" style="display:none;"></div>
+    <div class="alert" id="alertBox" style="display:none;">
+        <h3 id="alertTitle">提示</h3>
+        <p id="alertMessage" style="margin:15px 0;"></p>
+        <button class="login-btn" onclick="hideAlert()" style="margin-top:10px;">确定</button>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        let currentTab = 'new';
+        let allOrders = [];
+        let currentOrderId = null;
+        let orderMap = null;
+        let isOnline = true;
+        let driverInfo = {
+            id: 1,
+            name: '王师傅',
+            phone: '139****6666',
+            rating: 4.9,
+            vehicle_plate: '京 B·99999',
+            vehicle_model: '江铃特顺救援车'
+        };
+
+        // 模拟订单数据
+        const mockOrders = [
+            {
+                id: 1,
+                order_no: 'RZ20260323000001',
+                status: 'pending',
+                current_location: '北京市朝阳区建国路 88 号',
+                destination: '北京市朝阳区修车厂',
+                vehicle_plate: '京 A·88888',
+                problem_description: '车辆熄火无法启动',
+                price: 200,
+                created_at: new Date().toISOString(),
+                customer_phone: '138****1234'
+            },
+            {
+                id: 2,
+                order_no: 'RZ20260323000002',
+                status: 'processing',
+                current_location: '北京市海淀区中关村大街 1 号',
+                destination: '北京市海淀区汽车维修中心',
+                vehicle_plate: '京 C·66666',
+                problem_description: '轮胎爆胎需要拖车',
+                price: 400,
+                created_at: new Date(Date.now() - 3600000).toISOString(),
+                customer_phone: '139****5678',
+                driver_action: 'going'
+            }
+        ];
+
+        // 登录
+        function login() {
+            const username = document.getElementById('driverUsername').value;
+            const password = document.getElementById('driverPassword').value;
+
+            // 简单验证（实际应该调用 API）
+            if (username && password) {
+                localStorage.setItem('driverToken', 'driver_token_' + username);
+                document.getElementById('loginPage').style.display = 'none';
+                document.getElementById('driverPanel').classList.add('active');
+                document.getElementById('driverName').textContent = driverInfo.name;
+                loadDashboard();
+            } else {
+                showAlert('error', '登录失败', '请输入账号和密码');
+            }
+        }
+
+        // 退出
+        function logout() {
+            localStorage.removeItem('driverToken');
+            document.getElementById('loginPage').style.display = 'flex';
+            document.getElementById('driverPanel').classList.remove('active');
+        }
+
+        // 切换在线状态
+        function toggleStatus() {
+            isOnline = !isOnline;
+            const switchEl = document.getElementById('statusSwitch');
+            const statusEl = document.getElementById('driverStatus');
+            const tipEl = document.getElementById('statusTip');
+
+            if (isOnline) {
+                switchEl.classList.remove('offline');
+                statusEl.className = 'driver-status status-online';
+                statusEl.textContent = '● 在线';
+                tipEl.textContent = '在线可接收新订单';
+            } else {
+                switchEl.classList.add('offline');
+                statusEl.className = 'driver-status status-offline';
+                statusEl.textContent = '● 离线';
+                tipEl.textContent = '离线不会接收新订单';
+            }
+        }
+
+        // 切换订单标签
+        function switchTab(tab, el) {
+            currentTab = tab;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            loadOrders();
+        }
+
+        // 加载仪表盘
+        function loadDashboard() {
+            // 统计数据
+            const today = new Date().toDateString();
+            const todayOrders = mockOrders.filter(o => new Date(o.created_at).toDateString() === today);
+            const completed = todayOrders.filter(o => o.status === 'completed').length;
+            const income = todayOrders.filter(o => o.status === 'completed').reduce((sum, o) => sum + o.price, 0);
+
+            document.getElementById('todayOrders').textContent = todayOrders.length;
+            document.getElementById('completedToday').textContent = completed;
+            document.getElementById('todayIncome').textContent = '¥' + income;
+
+            loadOrders();
+        }
+
+        // 加载订单
+        function loadOrders() {
+            const container = document.getElementById('orderList');
+            
+            let filteredOrders = [];
+            if (currentTab === 'new') {
+                filteredOrders = mockOrders.filter(o => o.status === 'pending');
+            } else if (currentTab === 'ongoing') {
+                filteredOrders = mockOrders.filter(o => o.status === 'processing');
+            } else {
+                filteredOrders = mockOrders.filter(o => o.status === 'completed' || o.status === 'cancelled');
+            }
+
+            if (filteredOrders.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">${currentTab === 'new' ? '📭' : currentTab === 'ongoing' ? '🕐' : '📚'}</div>
+                        <div>暂无${currentTab === 'new' ? '新订单' : currentTab === 'ongoing' ? '进行中订单' : '历史订单'}</div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filteredOrders.map(order => {
+                const statusMap = {
+                    'pending': '<span class="order-status status-new">新订单</span>',
+                    'processing': order.driver_action === 'going' ? 
+                        '<span class="order-status status-going">前往中</span>' : 
+                        '<span class="order-status status-arrived">已到达</span>',
+                    'completed': '<span class="order-status status-completed">已完成</span>',
+                    'cancelled': '<span class="order-status status-cancelled">已取消</span>'
+                };
+
+                return `
+                    <div class="order-card">
+                        <div class="order-header">
+                            <span class="order-no">${order.order_no}</span>
+                            ${statusMap[order.status]}
+                        </div>
+                        <div class="order-location">
+                            <div class="location-item">
+                                <div class="location-dot"></div>
+                                <div>
+                                    <div class="location-label">📍 当前位置</div>
+                                    <div class="location-text">${order.current_location}</div>
+                                </div>
+                            </div>
+                            ${order.destination ? `
+                            <div class="location-item">
+                                <div class="location-dot destination"></div>
+                                <div>
+                                    <div class="location-label">🎯 目的地</div>
+                                    <div class="location-text">${order.destination}</div>
+                                </div>
+                            </div>
+                            ` : ''}
+                        </div>
+                        <div class="order-info">
+                            <div class="info-item">
+                                <div class="info-label">车辆信息</div>
+                                <div class="info-value">${order.vehicle_plate}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">服务费用</div>
+                                <div class="info-value" style="color:var(--accent-color);font-weight:bold;">¥${order.price}</div>
+                            </div>
+                        </div>
+                        <div class="order-actions">
+                            <button class="action-btn btn-call" onclick="callCustomer('${order.customer_phone}')">📞 联系客户</button>
+                            <button class="action-btn btn-navigate" onclick="navigate('${order.current_location}')">🗺️ 导航</button>
+                        </div>
+                        ${order.status === 'pending' ? `
+                        <button class="action-btn btn-start" onclick="startOrder(${order.id})" style="width:100%;margin-top:10px;">✅ 开始服务</button>
+                        ` : ''}
+                        ${order.status === 'processing' && order.driver_action === 'arrived' ? `
+                        <button class="action-btn btn-complete" onclick="completeOrder(${order.id})" style="width:100%;margin-top:10px;">✨ 完成订单</button>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 查看订单详情
+        function viewOrder(orderId) {
+            currentOrderId = orderId;
+            const order = mockOrders.find(o => o.id === orderId);
+            if (!order) return;
+
+            document.getElementById('orderDetail').innerHTML = `
+                <div style="margin-bottom:15px;">
+                    <div style="font-size:12px;color:#5a6d7e;margin-bottom:5px;">订单号</div>
+                    <div style="font-family:monospace;font-size:14px;">${order.order_no}</div>
+                </div>
+                <div style="margin-bottom:15px;">
+                    <div style="font-size:12px;color:#5a6d7e;margin-bottom:5px;">问题描述</div>
+                    <div style="font-size:14px;">${order.problem_description}</div>
+                </div>
+                <div style="margin-bottom:15px;">
+                    <div style="font-size:12px;color:#5a6d7e;margin-bottom:5px;">客户电话</div>
+                    <div style="font-size:14px;">${order.customer_phone}</div>
+                </div>
+                <div style="margin-bottom:15px;">
+                    <div style="font-size:12px;color:#5a6d7e;margin-bottom:5px;">服务费用</div>
+                    <div style="font-size:18px;color:var(--accent-color);font-weight:bold;">¥${order.price}</div>
+                </div>
+            `;
+
+            document.getElementById('callBtn').href = `tel:${order.customer_phone.replace(/\*/g, '')}`;
+            document.getElementById('navBtn').href = `https://uri.amap.com/marker?position=${encodeURIComponent(order.current_location)}&name=救援位置`;
+
+            // 操作按钮
+            const actionsDiv = document.getElementById('orderActions');
+            if (order.status === 'pending') {
+                actionsDiv.innerHTML = `
+                    <button class="action-btn btn-start" onclick="startOrder(${order.id})" style="width:100%;padding:14px;">✅ 开始服务</button>
+                `;
+            } else if (order.status === 'processing') {
+                if (order.driver_action === 'going') {
+                    actionsDiv.innerHTML = `
+                        <div style="display:flex;gap:10px;">
+                            <button class="action-btn btn-navigate" onclick="markArrived(${order.id})" style="flex:1;padding:14px;">📍 已到达</button>
+                        </div>
+                    `;
+                } else {
+                    actionsDiv.innerHTML = `
+                        <button class="action-btn btn-complete" onclick="completeOrder(${order.id})" style="width:100%;padding:14px;">✨ 完成订单</button>
+                    `;
+                }
+            }
+
+            document.getElementById('orderModal').classList.add('active');
+            
+            // 初始化地图
+            setTimeout(() => initOrderMap(order), 100);
+        }
+
+        // 初始化地图
+        function initOrderMap(order) {
+            if (orderMap) {
+                orderMap.remove();
+            }
+
+            let lat = 39.9042, lng = 116.4074;
+            const coords = order.current_location?.match(/(-?\d+\.?\d*),\s*(-?\d+\.?\d*)/);
+            if (coords) {
+                lat = parseFloat(coords[1]);
+                lng = parseFloat(coords[2]);
+            }
+
+            orderMap = L.map('orderMap').setView([lat, lng], 13);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap'
+            }).addTo(orderMap);
+
+            L.marker([lat, lng]).addTo(orderMap)
+                .bindPopup('📍 ' + order.current_location)
+                .openPopup();
+        }
+
+        // 开始服务
+        function startOrder(orderId) {
+            const order = mockOrders.find(o => o.id === orderId);
+            if (order) {
+                order.status = 'processing';
+                order.driver_action = 'going';
+                closeModal('orderModal');
+                showAlert('success', '开始服务', '订单已开始，请前往现场', () => {
+                    loadOrders();
+                    loadDashboard();
+                });
+            }
+        }
+
+        // 标记到达
+        function markArrived(orderId) {
+            const order = mockOrders.find(o => o.id === orderId);
+            if (order) {
+                order.driver_action = 'arrived';
+                closeModal('orderModal');
+                showAlert('success', '已到达', '请完成救援后标记订单完成', () => {
+                    loadOrders();
+                });
+            }
+        }
+
+        // 完成订单
+        function completeOrder(orderId) {
+            const order = mockOrders.find(o => o.id === orderId);
+            if (order) {
+                order.status = 'completed';
+                closeModal('orderModal');
+                showAlert('success', '订单完成', '感谢您的服务！', () => {
+                    loadOrders();
+                    loadDashboard();
+                });
+            }
+        }
+
+        // 联系客户
+        function callCustomer(phone) {
+            window.location.href = `tel:${phone.replace(/\*/g, '')}`;
+        }
+
+        // 导航
+        function navigate(location) {
+            const coords = location.match(/(-?\d+\.?\d*),\s*(-?\d+\.?\d*)/);
+            if (coords) {
+                window.open(`https://uri.amap.com/marker?position=${coords[1]},${coords[2]}&name=救援位置`, '_blank');
+            } else {
+                window.open(`https://uri.amap.com/search?keyword=${encodeURIComponent(location)}`, '_blank');
+            }
+        }
+
+        // 关闭弹窗
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        // 提示框
+        function showAlert(type, title, message, callback) {
+            const alert = document.getElementById('alertBox');
+            const overlay = document.getElementById('alertOverlay');
+            
+            alert.className = 'alert ' + type;
+            document.getElementById('alertTitle').textContent = title;
+            document.getElementById('alertMessage').innerHTML = message.replace(/\n/g, '<br>');
+            
+            alert.callback = callback;
+            alert.style.display = 'block';
+            overlay.style.display = 'block';
+        }
+
+        function hideAlert() {
+            const alert = document.getElementById('alertBox');
+            const overlay = document.getElementById('alertOverlay');
+            
+            alert.style.display = 'none';
+            overlay.style.display = 'none';
+            
+            if (alert.callback) {
+                alert.callback();
+                alert.callback = null;
+            }
+        }
+
+        // 回车登录
+        document.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && document.getElementById('loginPage').style.display !== 'none') {
+                login();
+            }
+        });
+
+        // 页面加载时检查登录状态
+        window.addEventListener('load', () => {
+            const token = localStorage.getItem('driverToken');
+            if (token) {
+                document.getElementById('loginPage').style.display = 'none';
+                document.getElementById('driverPanel').classList.add('active');
+                loadDashboard();
+            }
+        });
+    </script>
+</body>
+</html>
