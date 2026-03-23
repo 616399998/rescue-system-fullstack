@@ -44,7 +44,7 @@ const ADMIN_USER = {
 // ==================== 公共接口 ====================
 
 // 创建订单（个人端、交管端、执法端、保险端）
-router.post('/orders', async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const {
       service_type, // accident:事故拖车，violation:违法拖车，breakdown:故障救援
@@ -110,7 +110,7 @@ router.post('/orders', async (req, res) => {
 });
 
 // 获取订单列表（个人端、司机端）
-router.get('/orders', async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { status, page = 1, limit = 10, driver_id } = req.query;
     
@@ -177,7 +177,7 @@ router.get('/orders', async (req, res) => {
 });
 
 // 获取订单详情（个人端）
-router.get('/orders/:id', async (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
     const order = await get('SELECT * FROM orders WHERE id = ?', [req.params.id]);
 
@@ -234,7 +234,7 @@ router.get('/orders/:id', async (req, res) => {
 });
 
 // 取消订单（个人端）- 文档第 35 项
-router.put('/orders/:id/cancel', async (req, res) => {
+router.put('/:id/cancel', async (req, res) => {
   try {
     const orderId = req.params.id;
     const { reason } = req.body;
@@ -264,7 +264,7 @@ router.put('/orders/:id/cancel', async (req, res) => {
 });
 
 // 提交评价（个人端）- 文档第 38 项
-router.post('/orders/:id/rate', async (req, res) => {
+router.post('/:id/rate', async (req, res) => {
   try {
     const orderId = req.params.id;
     const { rating, comment } = req.body;
