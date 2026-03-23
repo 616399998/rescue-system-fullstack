@@ -416,48 +416,49 @@
 
             <!-- 个人报表 -->
             <div id="reportContent" style="display:none;">
-                <div class="stats-row">
+                <div class="section-title" style="font-size:16px;font-weight:bold;margin-bottom:15px;">📊 收入统计</div>
+                <div class="stats-row" style="grid-template-columns:repeat(2,1fr);margin-bottom:25px;">
                     <div class="stat-card">
-                        <div class="stat-value" id="reportTodayOrders">0</div>
+                        <div class="stat-value" id="reportTodayOrders" style="font-size:28px;">0</div>
                         <div class="stat-label">今日订单</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value" id="reportTodayIncome">¥0</div>
+                        <div class="stat-value" id="reportTodayIncome" style="font-size:28px;">¥0</div>
                         <div class="stat-label">今日收入</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value" id="reportMonthOrders">0</div>
+                        <div class="stat-value" id="reportMonthOrders" style="font-size:28px;">0</div>
                         <div class="stat-label">本月订单</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value" id="reportMonthIncome">¥0</div>
+                        <div class="stat-value" id="reportMonthIncome" style="font-size:28px;">¥0</div>
                         <div class="stat-label">本月收入</div>
                     </div>
                 </div>
 
-                <div class="section-title" style="font-size:16px;font-weight:bold;margin:20px 0 15px;">📊 近 7 日收入统计</div>
-                <div class="table-container">
+                <div class="section-title" style="font-size:15px;font-weight:bold;margin:20px 0 15px;">📈 近 7 日收入</div>
+                <div class="table-container" style="margin-bottom:25px;">
                     <table>
                         <thead>
                             <tr>
-                                <th>日期</th>
-                                <th>订单数</th>
-                                <th>收入</th>
+                                <th style="font-size:12px;">日期</th>
+                                <th style="font-size:12px;">订单数</th>
+                                <th style="font-size:12px;">收入</th>
                             </tr>
                         </thead>
                         <tbody id="dailyStatsTable"></tbody>
                     </table>
                 </div>
 
-                <div class="section-title" style="font-size:16px;font-weight:bold;margin:20px 0 15px;">📋 历史订单</div>
+                <div class="section-title" style="font-size:15px;font-weight:bold;margin:20px 0 15px;">📋 历史订单</div>
                 <div class="table-container">
                     <table>
                         <thead>
                             <tr>
-                                <th>订单号</th>
-                                <th>日期</th>
-                                <th>状态</th>
-                                <th>收入</th>
+                                <th style="font-size:12px;">订单号</th>
+                                <th style="font-size:12px;">日期</th>
+                                <th style="font-size:12px;">状态</th>
+                                <th style="font-size:12px;">收入</th>
                             </tr>
                         </thead>
                         <tbody id="historyOrdersTable"></tbody>
@@ -467,74 +468,78 @@
 
             <!-- 个人中心 -->
             <div id="profileContent" style="display:none;">
-                <div class="profile-header" style="background:var(--card-bg);border:1px solid rgba(0,240,255,0.2);border-radius:20px;padding:25px;margin-bottom:20px;">
-                    <div class="driver-avatar" style="width:80px;height:80px;font-size:40px;">🚛</div>
+                <div style="background:var(--card-bg);border:1px solid rgba(0,240,255,0.2);border-radius:20px;padding:25px;margin-bottom:25px;display:flex;align-items:center;gap:20px;">
+                    <div style="width:70px;height:70px;border-radius:50%;background:linear-gradient(135deg,var(--secondary-color),var(--primary-color));display:flex;align-items:center;justify-content:center;font-size:32px;">🚛</div>
                     <div style="flex:1;">
-                        <div style="font-size:20px;font-weight:bold;margin-bottom:8px;" id="profileName">王师傅</div>
-                        <div style="font-size:12px;color:#5a6d7e;">📱 <span id="profilePhone">139****6666</span></div>
-                        <div style="font-size:12px;color:#5a6d7e;margin-top:5px;">⭐ 评分：<span id="profileRating" style="color:var(--warning-color);">4.9</span></div>
-                        <div style="font-size:12px;color:#5a6d7e;margin-top:5px;">🚗 <span id="profileVehicle">京 B·99999</span></div>
+                        <div style="font-size:18px;font-weight:bold;margin-bottom:8px;" id="profileName">王师傅</div>
+                        <div style="font-size:12px;color:#5a6d7e;margin-bottom:5px;">📱 <span id="profilePhone">139****6666</span></div>
+                        <div style="font-size:12px;color:#5a6d7e;">⭐ 评分：<span id="profileRating" style="color:var(--warning-color);font-weight:bold;">4.9</span></div>
                     </div>
                 </div>
 
-                <div class="stats-row">
+                <div class="section-title" style="font-size:15px;font-weight:bold;margin-bottom:15px;">📊 数据统计</div>
+                <div class="stats-row" style="grid-template-columns:repeat(3,1fr);margin-bottom:25px;">
                     <div class="stat-card">
-                        <div class="stat-value" id="profileTotalOrders">0</div>
+                        <div class="stat-value" id="profileTotalOrders" style="font-size:24px;">0</div>
                         <div class="stat-label">累计订单</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value" id="profileTotalIncome">¥0</div>
+                        <div class="stat-value" id="profileTotalIncome" style="font-size:24px;">¥0</div>
                         <div class="stat-label">总收入</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value" id="profileCompletedRate">100%</div>
+                        <div class="stat-value" id="profileCompletedRate" style="font-size:24px;">100%</div>
                         <div class="stat-label">完成率</div>
                     </div>
                 </div>
 
-                <div class="section-title" style="font-size:16px;font-weight:bold;margin:20px 0 15px;">📝 我的证照</div>
-                <div class="table-container" style="padding:20px;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;padding-bottom:15px;border-bottom:1px solid rgba(0,240,255,0.1);">
-                        <div>
-                            <div style="font-weight:bold;margin-bottom:5px;">🪪 驾驶证</div>
-                            <div style="font-size:12px;color:#5a6d7e;">证号：110101********1234</div>
+                <div class="section-title" style="font-size:15px;font-weight:bold;margin-bottom:15px;">📝 我的证照</div>
+                <div style="background:var(--card-bg);border:1px solid rgba(0,240,255,0.2);border-radius:15px;padding:20px;margin-bottom:25px;">
+                    <div style="padding:15px;background:rgba(0,240,255,0.05);border-radius:12px;margin-bottom:15px;">
+                        <div style="display:flex;justify-content:space-between;align-items:start;">
+                            <div>
+                                <div style="font-weight:bold;margin-bottom:8px;font-size:14px;">🪪 驾驶证</div>
+                                <div style="font-size:12px;color:#5a6d7e;">证号：110101********1234</div>
+                            </div>
+                            <div style="font-size:11px;color:var(--success-color);background:rgba(0,255,136,0.1);padding:4px 10px;border-radius:10px;">✅ 有效</div>
                         </div>
-                        <div style="font-size:12px;color:var(--success-color);">✅ 有效期内</div>
                     </div>
-                    <div style="display:flex;justify-content:space-between;align-items:center;">
-                        <div>
-                            <div style="font-weight:bold;margin-bottom:5px;">📜 从业资格证</div>
-                            <div style="font-size:12px;color:#5a6d7e;">证号：110101********5678</div>
+                    <div style="padding:15px;background:rgba(0,240,255,0.05);border-radius:12px;">
+                        <div style="display:flex;justify-content:space-between;align-items:start;">
+                            <div>
+                                <div style="font-weight:bold;margin-bottom:8px;font-size:14px;">📜 从业资格证</div>
+                                <div style="font-size:12px;color:#5a6d7e;">证号：110101********5678</div>
+                            </div>
+                            <div style="font-size:11px;color:var(--success-color);background:rgba(0,255,136,0.1);padding:4px 10px;border-radius:10px;">✅ 有效</div>
                         </div>
-                        <div style="font-size:12px;color:var(--success-color);">✅ 有效期内</div>
                     </div>
                 </div>
 
-                <div class="section-title" style="font-size:16px;font-weight:bold;margin:20px 0 15px;">⚙️ 设置</div>
-                <div class="service-list">
-                    <div class="service-item" onclick="showAlert('info', '修改密码', '功能开发中...')">
-                        <div class="service-icon">🔐</div>
-                        <div class="service-info">
-                            <div class="service-name">修改密码</div>
-                            <div class="service-desc">定期更换密码更安全</div>
+                <div class="section-title" style="font-size:15px;font-weight:bold;margin-bottom:15px;">⚙️ 设置</div>
+                <div style="background:var(--card-bg);border:1px solid rgba(0,240,255,0.2);border-radius:15px;overflow:hidden;">
+                    <div style="padding:18px 20px;border-bottom:1px solid rgba(0,240,255,0.1);display:flex;align-items:center;gap:15px;cursor:pointer;" onclick="showAlert('info', '修改密码', '功能开发中...')">
+                        <div style="font-size:20px;">🔐</div>
+                        <div style="flex:1;">
+                            <div style="font-size:14px;font-weight:bold;">修改密码</div>
+                            <div style="font-size:11px;color:#5a6d7e;margin-top:3px;">定期更换密码更安全</div>
                         </div>
-                        <div style="font-size:20px;color:var(--primary-color);">→</div>
+                        <div style="font-size:18px;color:#5a6d7e;">›</div>
                     </div>
-                    <div class="service-item" onclick="showAlert('info', '联系客服', '客服电话：400-123-4567')">
-                        <div class="service-icon">📞</div>
-                        <div class="service-info">
-                            <div class="service-name">联系客服</div>
-                            <div class="service-desc">400-123-4567</div>
+                    <div style="padding:18px 20px;border-bottom:1px solid rgba(0,240,255,0.1);display:flex;align-items:center;gap:15px;cursor:pointer;" onclick="showAlert('info', '联系客服', '客服电话：400-123-4567')">
+                        <div style="font-size:20px;">📞</div>
+                        <div style="flex:1;">
+                            <div style="font-size:14px;font-weight:bold;">联系客服</div>
+                            <div style="font-size:11px;color:#5a6d7e;margin-top:3px;">400-123-4567</div>
                         </div>
-                        <div style="font-size:20px;color:var(--primary-color);">→</div>
+                        <div style="font-size:18px;color:#5a6d7e;">›</div>
                     </div>
-                    <div class="service-item" onclick="logout()">
-                        <div class="service-icon">🚪</div>
-                        <div class="service-info">
-                            <div class="service-name">退出登录</div>
-                            <div class="service-desc">安全退出当前账号</div>
+                    <div style="padding:18px 20px;display:flex;align-items:center;gap:15px;cursor:pointer;" onclick="logout()">
+                        <div style="font-size:20px;">🚪</div>
+                        <div style="flex:1;">
+                            <div style="font-size:14px;font-weight:bold;">退出登录</div>
+                            <div style="font-size:11px;color:#5a6d7e;margin-top:3px;">安全退出当前账号</div>
                         </div>
-                        <div style="font-size:20px;color:var(--primary-color);">→</div>
+                        <div style="font-size:18px;color:#5a6d7e;">›</div>
                     </div>
                 </div>
             </div>
