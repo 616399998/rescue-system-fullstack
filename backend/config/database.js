@@ -69,6 +69,13 @@ function initDatabase() {
           bonus REAL DEFAULT 0,
           status TEXT DEFAULT 'completed',
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`,
+        `CREATE TABLE IF NOT EXISTS dispatch_log (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          order_id INTEGER NOT NULL,
+          driver_id INTEGER NOT NULL,
+          admin_user TEXT DEFAULT 'admin',
+          dispatched_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )`
       ];
 

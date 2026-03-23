@@ -1,20 +1,53 @@
 const express = require('express');
 const router = express.Router();
-const { v4: uuidv4 } = require('uuid');
 const { run, all, get } = require('../config/database');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
-// 模拟司机数据
-const mockDrivers = [
-  { id: 1, name: '王师傅', phone: '139****6666', rating: 4.9, orders: 328, vehicle_plate: '京 B·99999', vehicle_model: '江铃特顺救援车' },
-  { id: 2, name: '李师傅', phone: '138****5555', rating: 4.8, orders: 256, vehicle_plate: '京 C·88888', vehicle_model: '福田救援车' },
-  { id: 3, name: '张师傅', phone: '137****7777', rating: 4.9, orders: 412, vehicle_plate: '京 D·66666', vehicle_model: '依维柯救援车' }
-];
+// 文件上传配置
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(__dirname, '../uploads/orders');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
 
-// 创建订单
-router.post('/', async (req, res) => {
+const upload = multer({ 
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    if (extname && mimetype) {
+      cb(null, true);
+    } else {
+      cb(new Error('只支持图片文件'));
+    }
+  }
+});
+
+// 管理员账号
+const ADMIN_USER = {
+  username: 'admin',
+  password: 'admin123'
+};
+
+// ==================== 公共接口 ====================
+
+// 创建订单（个人端、交管端、执法端、保险端）
+router.post('/orders', async (req, res) => {
   try {
     const {
-      service_type,
+      service_type, // accident:事故拖车，violation:违法拖车，breakdown:故障救援
       vehicle_type,
       vehicle_plate,
       vehicle_brand,
@@ -22,51 +55,53 @@ router.post('/', async (req, res) => {
       current_location,
       destination,
       address,
-      problem_description
+      problem_description,
+      owner_name,
+      owner_phone,
+      movable, // yes/no
+      special_note,
+      photos = []
     } = req.body;
 
-    if (!service_type || !current_location) {
+    if (!service_type || !current_location || !owner_phone) {
       return res.status(400).json({ error: '缺少必要参数' });
     }
 
     const orderNo = 'RZ' + new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14) + Math.random().toString(36).slice(2, 4).toUpperCase();
 
-    // 只保留拖车服务价格
-    const prices = { 'tow': 200 };
+    const prices = { 'tow': 200, 'accident': 200, 'violation': 200, 'breakdown': 200 };
     const price = prices[service_type] || 200;
-
-    const driver = mockDrivers[Math.floor(Math.random() * mockDrivers.length)];
 
     const result = await run(`
       INSERT INTO orders (
         order_no, user_id, service_type, vehicle_type, vehicle_plate,
         vehicle_brand, vehicle_color, current_location, destination,
         address, problem_description, status, price,
+        owner_name, owner_phone, movable, special_note, photos,
         driver_id, driver_name, driver_phone, driver_rating,
         rescue_vehicle_plate, rescue_vehicle_model, progress
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'processing', ?, ?, ?, ?, ?, ?, ?, 0)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
     `, [
       orderNo, 1, service_type,
-      vehicle_type || 'sedan', vehicle_plate || '京 A·88888',
-      vehicle_brand || '大众', vehicle_color || '白色',
+      vehicle_type || 'sedan', vehicle_plate || '',
+      vehicle_brand || '', vehicle_color || '',
       current_location, destination || '',
       address || '', problem_description || '',
-      price, driver.id, driver.name, driver.phone, driver.rating,
-      driver.vehicle_plate, driver.vehicle_model
+      price, owner_name || '', owner_phone, movable || 'yes', special_note || '',
+      JSON.stringify(photos),
+      null, null, null, null, null, null
     ]);
 
-    await run(`INSERT INTO order_timeline (order_id, status, description) VALUES (?, 'processing', '订单已提交，拖车师傅正在前往')`, [result.lastInsertRowid]);
+    // 插入时间线
+    await run(
+      'INSERT INTO order_timeline (order_id, status, description) VALUES (?, ?, ?)',
+      [result.lastInsertRowid, 'pending', '订单已提交，等待调度中心审核']
+    );
 
     res.status(201).json({ 
       message: '订单创建成功', 
       orderId: result.lastInsertRowid, 
-      orderNo,
-      price,
-      driver: {
-        name: driver.name,
-        phone: driver.phone,
-        eta: '30 分钟'
-      }
+      orderNo 
     });
   } catch (error) {
     console.error('创建订单错误:', error);
@@ -74,8 +109,8 @@ router.post('/', async (req, res) => {
   }
 });
 
-// 获取订单列表
-router.get('/', async (req, res) => {
+// 获取订单列表（个人端）
+router.get('/orders', async (req, res) => {
   try {
     const { status, page = 1, limit = 10 } = req.query;
     
@@ -92,32 +127,37 @@ router.get('/', async (req, res) => {
 
     const orders = await all(query, params);
 
-    const formattedOrders = orders.map(order => ({
-      id: order.id,
-      order_no: order.order_no,
-      status: order.status,
-      status_text: order.status === 'pending' ? '待处理' : order.status === 'processing' ? '进行中' : '已完成',
-      service_type: order.service_type,
-      service_name: '拖车救援',
-      price: order.price,
-      created_at: order.created_at,
-      vehicle_type: order.vehicle_type,
-      vehicle_plate: order.vehicle_plate,
-      current_location: order.current_location,
-      destination: order.destination,
-      driver: order.driver_name ? {
-        name: order.driver_name,
-        phone: order.driver_phone,
-        rating: order.driver_rating,
-        orders: mockDrivers.find(d => d.id === order.driver_id)?.orders || 0
-      } : null,
-      rescue_vehicle: order.rescue_vehicle_plate ? {
-        plate: order.rescue_vehicle_plate,
-        model: order.rescue_vehicle_model,
-        status: order.status === 'processing' ? '正在前往' : '已完成',
-        progress: order.progress
-      } : null
-    }));
+    const formattedOrders = orders.map(order => {
+      let statusText = '待处理';
+      if (order.status === 'processing') statusText = '进行中';
+      else if (order.status === 'completed') statusText = '已完成';
+      else if (order.status === 'cancelled') statusText = '已取消';
+
+      return {
+        id: order.id,
+        order_no: order.order_no,
+        status: order.status,
+        status_text: statusText,
+        service_type: order.service_type,
+        price: order.price,
+        created_at: order.created_at,
+        vehicle_type: order.vehicle_type,
+        vehicle_plate: order.vehicle_plate,
+        current_location: order.current_location,
+        destination: order.destination,
+        owner_name: order.owner_name,
+        owner_phone: order.owner_phone,
+        rated: order.rated || false,
+        driver: order.driver_name ? {
+          name: order.driver_name,
+          phone: order.driver_phone,
+          rating: order.driver_rating,
+          orders: 0,
+          vehicle_plate: order.rescue_vehicle_plate,
+          vehicle_model: order.rescue_vehicle_model
+        } : null
+      };
+    });
 
     res.json({ orders: formattedOrders });
   } catch (error) {
@@ -126,8 +166,8 @@ router.get('/', async (req, res) => {
   }
 });
 
-// 获取订单详情
-router.get('/:id', async (req, res) => {
+// 获取订单详情（个人端）
+router.get('/orders/:id', async (req, res) => {
   try {
     const order = await get('SELECT * FROM orders WHERE id = ?', [req.params.id]);
 
@@ -137,13 +177,17 @@ router.get('/:id', async (req, res) => {
 
     const timeline = await all('SELECT * FROM order_timeline WHERE order_id = ? ORDER BY created_at', [order.id]);
 
+    let statusText = '待处理';
+    if (order.status === 'processing') statusText = '进行中';
+    else if (order.status === 'completed') statusText = '已完成';
+    else if (order.status === 'cancelled') statusText = '已取消';
+
     const formattedOrder = {
       id: order.id,
       order_no: order.order_no,
       status: order.status,
-      status_text: order.status === 'pending' ? '待处理' : order.status === 'processing' ? '进行中' : '已完成',
+      status_text: statusText,
       service_type: order.service_type,
-      service_name: '拖车救援',
       price: order.price,
       created_at: order.created_at,
       vehicle_type: order.vehicle_type,
@@ -151,11 +195,17 @@ router.get('/:id', async (req, res) => {
       current_location: order.current_location,
       destination: order.destination,
       problem_description: order.problem_description,
+      owner_name: order.owner_name,
+      owner_phone: order.owner_phone,
+      movable: order.movable,
+      special_note: order.special_note,
+      photos: order.photos ? JSON.parse(order.photos) : [],
+      rated: order.rated || false,
       driver: order.driver_name ? {
         name: order.driver_name,
         phone: order.driver_phone,
         rating: order.driver_rating,
-        orders: mockDrivers.find(d => d.id === order.driver_id)?.orders || 0,
+        orders: 0,
         vehicle_plate: order.rescue_vehicle_plate,
         vehicle_model: order.rescue_vehicle_model
       } : null,
@@ -170,6 +220,84 @@ router.get('/:id', async (req, res) => {
   } catch (error) {
     console.error('获取订单详情错误:', error);
     res.status(500).json({ error: '获取订单失败' });
+  }
+});
+
+// 取消订单（个人端）- 文档第 35 项
+router.put('/orders/:id/cancel', async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const { reason } = req.body;
+
+    const order = await get('SELECT * FROM orders WHERE id = ?', [orderId]);
+    if (!order) {
+      return res.status(404).json({ error: '订单不存在' });
+    }
+
+    // 只有待处理状态可以取消
+    if (order.status !== 'pending') {
+      return res.status(400).json({ error: '订单已开始处理，无法取消' });
+    }
+
+    await run('UPDATE orders SET status = ? WHERE id = ?', ['cancelled', orderId]);
+
+    await run(
+      'INSERT INTO order_timeline (order_id, status, description) VALUES (?, ?, ?)',
+      [orderId, 'cancelled', `用户取消订单${reason ? '：' + reason : ''}`]
+    );
+
+    res.json({ success: true, message: '订单已取消' });
+  } catch (error) {
+    console.error('取消订单错误:', error);
+    res.status(500).json({ error: '取消订单失败' });
+  }
+});
+
+// 提交评价（个人端）- 文档第 38 项
+router.post('/orders/:id/rate', async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const { rating, comment } = req.body;
+
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ error: '评分无效' });
+    }
+
+    const order = await get('SELECT * FROM orders WHERE id = ?', [orderId]);
+    if (!order) {
+      return res.status(404).json({ error: '订单不存在' });
+    }
+
+    if (order.status !== 'completed') {
+      return res.status(400).json({ error: '订单未完成，无法评价' });
+    }
+
+    if (order.rated) {
+      return res.status(400).json({ error: '已评价过该订单' });
+    }
+
+    await run(`
+      UPDATE orders SET 
+        rating = ?, comment = ?, rated = 1, rated_at = ?
+      WHERE id = ?
+    `, [rating, comment || '', new Date().toISOString(), orderId]);
+
+    res.json({ success: true, message: '评价成功' });
+  } catch (error) {
+    console.error('提交评价错误:', error);
+    res.status(500).json({ error: '提交评价失败' });
+  }
+});
+
+// 上传照片
+router.post('/upload', upload.array('photos', 9), (req, res) => {
+  try {
+    const files = req.files || [];
+    const urls = files.map(file => `/uploads/orders/${file.filename}`);
+    res.json({ success: true, urls });
+  } catch (error) {
+    console.error('上传照片错误:', error);
+    res.status(500).json({ error: '上传失败' });
   }
 });
 

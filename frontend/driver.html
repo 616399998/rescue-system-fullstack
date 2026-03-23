@@ -50,12 +50,7 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
-        .login-subtitle {
-            text-align: center;
-            color: #5a6d7e;
-            margin-bottom: 30px;
-            font-size: 14px;
-        }
+        .login-subtitle { text-align: center; color: #5a6d7e; margin-bottom: 30px; font-size: 14px; }
         .form-group { margin-bottom: 20px; }
         .form-label { display: block; font-size: 13px; color: #5a6d7e; margin-bottom: 8px; }
         .form-input {
@@ -94,22 +89,16 @@
         }
         .driver-info { display: flex; align-items: center; gap: 15px; }
         .driver-avatar {
-            width: 50px;
-            height: 50px;
+            width: 50px; height: 50px;
             border-radius: 50%;
             background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
             font-size: 24px;
         }
         .driver-name { font-size: 16px; font-weight: bold; }
         .driver-status {
-            font-size: 12px;
-            padding: 4px 12px;
-            border-radius: 10px;
-            margin-top: 5px;
-            display: inline-block;
+            font-size: 12px; padding: 4px 12px; border-radius: 10px;
+            margin-top: 5px; display: inline-block;
         }
         .status-online { background: rgba(0, 255, 136, 0.2); color: var(--success-color); }
         .status-offline { background: rgba(128, 128, 128, 0.2); color: #888; }
@@ -119,17 +108,11 @@
             background: rgba(255, 107, 53, 0.2);
             color: var(--accent-color);
             border: 1px solid var(--accent-color);
-            padding: 8px 20px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 13px;
+            padding: 8px 20px; border-radius: 20px;
+            cursor: pointer; font-size: 13px;
         }
         
-        .driver-content {
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-        }
+        .driver-content { max-width: 600px; margin: 0 auto; padding: 20px; }
         
         /* 状态切换 */
         .status-toggle {
@@ -144,8 +127,7 @@
         }
         .status-text { font-size: 14px; }
         .status-switch {
-            width: 60px;
-            height: 32px;
+            width: 60px; height: 32px;
             background: rgba(0, 255, 136, 0.2);
             border-radius: 16px;
             position: relative;
@@ -154,56 +136,37 @@
         }
         .status-switch.offline { background: rgba(128, 128, 128, 0.2); }
         .status-switch::after {
-            content: '';
-            position: absolute;
-            width: 28px;
-            height: 28px;
-            background: #fff;
-            border-radius: 50%;
-            top: 2px;
-            left: 2px;
+            content: ''; position: absolute;
+            width: 28px; height: 28px;
+            background: #fff; border-radius: 50%;
+            top: 2px; left: 2px;
             transition: all 0.3s;
         }
         .status-switch.offline::after { left: 30px; }
         
         /* 统计卡片 */
-        .stats-row {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 20px;
-        }
+        .stats-row { display: flex; gap: 15px; margin-bottom: 20px; }
         .stat-card {
-            flex: 1;
-            background: var(--card-bg);
+            flex: 1; background: var(--card-bg);
             border: 1px solid rgba(0, 240, 255, 0.2);
-            border-radius: 15px;
-            padding: 20px;
-            text-align: center;
+            border-radius: 15px; padding: 20px; text-align: center;
         }
         .stat-value { font-size: 24px; font-weight: bold; color: var(--primary-color); margin-bottom: 5px; }
         .stat-label { font-size: 12px; color: #5a6d7e; }
         
-        /* 订单标签页 */
-        .tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
+        /* 标签页 */
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
         .tab {
-            flex: 1;
-            padding: 12px;
+            flex: 1; padding: 12px;
             background: var(--card-bg);
             border: 1px solid rgba(0, 240, 255, 0.2);
             border-radius: 20px;
-            cursor: pointer;
-            font-size: 14px;
-            color: #5a6d7e;
-            text-align: center;
+            cursor: pointer; font-size: 14px;
+            color: #5a6d7e; text-align: center;
         }
         .tab.active {
             background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
-            color: #fff;
-            border-color: transparent;
+            color: #fff; border-color: transparent;
         }
         
         /* 订单卡片 */
@@ -215,72 +178,43 @@
             margin-bottom: 15px;
         }
         .order-header {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 15px;
-            padding-bottom: 15px;
+            display: flex; justify-content: space-between;
+            margin-bottom: 15px; padding-bottom: 15px;
             border-bottom: 1px solid rgba(0, 240, 255, 0.1);
         }
         .order-no { font-size: 14px; font-family: monospace; color: var(--primary-color); }
         .order-status {
-            padding: 4px 12px;
-            border-radius: 10px;
-            font-size: 12px;
-            font-weight: bold;
+            padding: 4px 12px; border-radius: 10px;
+            font-size: 12px; font-weight: bold;
         }
         .status-new { background: rgba(0, 240, 255, 0.2); color: var(--primary-color); }
         .status-going { background: rgba(255, 204, 0, 0.2); color: var(--warning-color); }
         .status-arrived { background: rgba(0, 102, 255, 0.2); color: var(--secondary-color); }
         .status-completed { background: rgba(0, 255, 136, 0.2); color: var(--success-color); }
         
-        .order-location {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            margin-bottom: 15px;
-        }
-        .location-item {
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-        }
+        .order-location { display: flex; flex-direction: column; gap: 12px; margin-bottom: 15px; }
+        .location-item { display: flex; align-items: flex-start; gap: 10px; }
         .location-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: var(--primary-color);
-            margin-top: 4px;
-            flex-shrink: 0;
+            width: 12px; height: 12px; border-radius: 50%;
+            background: var(--primary-color); margin-top: 4px; flex-shrink: 0;
         }
         .location-dot.destination { background: var(--accent-color); }
         .location-text { font-size: 14px; }
         .location-label { font-size: 11px; color: #5a6d7e; margin-bottom: 3px; }
         
         .order-info {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-            margin-bottom: 15px;
-            padding: 15px;
-            background: rgba(0, 240, 255, 0.05);
-            border-radius: 10px;
+            display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
+            margin-bottom: 15px; padding: 15px;
+            background: rgba(0, 240, 255, 0.05); border-radius: 10px;
         }
         .info-item { font-size: 13px; }
         .info-label { color: #5a6d7e; margin-bottom: 3px; }
         .info-value { font-size: 14px; }
         
-        .order-actions {
-            display: flex;
-            gap: 10px;
-        }
+        .order-actions { display: flex; gap: 10px; }
         .action-btn {
-            flex: 1;
-            padding: 12px;
-            border: none;
-            border-radius: 10px;
-            font-size: 14px;
-            font-weight: bold;
-            cursor: pointer;
+            flex: 1; padding: 12px; border: none; border-radius: 10px;
+            font-size: 14px; font-weight: bold; cursor: pointer;
         }
         .btn-call { background: rgba(0, 240, 255, 0.2); color: var(--primary-color); }
         .btn-navigate { background: rgba(0, 102, 255, 0.2); color: var(--secondary-color); }
@@ -289,23 +223,16 @@
         
         /* 地图 */
         .map-container {
-            height: 250px;
-            border-radius: 15px;
-            margin-bottom: 20px;
-            border: 2px solid rgba(0, 240, 255, 0.3);
+            height: 250px; border-radius: 15px;
+            margin-bottom: 20px; border: 2px solid rgba(0, 240, 255, 0.3);
         }
         
         /* 弹窗 */
         .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            display: none; position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(10, 14, 26, 0.95);
-            z-index: 2000;
-            padding: 20px;
+            z-index: 2000; padding: 20px;
         }
         .modal.active { display: block; }
         .modal-content {
@@ -317,56 +244,105 @@
             margin: 50px auto;
         }
         .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
+            display: flex; justify-content: space-between;
+            align-items: center; margin-bottom: 20px;
             padding-bottom: 15px;
             border-bottom: 1px solid rgba(0, 240, 255, 0.2);
         }
         .modal-title { font-size: 18px; font-weight: bold; }
         .modal-close {
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
+            width: 30px; height: 30px; border-radius: 50%;
             background: rgba(255, 107, 53, 0.2);
-            border: none;
-            color: var(--accent-color);
-            cursor: pointer;
-            font-size: 18px;
+            border: none; color: var(--accent-color);
+            cursor: pointer; font-size: 18px;
+        }
+        
+        /* 拍照界面 */
+        .camera-section {
+            background: rgba(0, 240, 255, 0.05);
+            border: 2px dashed rgba(0, 240, 255, 0.3);
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .camera-btn {
+            background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+            color: #fff; border: none; padding: 15px 40px;
+            border-radius: 25px; font-size: 16px; font-weight: bold;
+            cursor: pointer; margin: 10px 5px;
+        }
+        .photo-preview {
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 10px; margin-top: 15px;
+        }
+        .photo-item {
+            position: relative; aspect-ratio: 1;
+            border-radius: 10px; overflow: hidden;
+            border: 1px solid rgba(0, 240, 255, 0.2);
+        }
+        .photo-item img { width: 100%; height: 100%; object-fit: cover; }
+        .photo-remove {
+            position: absolute; top: 5px; right: 5px;
+            width: 24px; height: 24px; border-radius: 50%;
+            background: rgba(255, 107, 53, 0.9);
+            border: none; color: #fff;
+            cursor: pointer; font-size: 16px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        
+        /* 费用上报 */
+        .fee-section {
+            background: rgba(0, 240, 255, 0.05);
+            border-radius: 15px; padding: 20px;
+            margin-bottom: 20px;
+        }
+        .fee-item {
+            display: flex; justify-content: space-between;
+            align-items: center; margin-bottom: 15px;
+        }
+        .fee-input {
+            width: 120px; background: rgba(16, 28, 48, 0.8);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 10px; padding: 10px;
+            color: var(--text-color); font-size: 14px;
         }
         
         .alert {
-            position: fixed;
-            top: 50%;
-            left: 50%;
+            position: fixed; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             background: var(--card-bg);
             border: 2px solid var(--primary-color);
-            border-radius: 20px;
-            padding: 30px;
-            z-index: 3000;
-            min-width: 320px;
-            text-align: center;
+            border-radius: 20px; padding: 30px;
+            z-index: 3000; min-width: 320px; text-align: center;
         }
         .alert.success { border-color: var(--success-color); }
         .alert.error { border-color: var(--accent-color); }
         .alert-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.7);
-            z-index: 2999;
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.7); z-index: 2999;
         }
         
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: #5a6d7e;
-        }
+        .empty-state { text-align: center; padding: 60px 20px; color: #5a6d7e; }
         .empty-icon { font-size: 64px; margin-bottom: 20px; }
+        
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 50%;
+            transform: translateX(-50%);
+            width: 100%; max-width: 600px;
+            background: rgba(10, 14, 26, 0.95);
+            border-top: 1px solid rgba(0, 240, 255, 0.3);
+            display: flex; justify-content: space-around;
+            padding: 10px 0; z-index: 1000;
+        }
+        .nav-item {
+            display: flex; flex-direction: column;
+            align-items: center; color: #5a6d7e;
+            cursor: pointer;
+        }
+        .nav-item.active { color: var(--primary-color); }
+        .nav-icon { width: 24px; height: 24px; margin-bottom: 4px; fill: currentColor; }
+        .nav-text { font-size: 11px; }
     </style>
 </head>
 <body>
@@ -404,7 +380,7 @@
             <!-- 状态切换 -->
             <div class="status-toggle">
                 <div class="status-text">
-                    <div style="font-weight:bold;margin-bottom:5px;">接单状态</div>
+                    <div style="font-weight:bold;margin-bottom:5px;">📡 接单状态</div>
                     <div style="font-size:12px;color:#5a6d7e;" id="statusTip">在线可接收新订单</div>
                 </div>
                 <div class="status-switch" id="statusSwitch" onclick="toggleStatus()"></div>
@@ -436,6 +412,22 @@
             <!-- 订单列表 -->
             <div id="orderList"></div>
         </div>
+
+        <!-- 底部导航 -->
+        <div class="bottom-nav">
+            <div class="nav-item active" onclick="switchPage('orders')">
+                <svg class="nav-icon" viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+                <span class="nav-text">订单</span>
+            </div>
+            <div class="nav-item" onclick="switchPage('report')">
+                <svg class="nav-icon" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+                <span class="nav-text">报表</span>
+            </div>
+            <div class="nav-item" onclick="switchPage('profile')">
+                <svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                <span class="nav-text">我的</span>
+            </div>
+        </div>
     </div>
 
     <!-- 订单详情弹窗 -->
@@ -455,6 +447,59 @@
         </div>
     </div>
 
+    <!-- 拍照弹窗 -->
+    <div class="modal" id="cameraModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">📷 现场拍照</span>
+                <button class="modal-close" onclick="closeModal('cameraModal')">×</button>
+            </div>
+            <div class="camera-section">
+                <div style="font-size:14px;margin-bottom:15px;" id="cameraTip">请拍摄现场照片</div>
+                <button class="camera-btn" onclick="document.getElementById('cameraInput').click()">📷 拍照</button>
+                <input type="file" id="cameraInput" accept="image/*" capture="environment" multiple style="display:none;" onchange="handleCameraUpload(event)">
+            </div>
+            <div class="photo-preview" id="cameraPreview"></div>
+            <button class="login-btn" onclick="confirmPhotos()" style="margin-top:20px;">✅ 确认上传</button>
+        </div>
+    </div>
+
+    <!-- 费用上报弹窗 -->
+    <div class="modal" id="feeModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">💰 费用上报</span>
+                <button class="modal-close" onclick="closeModal('feeModal')">×</button>
+            </div>
+            <div class="fee-section">
+                <div class="fee-item">
+                    <span class="info-label">拖车费</span>
+                    <input type="number" class="fee-input" id="towFee" value="200">
+                </div>
+                <div class="fee-item">
+                    <span class="info-label">里程费</span>
+                    <input type="number" class="fee-input" id="mileageFee" value="0">
+                </div>
+                <div class="fee-item">
+                    <span class="info-label">附加费</span>
+                    <input type="number" class="fee-input" id="extraFee" value="0">
+                </div>
+                <div style="text-align:right;font-size:16px;font-weight:bold;color:var(--accent-color);margin-top:15px;">
+                    合计：¥<span id="totalFee">200</span>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">保单号（选填）</label>
+                <input type="text" class="form-input" id="insuranceNo" placeholder="请输入保单号">
+            </div>
+            <div class="form-group">
+                <label class="form-label">备注</label>
+                <textarea class="form-input" id="feeNote" placeholder="备注说明" rows="3"></textarea>
+            </div>
+            <button class="login-btn" onclick="submitFee()">提交费用</button>
+        </div>
+    </div>
+
     <!-- 提示框 -->
     <div class="alert-overlay" id="alertOverlay" style="display:none;"></div>
     <div class="alert" id="alertBox" style="display:none;">
@@ -470,14 +515,8 @@
         let currentOrderId = null;
         let orderMap = null;
         let isOnline = true;
-        let driverInfo = {
-            id: 1,
-            name: '王师傅',
-            phone: '139****6666',
-            rating: 4.9,
-            vehicle_plate: '京 B·99999',
-            vehicle_model: '江铃特顺救援车'
-        };
+        let uploadedPhotos = [];
+        let currentPhotoType = ''; // arrival, departure, delivery
 
         // 模拟订单数据
         const mockOrders = [
@@ -491,7 +530,8 @@
                 problem_description: '车辆熄火无法启动',
                 price: 200,
                 created_at: new Date().toISOString(),
-                customer_phone: '138****1234'
+                owner_phone: '138****1234',
+                owner_name: '张先生'
             },
             {
                 id: 2,
@@ -503,7 +543,8 @@
                 problem_description: '轮胎爆胎需要拖车',
                 price: 400,
                 created_at: new Date(Date.now() - 3600000).toISOString(),
-                customer_phone: '139****5678',
+                owner_phone: '139****5678',
+                owner_name: '李女士',
                 driver_action: 'going'
             }
         ];
@@ -512,13 +553,11 @@
         function login() {
             const username = document.getElementById('driverUsername').value;
             const password = document.getElementById('driverPassword').value;
-
-            // 简单验证（实际应该调用 API）
             if (username && password) {
                 localStorage.setItem('driverToken', 'driver_token_' + username);
                 document.getElementById('loginPage').style.display = 'none';
                 document.getElementById('driverPanel').classList.add('active');
-                document.getElementById('driverName').textContent = driverInfo.name;
+                document.getElementById('driverName').textContent = '王师傅';
                 loadDashboard();
             } else {
                 showAlert('error', '登录失败', '请输入账号和密码');
@@ -538,7 +577,6 @@
             const switchEl = document.getElementById('statusSwitch');
             const statusEl = document.getElementById('driverStatus');
             const tipEl = document.getElementById('statusTip');
-
             if (isOnline) {
                 switchEl.classList.remove('offline');
                 statusEl.className = 'driver-status status-online';
@@ -560,54 +598,47 @@
             loadOrders();
         }
 
+        // 切换页面
+        function switchPage(page) {
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            if (page === 'orders') loadDashboard();
+            if (page === 'report') showAlert('info', '我的报表', '功能开发中...');
+            if (page === 'profile') showAlert('info', '个人中心', '功能开发中...');
+        }
+
         // 加载仪表盘
         function loadDashboard() {
-            // 统计数据
             const today = new Date().toDateString();
             const todayOrders = mockOrders.filter(o => new Date(o.created_at).toDateString() === today);
             const completed = todayOrders.filter(o => o.status === 'completed').length;
             const income = todayOrders.filter(o => o.status === 'completed').reduce((sum, o) => sum + o.price, 0);
-
             document.getElementById('todayOrders').textContent = todayOrders.length;
             document.getElementById('completedToday').textContent = completed;
             document.getElementById('todayIncome').textContent = '¥' + income;
-
             loadOrders();
         }
 
         // 加载订单
         function loadOrders() {
             const container = document.getElementById('orderList');
-            
             let filteredOrders = [];
-            if (currentTab === 'new') {
-                filteredOrders = mockOrders.filter(o => o.status === 'pending');
-            } else if (currentTab === 'ongoing') {
-                filteredOrders = mockOrders.filter(o => o.status === 'processing');
-            } else {
-                filteredOrders = mockOrders.filter(o => o.status === 'completed' || o.status === 'cancelled');
-            }
+            if (currentTab === 'new') filteredOrders = mockOrders.filter(o => o.status === 'pending');
+            else if (currentTab === 'ongoing') filteredOrders = mockOrders.filter(o => o.status === 'processing');
+            else filteredOrders = mockOrders.filter(o => o.status === 'completed' || o.status === 'cancelled');
 
             if (filteredOrders.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-icon">${currentTab === 'new' ? '📭' : currentTab === 'ongoing' ? '🕐' : '📚'}</div>
-                        <div>暂无${currentTab === 'new' ? '新订单' : currentTab === 'ongoing' ? '进行中订单' : '历史订单'}</div>
-                    </div>
-                `;
+                container.innerHTML = `<div class="empty-state"><div class="empty-icon">${currentTab === 'new' ? '📭' : currentTab === 'ongoing' ? '🕐' : '📚'}</div><div>暂无${currentTab === 'new' ? '新订单' : currentTab === 'ongoing' ? '进行中订单' : '历史订单'}</div></div>`;
                 return;
             }
 
             container.innerHTML = filteredOrders.map(order => {
                 const statusMap = {
                     'pending': '<span class="order-status status-new">新订单</span>',
-                    'processing': order.driver_action === 'going' ? 
-                        '<span class="order-status status-going">前往中</span>' : 
-                        '<span class="order-status status-arrived">已到达</span>',
+                    'processing': order.driver_action === 'going' ? '<span class="order-status status-going">前往中</span>' : '<span class="order-status status-arrived">已到达</span>',
                     'completed': '<span class="order-status status-completed">已完成</span>',
                     'cancelled': '<span class="order-status status-cancelled">已取消</span>'
                 };
-
                 return `
                     <div class="order-card">
                         <div class="order-header">
@@ -622,36 +653,18 @@
                                     <div class="location-text">${order.current_location}</div>
                                 </div>
                             </div>
-                            ${order.destination ? `
-                            <div class="location-item">
-                                <div class="location-dot destination"></div>
-                                <div>
-                                    <div class="location-label">🎯 目的地</div>
-                                    <div class="location-text">${order.destination}</div>
-                                </div>
-                            </div>
-                            ` : ''}
+                            ${order.destination ? `<div class="location-item"><div class="location-dot destination"></div><div><div class="location-label">🎯 目的地</div><div class="location-text">${order.destination}</div></div></div>` : ''}
                         </div>
                         <div class="order-info">
-                            <div class="info-item">
-                                <div class="info-label">车辆信息</div>
-                                <div class="info-value">${order.vehicle_plate}</div>
-                            </div>
-                            <div class="info-item">
-                                <div class="info-label">服务费用</div>
-                                <div class="info-value" style="color:var(--accent-color);font-weight:bold;">¥${order.price}</div>
-                            </div>
+                            <div class="info-item"><div class="info-label">车辆信息</div><div class="info-value">${order.vehicle_plate}</div></div>
+                            <div class="info-item"><div class="info-label">服务费用</div><div class="info-value" style="color:var(--accent-color);font-weight:bold;">¥${order.price}</div></div>
                         </div>
                         <div class="order-actions">
-                            <button class="action-btn btn-call" onclick="callCustomer('${order.customer_phone}')">📞 联系客户</button>
+                            <button class="action-btn btn-call" onclick="callCustomer('${order.owner_phone}')">📞 联系客户</button>
                             <button class="action-btn btn-navigate" onclick="navigate('${order.current_location}')">🗺️ 导航</button>
                         </div>
-                        ${order.status === 'pending' ? `
-                        <button class="action-btn btn-start" onclick="startOrder(${order.id})" style="width:100%;margin-top:10px;">✅ 开始服务</button>
-                        ` : ''}
-                        ${order.status === 'processing' && order.driver_action === 'arrived' ? `
-                        <button class="action-btn btn-complete" onclick="completeOrder(${order.id})" style="width:100%;margin-top:10px;">✨ 完成订单</button>
-                        ` : ''}
+                        ${order.status === 'pending' ? `<button class="action-btn btn-start" onclick="startOrder(${order.id})" style="width:100%;margin-top:10px;">✅ 开始服务</button>` : ''}
+                        ${order.status === 'processing' && order.driver_action === 'arrived' ? `<button class="action-btn btn-complete" onclick="completeOrder(${order.id})" style="width:100%;margin-top:10px;">✨ 完成订单</button>` : ''}
                     </div>
                 `;
             }).join('');
@@ -664,75 +677,48 @@
             if (!order) return;
 
             document.getElementById('orderDetail').innerHTML = `
-                <div style="margin-bottom:15px;">
-                    <div style="font-size:12px;color:#5a6d7e;margin-bottom:5px;">订单号</div>
-                    <div style="font-family:monospace;font-size:14px;">${order.order_no}</div>
-                </div>
-                <div style="margin-bottom:15px;">
-                    <div style="font-size:12px;color:#5a6d7e;margin-bottom:5px;">问题描述</div>
-                    <div style="font-size:14px;">${order.problem_description}</div>
-                </div>
-                <div style="margin-bottom:15px;">
-                    <div style="font-size:12px;color:#5a6d7e;margin-bottom:5px;">客户电话</div>
-                    <div style="font-size:14px;">${order.customer_phone}</div>
-                </div>
-                <div style="margin-bottom:15px;">
-                    <div style="font-size:12px;color:#5a6d7e;margin-bottom:5px;">服务费用</div>
-                    <div style="font-size:18px;color:var(--accent-color);font-weight:bold;">¥${order.price}</div>
-                </div>
+                <div style="margin-bottom:15px;"><div style="font-size:12px;color:#5a6d7e;margin-bottom:5px;">订单号</div><div style="font-family:monospace;font-size:14px;">${order.order_no}</div></div>
+                <div style="margin-bottom:15px;"><div style="font-size:12px;color:#5a6d7e;margin-bottom:5px;">客户信息</div><div style="font-size:14px;">${order.owner_name} (${order.owner_phone})</div></div>
+                <div style="margin-bottom:15px;"><div style="font-size:12px;color:#5a6d7e;margin-bottom:5px;">问题描述</div><div style="font-size:14px;">${order.problem_description}</div></div>
+                <div style="margin-bottom:15px;"><div style="font-size:12px;color:#5a6d7e;margin-bottom:5px;">服务费用</div><div style="font-size:18px;color:var(--accent-color);font-weight:bold;">¥${order.price}</div></div>
             `;
 
-            document.getElementById('callBtn').href = `tel:${order.customer_phone.replace(/\*/g, '')}`;
+            document.getElementById('callBtn').href = `tel:${order.owner_phone.replace(/\*/g, '')}`;
             document.getElementById('navBtn').href = `https://uri.amap.com/marker?position=${encodeURIComponent(order.current_location)}&name=救援位置`;
 
-            // 操作按钮
             const actionsDiv = document.getElementById('orderActions');
             if (order.status === 'pending') {
                 actionsDiv.innerHTML = `
-                    <button class="action-btn btn-start" onclick="startOrder(${order.id})" style="width:100%;padding:14px;">✅ 开始服务</button>
+                    <button class="login-btn" onclick="startOrder(${order.id})" style="width:100%;padding:14px;">✅ 开始服务</button>
                 `;
             } else if (order.status === 'processing') {
                 if (order.driver_action === 'going') {
                     actionsDiv.innerHTML = `
-                        <div style="display:flex;gap:10px;">
-                            <button class="action-btn btn-navigate" onclick="markArrived(${order.id})" style="flex:1;padding:14px;">📍 已到达</button>
-                        </div>
+                        <button class="login-btn" onclick="openCamera('arrival')" style="width:100%;padding:14px;margin-bottom:10px;">📷 到达拍照</button>
+                        <button class="login-btn" onclick="markArrived(${order.id})" style="width:100%;padding:14px;">📍 确认到达</button>
                     `;
                 } else {
                     actionsDiv.innerHTML = `
+                        <button class="login-btn" onclick="openCamera('delivery')" style="width:100%;padding:14px;margin-bottom:10px;">📷 交车拍照</button>
+                        <button class="login-btn" onclick="openFeeModal()" style="width:100%;padding:14px;margin-bottom:10px;">💰 费用上报</button>
                         <button class="action-btn btn-complete" onclick="completeOrder(${order.id})" style="width:100%;padding:14px;">✨ 完成订单</button>
                     `;
                 }
             }
 
             document.getElementById('orderModal').classList.add('active');
-            
-            // 初始化地图
             setTimeout(() => initOrderMap(order), 100);
         }
 
         // 初始化地图
         function initOrderMap(order) {
-            if (orderMap) {
-                orderMap.remove();
-            }
-
+            if (orderMap) orderMap.remove();
             let lat = 39.9042, lng = 116.4074;
             const coords = order.current_location?.match(/(-?\d+\.?\d*),\s*(-?\d+\.?\d*)/);
-            if (coords) {
-                lat = parseFloat(coords[1]);
-                lng = parseFloat(coords[2]);
-            }
-
+            if (coords) { lat = parseFloat(coords[1]); lng = parseFloat(coords[2]); }
             orderMap = L.map('orderMap').setView([lat, lng], 13);
-
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap'
-            }).addTo(orderMap);
-
-            L.marker([lat, lng]).addTo(orderMap)
-                .bindPopup('📍 ' + order.current_location)
-                .openPopup();
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(orderMap);
+            L.marker([lat, lng]).addTo(orderMap).bindPopup('📍 ' + order.current_location).openPopup();
         }
 
         // 开始服务
@@ -742,10 +728,7 @@
                 order.status = 'processing';
                 order.driver_action = 'going';
                 closeModal('orderModal');
-                showAlert('success', '开始服务', '订单已开始，请前往现场', () => {
-                    loadOrders();
-                    loadDashboard();
-                });
+                showAlert('success', '开始服务', '订单已开始，请前往现场', () => { loadOrders(); loadDashboard(); });
             }
         }
 
@@ -755,10 +738,85 @@
             if (order) {
                 order.driver_action = 'arrived';
                 closeModal('orderModal');
-                showAlert('success', '已到达', '请完成救援后标记订单完成', () => {
-                    loadOrders();
-                });
+                showAlert('success', '已到达', '请拍摄现场照片', () => { loadOrders(); });
             }
+        }
+
+        // 打开拍照
+        function openCamera(type) {
+            currentPhotoType = type;
+            uploadedPhotos = [];
+            renderCameraPreview();
+            document.getElementById('cameraTip').textContent = type === 'arrival' ? '请拍摄到达现场照片' : type === 'delivery' ? '请拍摄交车签收照片' : '请拍摄照片';
+            document.getElementById('cameraModal').classList.add('active');
+        }
+
+        // 处理拍照
+        function handleCameraUpload(event) {
+            const files = event.target.files;
+            Array.from(files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    uploadedPhotos.push(e.target.result);
+                    renderCameraPreview();
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // 渲染拍照预览
+        function renderCameraPreview() {
+            document.getElementById('cameraPreview').innerHTML = uploadedPhotos.map((photo, index) => `
+                <div class="photo-item">
+                    <img src="${photo}" alt="photo">
+                    <button class="photo-remove" onclick="removePhoto(${index})">×</button>
+                </div>
+            `).join('');
+        }
+
+        // 删除照片
+        function removePhoto(index) {
+            uploadedPhotos.splice(index, 1);
+            renderCameraPreview();
+        }
+
+        // 确认照片
+        function confirmPhotos() {
+            if (uploadedPhotos.length === 0) {
+                showAlert('error', '提示', '请至少拍摄一张照片');
+                return;
+            }
+            closeModal('cameraModal');
+            showAlert('success', '上传成功', '照片已上传');
+        }
+
+        // 打开费用上报
+        function openFeeModal() {
+            document.getElementById('towFee').value = 200;
+            document.getElementById('mileageFee').value = 0;
+            document.getElementById('extraFee').value = 0;
+            document.getElementById('totalFee').textContent = '200';
+            document.getElementById('insuranceNo').value = '';
+            document.getElementById('feeNote').value = '';
+            document.getElementById('feeModal').classList.add('active');
+        }
+
+        // 计算总费用
+        ['towFee', 'mileageFee', 'extraFee'].forEach(id => {
+            document.getElementById(id)?.addEventListener('input', function() {
+                const total = (parseInt(document.getElementById('towFee').value) || 0) +
+                             (parseInt(document.getElementById('mileageFee').value) || 0) +
+                             (parseInt(document.getElementById('extraFee').value) || 0);
+                document.getElementById('totalFee').textContent = total;
+            });
+        });
+
+        // 提交费用
+        function submitFee() {
+            const total = document.getElementById('totalFee').textContent;
+            const insuranceNo = document.getElementById('insuranceNo').value;
+            closeModal('feeModal');
+            showAlert('success', '提交成功', `费用已上报，总计：¥${total}${insuranceNo ? '，保单号：' + insuranceNo : ''}`);
         }
 
         // 完成订单
@@ -767,10 +825,7 @@
             if (order) {
                 order.status = 'completed';
                 closeModal('orderModal');
-                showAlert('success', '订单完成', '感谢您的服务！', () => {
-                    loadOrders();
-                    loadDashboard();
-                });
+                showAlert('success', '订单完成', '感谢您的服务！', () => { loadOrders(); loadDashboard(); });
             }
         }
 
@@ -798,11 +853,9 @@
         function showAlert(type, title, message, callback) {
             const alert = document.getElementById('alertBox');
             const overlay = document.getElementById('alertOverlay');
-            
             alert.className = 'alert ' + type;
             document.getElementById('alertTitle').textContent = title;
             document.getElementById('alertMessage').innerHTML = message.replace(/\n/g, '<br>');
-            
             alert.callback = callback;
             alert.style.display = 'block';
             overlay.style.display = 'block';
@@ -811,24 +864,17 @@
         function hideAlert() {
             const alert = document.getElementById('alertBox');
             const overlay = document.getElementById('alertOverlay');
-            
             alert.style.display = 'none';
             overlay.style.display = 'none';
-            
-            if (alert.callback) {
-                alert.callback();
-                alert.callback = null;
-            }
+            if (alert.callback) { alert.callback(); alert.callback = null; }
         }
 
         // 回车登录
         document.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && document.getElementById('loginPage').style.display !== 'none') {
-                login();
-            }
+            if (e.key === 'Enter' && document.getElementById('loginPage').style.display !== 'none') login();
         });
 
-        // 页面加载时检查登录状态
+        // 页面加载检查登录状态
         window.addEventListener('load', () => {
             const token = localStorage.getItem('driverToken');
             if (token) {

@@ -58,7 +58,7 @@
         }
         .form-group { margin-bottom: 20px; }
         .form-label { display: block; font-size: 13px; color: #5a6d7e; margin-bottom: 8px; }
-        .form-input {
+        .form-input, .form-select {
             width: 100%;
             background: rgba(16, 28, 48, 0.8);
             border: 1px solid rgba(0, 240, 255, 0.3);
@@ -91,9 +91,26 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
         }
         .admin-title { font-size: 20px; font-weight: bold; }
+        .admin-nav { display: flex; gap: 10px; flex-wrap: wrap; }
         .admin-user { display: flex; align-items: center; gap: 15px; }
+        .nav-btn {
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--primary-color);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .nav-btn.active {
+            background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+            color: #fff;
+            border-color: transparent;
+        }
         .logout-btn {
             background: rgba(255, 107, 53, 0.2);
             color: var(--accent-color);
@@ -113,7 +130,7 @@
         /* 统计卡片 */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 20px;
             margin-bottom: 30px;
         }
@@ -186,6 +203,8 @@
         .status-processing { background: rgba(0, 240, 255, 0.2); color: var(--primary-color); }
         .status-completed { background: rgba(0, 255, 136, 0.2); color: var(--success-color); }
         .status-cancelled { background: rgba(128, 128, 128, 0.2); color: #888; }
+        .status-idle { background: rgba(0, 255, 136, 0.2); color: var(--success-color); }
+        .status-busy { background: rgba(255, 204, 0, 0.2); color: var(--warning-color); }
         
         .action-btn {
             padding: 6px 14px;
@@ -197,9 +216,9 @@
             white-space: nowrap;
         }
         .btn-view { background: rgba(0, 240, 255, 0.2); color: var(--primary-color); }
+        .btn-dispatch { background: rgba(0, 102, 255, 0.2); color: var(--secondary-color); }
         .btn-complete { background: rgba(0, 255, 136, 0.2); color: var(--success-color); }
         .btn-cancel { background: rgba(255, 107, 53, 0.2); color: var(--accent-color); }
-        .btn-assign { background: rgba(0, 102, 255, 0.2); color: var(--secondary-color); }
         
         /* 弹窗 */
         .modal {
@@ -285,16 +304,6 @@
         .timeline-time { font-size: 12px; color: #5a6d7e; min-width: 60px; }
         .timeline-content { font-size: 14px; }
         
-        .form-select {
-            width: 100%;
-            background: rgba(16, 28, 48, 0.8);
-            border: 1px solid rgba(0, 240, 255, 0.3);
-            border-radius: 10px;
-            padding: 12px 16px;
-            color: var(--text-color);
-            font-size: 14px;
-        }
-        
         .alert {
             position: fixed;
             top: 50%;
@@ -330,6 +339,43 @@
             font-size: 13px;
             margin-left: 10px;
         }
+
+        /* 派单面板 */
+        .dispatch-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .driver-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .driver-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: rgba(0, 240, 255, 0.05);
+            border-radius: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+        }
+        .driver-item:hover {
+            background: rgba(0, 240, 255, 0.1);
+        }
+        .driver-item.selected {
+            border-color: var(--primary-color);
+            background: rgba(0, 240, 255, 0.15);
+        }
+        .driver-info h4 { font-size: 14px; margin-bottom: 5px; }
+        .driver-info p { font-size: 12px; color: #5a6d7e; }
+        .driver-status { text-align: right; }
+        .driver-rating { color: var(--warning-color); font-size: 12px; }
+        
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
     </style>
 </head>
 <body>
@@ -354,6 +400,14 @@
     <div class="admin-container" id="adminPanel">
         <div class="admin-header">
             <div class="admin-title">🚗 拖车救援系统 - 后台管理</div>
+            <div class="admin-nav">
+                <button class="nav-btn active" onclick="switchModule('dashboard', this)">📊 仪表盘</button>
+                <button class="nav-btn" onclick="switchModule('dispatch', this)">🚛 智能派单</button>
+                <button class="nav-btn" onclick="switchModule('orders', this)">📋 订单管理</button>
+                <button class="nav-btn" onclick="switchModule('drivers', this)">👨‍✈️ 司机管理</button>
+                <button class="nav-btn" onclick="switchModule('users', this)">👥 用户管理</button>
+                <button class="nav-btn" onclick="switchModule('finance', this)">💰 财务报表</button>
+            </div>
             <div class="admin-user">
                 <span id="adminName">管理员</span>
                 <button class="refresh-btn" onclick="refreshData()">🔄 刷新</button>
@@ -362,35 +416,79 @@
         </div>
 
         <div class="admin-content">
-            <!-- 统计卡片 -->
-            <div class="stats-grid">
-                <div class="stat-card primary">
-                    <div class="stat-value" id="totalOrders">0</div>
-                    <div class="stat-label">总订单数</div>
+            <!-- 仪表盘模块 -->
+            <div id="dashboardModule" class="tab-content active">
+                <div class="stats-grid">
+                    <div class="stat-card primary">
+                        <div class="stat-value" id="totalOrders">0</div>
+                        <div class="stat-label">总订单数</div>
+                    </div>
+                    <div class="stat-card warning">
+                        <div class="stat-value" id="pendingOrders">0</div>
+                        <div class="stat-label">待处理</div>
+                    </div>
+                    <div class="stat-card accent">
+                        <div class="stat-value" id="processingOrders">0</div>
+                        <div class="stat-label">进行中</div>
+                    </div>
+                    <div class="stat-card success">
+                        <div class="stat-value" id="completedOrders">0</div>
+                        <div class="stat-label">已完成</div>
+                    </div>
+                    <div class="stat-card primary">
+                        <div class="stat-value" id="todayOrders">0</div>
+                        <div class="stat-label">今日订单</div>
+                    </div>
+                    <div class="stat-card success">
+                        <div class="stat-value" id="todayRevenue">¥0</div>
+                        <div class="stat-label">今日收入</div>
+                    </div>
                 </div>
-                <div class="stat-card warning">
-                    <div class="stat-value" id="pendingOrders">0</div>
-                    <div class="stat-label">待处理</div>
-                </div>
-                <div class="stat-card accent">
-                    <div class="stat-value" id="processingOrders">0</div>
-                    <div class="stat-label">进行中</div>
-                </div>
-                <div class="stat-card success">
-                    <div class="stat-value" id="completedOrders">0</div>
-                    <div class="stat-label">已完成</div>
+
+                <div class="section-title" style="font-size:16px;font-weight:bold;margin:20px 0 15px;">📈 待派单订单</div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>订单号</th>
+                                <th>用户</th>
+                                <th>当前位置</th>
+                                <th>目的地</th>
+                                <th>车辆信息</th>
+                                <th>价格</th>
+                                <th>创建时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pendingOrdersTable"></tbody>
+                    </table>
                 </div>
             </div>
 
-            <!-- 标签页 -->
-            <div class="tabs">
-                <div class="tab active" onclick="switchTab('orders', this)">📋 订单管理</div>
-                <div class="tab" onclick="switchTab('drivers', this)">🚛 司机管理</div>
-                <div class="tab" onclick="switchTab('users', this)">👥 用户管理</div>
+            <!-- 智能派单模块 -->
+            <div id="dispatchModule" class="tab-content">
+                <div class="section-title" style="font-size:16px;font-weight:bold;margin:20px 0 15px;">🚛 智能派单系统</div>
+                <div class="dispatch-panel">
+                    <div>
+                        <div style="font-size:14px;font-weight:bold;margin-bottom:15px;">📋 待派订单</div>
+                        <div class="driver-list" id="dispatchOrdersList"></div>
+                    </div>
+                    <div>
+                        <div style="font-size:14px;font-weight:bold;margin-bottom:15px;">👨‍️ 可派司机</div>
+                        <div class="driver-list" id="availableDriversList"></div>
+                    </div>
+                </div>
+                <button class="login-btn" onclick="confirmDispatch()" style="margin-top:20px;width:100%;">✅ 确认派单</button>
             </div>
 
-            <!-- 订单管理 -->
-            <div id="ordersTab" class="tab-content">
+            <!-- 订单管理模块 -->
+            <div id="ordersModule" class="tab-content">
+                <div class="tabs">
+                    <div class="tab active" onclick="filterOrders('all', this)">全部订单</div>
+                    <div class="tab" onclick="filterOrders('pending', this)">待处理</div>
+                    <div class="tab" onclick="filterOrders('processing', this)">进行中</div>
+                    <div class="tab" onclick="filterOrders('completed', this)">已完成</div>
+                </div>
                 <div class="table-container">
                     <table>
                         <thead>
@@ -411,8 +509,8 @@
                 </div>
             </div>
 
-            <!-- 司机管理 -->
-            <div id="driversTab" class="tab-content" style="display:none;">
+            <!-- 司机管理模块 -->
+            <div id="driversModule" class="tab-content">
                 <div class="table-container">
                     <table>
                         <thead>
@@ -420,7 +518,10 @@
                                 <th>司机姓名</th>
                                 <th>联系电话</th>
                                 <th>评分</th>
-                                <th>完成订单</th>
+                                <th>总订单</th>
+                                <th>已完成</th>
+                                <th>今日订单</th>
+                                <th>今日收入</th>
                                 <th>救援车辆</th>
                                 <th>状态</th>
                             </tr>
@@ -430,8 +531,8 @@
                 </div>
             </div>
 
-            <!-- 用户管理 -->
-            <div id="usersTab" class="tab-content" style="display:none;">
+            <!-- 用户管理模块 -->
+            <div id="usersModule" class="tab-content">
                 <div class="table-container">
                     <table>
                         <thead>
@@ -446,6 +547,37 @@
                             </tr>
                         </thead>
                         <tbody id="usersTable"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 财务报表模块 -->
+            <div id="financeModule" class="tab-content">
+                <div class="stats-grid">
+                    <div class="stat-card success">
+                        <div class="stat-value" id="financeRevenue">¥0</div>
+                        <div class="stat-label">总收入</div>
+                    </div>
+                    <div class="stat-card primary">
+                        <div class="stat-value" id="financeOrders">0</div>
+                        <div class="stat-label">总订单</div>
+                    </div>
+                    <div class="stat-card accent">
+                        <div class="stat-value" id="financeAvgPrice">¥0</div>
+                        <div class="stat-label">客单价</div>
+                    </div>
+                </div>
+                <div class="section-title" style="font-size:16px;font-weight:bold;margin:20px 0 15px;">📊 近 7 日收入统计</div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>日期</th>
+                                <th>订单数</th>
+                                <th>收入</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dailyStatsTable"></tbody>
                     </table>
                 </div>
             </div>
@@ -470,30 +602,20 @@
             <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap;">
                 <button class="action-btn btn-complete" onclick="updateOrderStatus('completed')" style="flex:1;padding:12px;">✅ 标记完成</button>
                 <button class="action-btn btn-cancel" onclick="updateOrderStatus('cancelled')" style="flex:1;padding:12px;">❌ 取消订单</button>
-                <button class="action-btn btn-assign" onclick="showAssignDriver()" style="flex:1;padding:12px;">🚛 分配司机</button>
+                <button class="action-btn btn-dispatch" onclick="showDispatchModal()" style="flex:1;padding:12px;">🚛 重新派单</button>
             </div>
         </div>
     </div>
 
-    <!-- 分配司机弹窗 -->
-    <div class="modal" id="assignModal">
+    <!-- 派单确认弹窗 -->
+    <div class="modal" id="dispatchConfirmModal">
         <div class="modal-content">
             <div class="modal-header">
-                <span class="modal-title">🚛 分配司机</span>
-                <button class="modal-close" onclick="closeModal('assignModal')">×</button>
+                <span class="modal-title">🚛 确认派单</span>
+                <button class="modal-close" onclick="closeModal('dispatchConfirmModal')">×</button>
             </div>
-            <div class="form-group">
-                <label class="form-label">选择司机</label>
-                <select class="form-select" id="driverSelect" onchange="onDriverChange()">
-                    <option value="">请选择司机</option>
-                </select>
-            </div>
-            <div id="driverInfo" style="margin:15px 0;padding:15px;background:rgba(0,240,255,0.05);border-radius:10px;display:none;">
-                <div class="detail-row"><span class="detail-label">司机姓名</span><span class="detail-value" id="d_name"></span></div>
-                <div class="detail-row"><span class="detail-label">联系电话</span><span class="detail-value" id="d_phone"></span></div>
-                <div class="detail-row"><span class="detail-label">救援车辆</span><span class="detail-value" id="d_vehicle"></span></div>
-            </div>
-            <button class="login-btn" onclick="confirmAssignDriver()">确认分配</button>
+            <div id="dispatchConfirmContent"></div>
+            <button class="login-btn" onclick="executeDispatch()" style="margin-top:20px;">✅ 确认派单</button>
         </div>
     </div>
 
@@ -507,12 +629,15 @@
 
     <script>
         const API_BASE = window.location.origin;
-        let currentTab = 'orders';
+        let currentModule = 'dashboard';
+        let currentFilter = 'all';
         let allOrders = [];
         let allDrivers = [];
+        let availableDrivers = [];
         let currentOrderId = null;
+        let dispatchOrderId = null;
+        let selectedDriverId = null;
         let orderMap = null;
-        let selectedDriver = null;
 
         // 登录
         async function login() {
@@ -548,26 +673,31 @@
             document.getElementById('adminPanel').classList.remove('active');
         }
 
-        // 刷新数据
-        function refreshData() {
-            loadDashboard();
-            if (currentTab === 'orders') loadOrders();
-            if (currentTab === 'drivers') loadDrivers();
-            if (currentTab === 'users') loadUsers();
-        }
-
-        // 切换标签页
-        function switchTab(tab, el) {
-            currentTab = tab;
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        // 切换模块
+        function switchModule(module, el) {
+            currentModule = module;
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
             el.classList.add('active');
             
-            document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
-            document.getElementById(tab + 'Tab').style.display = 'block';
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById(module + 'Module').classList.add('active');
             
-            if (tab === 'orders') loadOrders();
-            if (tab === 'drivers') loadDrivers();
-            if (tab === 'users') loadUsers();
+            if (module === 'dashboard') loadDashboard();
+            if (module === 'dispatch') loadDispatchPanel();
+            if (module === 'orders') loadOrders();
+            if (module === 'drivers') loadDrivers();
+            if (module === 'users') loadUsers();
+            if (module === 'finance') loadFinance();
+        }
+
+        // 刷新数据
+        function refreshData() {
+            if (currentModule === 'dashboard') loadDashboard();
+            if (currentModule === 'dispatch') loadDispatchPanel();
+            if (currentModule === 'orders') loadOrders();
+            if (currentModule === 'drivers') loadDrivers();
+            if (currentModule === 'users') loadUsers();
+            if (currentModule === 'finance') loadFinance();
         }
 
         // 加载仪表盘
@@ -580,15 +710,191 @@
                 document.getElementById('pendingOrders').textContent = data.pendingOrders || 0;
                 document.getElementById('processingOrders').textContent = data.processingOrders || 0;
                 document.getElementById('completedOrders').textContent = data.completedOrders || 0;
+                document.getElementById('todayOrders').textContent = data.todayOrders || 0;
+                document.getElementById('todayRevenue').textContent = '¥' + (data.todayRevenue || 0);
+
+                // 加载待派单订单
+                const ordersRes = await fetch(`${API_BASE}/api/admin/orders?status=pending&limit=10`);
+                const ordersData = await ordersRes.json();
+                const pendingOrders = ordersData.orders || [];
+
+                const tbody = document.getElementById('pendingOrdersTable');
+                if (pendingOrders.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#5a6d7e;padding:40px;">暂无待派单订单</td></tr>';
+                } else {
+                    tbody.innerHTML = pendingOrders.map(order => `
+                        <tr>
+                            <td style="font-family:monospace;">${order.order_no}</td>
+                            <td>用户${order.user_id || '-'}</td>
+                            <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${order.current_location || ''}">${order.current_location || '未知'}</td>
+                            <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${order.destination || ''}">${order.destination || '无'}</td>
+                            <td>${order.vehicle_plate || '-'}</td>
+                            <td style="color:var(--accent-color);font-weight:bold;">¥${order.price}</td>
+                            <td style="font-size:12px;color:#5a6d7e;white-space:nowrap;">${new Date(order.created_at).toLocaleString('zh-CN')}</td>
+                            <td>
+                                <button class="action-btn btn-dispatch" onclick="quickDispatch(${order.id})">🚛 派单</button>
+                                <button class="action-btn btn-view" onclick="viewOrder(${order.id})">查看</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
             } catch (error) {
                 console.error('加载统计数据失败:', error);
             }
         }
 
+        // 快速派单
+        function quickDispatch(orderId) {
+            dispatchOrderId = orderId;
+            switchModule('dispatch', document.querySelectorAll('.nav-btn')[1]);
+        }
+
+        // 加载派单面板
+        async function loadDispatchPanel() {
+            try {
+                // 加载待派订单
+                const ordersRes = await fetch(`${API_BASE}/api/admin/orders?status=pending`);
+                const ordersData = await ordersRes.json();
+                allOrders = ordersData.orders || [];
+
+                const ordersList = document.getElementById('dispatchOrdersList');
+                if (allOrders.length === 0) {
+                    ordersList.innerHTML = '<div style="text-align:center;color:#5a6d7e;padding:40px;">暂无待派订单</div>';
+                } else {
+                    ordersList.innerHTML = allOrders.map(order => `
+                        <div class="driver-item" onclick="selectDispatchOrder(${order.id}, this)">
+                            <div class="driver-info">
+                                <h4>${order.order_no}</h4>
+                                <p>📍 ${order.current_location}</p>
+                                <p>🎯 ${order.destination || '无目的地'}</p>
+                            </div>
+                            <div class="driver-status">
+                                <div style="color:var(--accent-color);font-weight:bold;">¥${order.price}</div>
+                                <div style="font-size:11px;color:#5a6d7e;">${new Date(order.created_at).toLocaleString('zh-CN')}</div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+
+                // 加载可派司机
+                const driversRes = await fetch(`${API_BASE}/api/admin/dispatch/available-drivers`);
+                const driversData = await driversRes.json();
+                availableDrivers = driversData.drivers || [];
+
+                const driversList = document.getElementById('availableDriversList');
+                if (availableDrivers.length === 0) {
+                    driversList.innerHTML = '<div style="text-align:center;color:#5a6d7e;padding:40px;">暂无可派司机</div>';
+                } else {
+                    driversList.innerHTML = availableDrivers.map(driver => `
+                        <div class="driver-item" onclick="selectDriver(${driver.id}, this)">
+                            <div class="driver-info">
+                                <h4>${driver.name}</h4>
+                                <p>🚗 ${driver.vehicle_model} (${driver.vehicle_plate})</p>
+                                <p>📍 ${driver.location}</p>
+                            </div>
+                            <div class="driver-status">
+                                <div class="driver-rating">⭐ ${driver.rating}</div>
+                                <div style="font-size:11px;color:#5a6d7e;">今日：${driver.today_orders}单</div>
+                                <div class="status-badge status-idle" style="margin-top:5px;">空闲</div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('加载派单面板失败:', error);
+            }
+        }
+
+        // 选择派单订单
+        function selectDispatchOrder(orderId, el) {
+            dispatchOrderId = orderId;
+            document.querySelectorAll('#dispatchOrdersList .driver-item').forEach(i => i.classList.remove('selected'));
+            el.classList.add('selected');
+        }
+
+        // 选择司机
+        function selectDriver(driverId, el) {
+            selectedDriverId = driverId;
+            document.querySelectorAll('#availableDriversList .driver-item').forEach(i => i.classList.remove('selected'));
+            el.classList.add('selected');
+        }
+
+        // 确认派单
+        function confirmDispatch() {
+            if (!dispatchOrderId) {
+                showAlert('error', '提示', '请选择要派发的订单');
+                return;
+            }
+            if (!selectedDriverId) {
+                showAlert('error', '提示', '请选择司机');
+                return;
+            }
+
+            const order = allOrders.find(o => o.id === dispatchOrderId);
+            const driver = availableDrivers.find(d => d.id === selectedDriverId);
+
+            document.getElementById('dispatchConfirmContent').innerHTML = `
+                <div class="detail-row"><span class="detail-label">订单号</span><span class="detail-value">${order.order_no}</span></div>
+                <div class="detail-row"><span class="detail-label">当前位置</span><span class="detail-value">${order.current_location}</span></div>
+                <div class="detail-row"><span class="detail-label">目的地</span><span class="detail-value">${order.destination || '无'}</span></div>
+                <div class="detail-row"><span class="detail-label">服务费用</span><span class="detail-value" style="color:var(--accent-color);">¥${order.price}</span></div>
+                <div style="margin:20px 0;padding:15px;background:rgba(0,240,255,0.05);border-radius:10px;">
+                    <div style="font-weight:bold;margin-bottom:10px;">👨‍️ 派单给</div>
+                    <div class="detail-row"><span class="detail-label">司机姓名</span><span class="detail-value">${driver.name}</span></div>
+                    <div class="detail-row"><span class="detail-label">联系电话</span><span class="detail-value">${driver.phone}</span></div>
+                    <div class="detail-row"><span class="detail-label">救援车辆</span><span class="detail-value">${driver.vehicle_model} (${driver.vehicle_plate})</span></div>
+                    <div class="detail-row"><span class="detail-label">司机评分</span><span class="detail-value">⭐ ${driver.rating}</span></div>
+                </div>
+            `;
+
+            document.getElementById('dispatchConfirmModal').classList.add('active');
+        }
+
+        // 执行派单
+        async function executeDispatch() {
+            const driver = availableDrivers.find(d => d.id === selectedDriverId);
+
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/orders/${dispatchOrderId}/dispatch`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        driver_id: driver.id,
+                        driver_name: driver.name,
+                        driver_phone: driver.phone,
+                        driver_rating: driver.rating,
+                        vehicle_plate: driver.vehicle_plate,
+                        vehicle_model: driver.vehicle_model
+                    })
+                });
+                const data = await res.json();
+                
+                if (res.ok) {
+                    showAlert('success', '派单成功', `订单已派发给 ${driver.name}`, () => {
+                        closeModal('dispatchConfirmModal');
+                        loadDashboard();
+                        loadDispatchPanel();
+                    });
+                } else {
+                    showAlert('error', '错误', data.error);
+                }
+            } catch (error) {
+                showAlert('error', '错误', '派单失败');
+            }
+        }
+
+        // 筛选订单
+        function filterOrders(status, el) {
+            currentFilter = status;
+            document.querySelectorAll('#ordersModule .tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            loadOrders();
+        }
+
         // 加载订单
         async function loadOrders() {
             try {
-                const res = await fetch(`${API_BASE}/api/admin/orders?status=all&limit=100`);
+                const res = await fetch(`${API_BASE}/api/admin/orders?status=${currentFilter}&limit=100`);
                 const data = await res.json();
                 allOrders = data.orders || [];
                 
@@ -610,12 +916,12 @@
                         <td style="font-size:12px;color:#5a6d7e;white-space:nowrap;">${new Date(order.created_at).toLocaleString('zh-CN')}</td>
                         <td>
                             <button class="action-btn btn-view" onclick="viewOrder(${order.id})">查看</button>
+                            ${order.status === 'pending' ? `<button class="action-btn btn-dispatch" onclick="quickDispatch(${order.id})">🚛 派单</button>` : ''}
                         </td>
                     </tr>
                 `).join('');
             } catch (error) {
                 console.error('加载订单失败:', error);
-                showAlert('error', '错误', '加载订单失败');
             }
         }
 
@@ -628,7 +934,7 @@
                 
                 const tbody = document.getElementById('driversTable');
                 if (allDrivers.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#5a6d7e;padding:40px;">暂无司机数据</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#5a6d7e;padding:40px;">暂无司机数据</td></tr>';
                     return;
                 }
 
@@ -637,9 +943,12 @@
                         <td>${driver.name}</td>
                         <td>${driver.phone}</td>
                         <td>⭐ ${driver.rating}</td>
-                        <td>${driver.orders}</td>
+                        <td>${driver.total_orders}</td>
+                        <td>${driver.completed_orders}</td>
+                        <td>${driver.today_orders}</td>
+                        <td style="color:var(--success-color);">¥${driver.today_income}</td>
                         <td>${driver.vehicle_model} (${driver.vehicle_plate})</td>
-                        <td><span class="status-badge ${driver.status === '空闲' ? 'status-completed' : 'status-processing'}">${driver.status}</span></td>
+                        <td><span class="status-badge ${driver.status === '空闲' ? 'status-idle' : driver.status === '服务中' ? 'status-busy' : 'status-cancelled'}">${driver.status}</span></td>
                     </tr>
                 `).join('');
             } catch (error) {
@@ -676,6 +985,33 @@
             }
         }
 
+        // 加载财务报表
+        async function loadFinance() {
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/finance/report`);
+                const data = await res.json();
+                
+                document.getElementById('financeRevenue').textContent = '¥' + (data.totalRevenue || 0);
+                document.getElementById('financeOrders').textContent = data.totalOrders || 0;
+                document.getElementById('financeAvgPrice').textContent = '¥' + (data.avgPrice || 0).toFixed(2);
+
+                const tbody = document.getElementById('dailyStatsTable');
+                if (data.dailyStats && data.dailyStats.length > 0) {
+                    tbody.innerHTML = data.dailyStats.map(stat => `
+                        <tr>
+                            <td>${stat.date}</td>
+                            <td>${stat.orders}</td>
+                            <td style="color:var(--success-color);font-weight:bold;">¥${stat.revenue}</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#5a6d7e;padding:40px;">暂无数据</td></tr>';
+                }
+            } catch (error) {
+                console.error('加载财务报表失败:', error);
+            }
+        }
+
         // 查看订单详情
         async function viewOrder(orderId) {
             currentOrderId = orderId;
@@ -700,7 +1036,6 @@
                     ` : '<div class="detail-row"><span class="detail-label">分配司机</span><span class="detail-value" style="color:#5a6d7e;">未分配</span></div>'}
                 `;
 
-                // 时间线
                 const timelineContent = document.getElementById('timelineContent');
                 if (order.timeline && order.timeline.length > 0) {
                     timelineContent.innerHTML = order.timeline.map(t => `
@@ -714,49 +1049,16 @@
                 }
 
                 document.getElementById('orderModal').classList.add('active');
-                
-                // 初始化地图
                 setTimeout(() => initOrderMap(order), 100);
             } catch (error) {
                 showAlert('error', '错误', '获取订单详情失败');
             }
         }
 
-        // 初始化订单地图
-        function initOrderMap(order) {
-            if (orderMap) {
-                orderMap.remove();
-            }
-
-            // 尝试解析坐标或使用默认位置
-            let lat = 39.9042, lng = 116.4074;
-            const coords = order.current_location?.match(/(-?\d+\.?\d*),\s*(-?\d+\.?\d*)/);
-            if (coords) {
-                lat = parseFloat(coords[1]);
-                lng = parseFloat(coords[2]);
-            }
-
-            orderMap = L.map('orderMap').setView([lat, lng], 13);
-
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap'
-            }).addTo(orderMap);
-
-            // 标记当前位置
-            L.marker([lat, lng]).addTo(orderMap)
-                .bindPopup('📍 当前位置')
-                .openPopup();
-
-            // 如果有目的地，也标记
-            if (order.destination) {
-                const destCoords = order.destination.match(/(-?\d+\.?\d*),\s*(-?\d+\.?\d*)/);
-                if (destCoords) {
-                    const destLat = parseFloat(destCoords[1]);
-                    const destLng = parseFloat(destCoords[2]);
-                    L.marker([destLat, destLng]).addTo(orderMap)
-                        .bindPopup('🎯 目的地');
-                }
-            }
+        // 显示派单弹窗
+        function showDispatchModal() {
+            closeModal('orderModal');
+            switchModule('dispatch', document.querySelectorAll('.nav-btn')[1]);
         }
 
         // 更新订单状态
@@ -785,77 +1087,20 @@
             }
         }
 
-        // 显示分配司机
-        async function showAssignDriver() {
-            if (!currentOrderId) return;
+        // 初始化订单地图
+        function initOrderMap(order) {
+            if (orderMap) orderMap.remove();
 
-            // 加载司机列表
-            try {
-                const res = await fetch(`${API_BASE}/api/admin/drivers`);
-                const data = await res.json();
-                allDrivers = data.drivers || [];
-
-                const select = document.getElementById('driverSelect');
-                select.innerHTML = '<option value="">请选择司机</option>' + 
-                    allDrivers.map(d => `<option value="${d.id}">${d.name} - ${d.vehicle_plate}</option>`).join('');
-                
-                document.getElementById('driverInfo').style.display = 'none';
-                document.getElementById('assignModal').classList.add('active');
-            } catch (error) {
-                showAlert('error', '错误', '加载司机列表失败');
-            }
-        }
-
-        // 司机选择变化
-        function onDriverChange() {
-            const driverId = document.getElementById('driverSelect').value;
-            selectedDriver = allDrivers.find(d => d.id == driverId);
-            
-            if (selectedDriver) {
-                document.getElementById('d_name').textContent = selectedDriver.name;
-                document.getElementById('d_phone').textContent = selectedDriver.phone;
-                document.getElementById('d_vehicle').textContent = `${selectedDriver.vehicle_model} (${selectedDriver.vehicle_plate})`;
-                document.getElementById('driverInfo').style.display = 'block';
-            } else {
-                document.getElementById('driverInfo').style.display = 'none';
-            }
-        }
-
-        // 确认分配司机
-        async function confirmAssignDriver() {
-            if (!selectedDriver) {
-                showAlert('error', '提示', '请选择司机');
-                return;
+            let lat = 39.9042, lng = 116.4074;
+            const coords = order.current_location?.match(/(-?\d+\.?\d*),\s*(-?\d+\.?\d*)/);
+            if (coords) {
+                lat = parseFloat(coords[1]);
+                lng = parseFloat(coords[2]);
             }
 
-            try {
-                const res = await fetch(`${API_BASE}/api/admin/orders/${currentOrderId}/driver`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        driver_id: selectedDriver.id,
-                        driver_name: selectedDriver.name,
-                        driver_phone: selectedDriver.phone,
-                        driver_rating: selectedDriver.rating,
-                        vehicle_plate: selectedDriver.vehicle_plate,
-                        vehicle_model: selectedDriver.vehicle_model
-                    })
-                });
-                const data = await res.json();
-                
-                if (res.ok) {
-                    showAlert('success', '分配成功', `已分配司机：${selectedDriver.name}`, () => {
-                        closeModal('assignModal');
-                        closeModal('orderModal');
-                        loadDashboard();
-                        loadOrders();
-                    });
-                } else {
-                    showAlert('error', '错误', data.error);
-                }
-            } catch (error) {
-                showAlert('error', '错误', '分配司机失败');
-            }
+            orderMap = L.map('orderMap').setView([lat, lng], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(orderMap);
+            L.marker([lat, lng]).addTo(orderMap).bindPopup('📍 ' + order.current_location).openPopup();
         }
 
         // 关闭弹窗
@@ -867,11 +1112,9 @@
         function showAlert(type, title, message, callback) {
             const alert = document.getElementById('alertBox');
             const overlay = document.getElementById('alertOverlay');
-            
             alert.className = 'alert ' + type;
             document.getElementById('alertTitle').textContent = title;
             document.getElementById('alertMessage').innerHTML = message.replace(/\n/g, '<br>');
-            
             alert.callback = callback;
             alert.style.display = 'block';
             overlay.style.display = 'block';
@@ -880,24 +1123,17 @@
         function hideAlert() {
             const alert = document.getElementById('alertBox');
             const overlay = document.getElementById('alertOverlay');
-            
             alert.style.display = 'none';
             overlay.style.display = 'none';
-            
-            if (alert.callback) {
-                alert.callback();
-                alert.callback = null;
-            }
+            if (alert.callback) { alert.callback(); alert.callback = null; }
         }
 
         // 回车登录
         document.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && document.getElementById('loginPage').style.display !== 'none') {
-                login();
-            }
+            if (e.key === 'Enter' && document.getElementById('loginPage').style.display !== 'none') login();
         });
 
-        // 页面加载时检查登录状态
+        // 页面加载检查登录状态
         window.addEventListener('load', () => {
             const token = localStorage.getItem('adminToken');
             if (token) {

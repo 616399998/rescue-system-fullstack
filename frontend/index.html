@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>智能拖车救援系统</title>
+    <title>智慧救援系统</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
@@ -12,7 +12,7 @@
             --primary-color: #00f0ff;
             --secondary-color: #0066ff;
             --bg-color: #0a0e1a;
-            --card-bg: rgba(16, 28, 48, 0.9);
+            --card-bg: rgba(16, 28, 48, 0.95);
             --text-color: #e0f7ff;
             --accent-color: #ff6b35;
             --success-color: #00ff88;
@@ -93,10 +93,7 @@
             box-shadow: 0 0 30px rgba(255, 107, 53, 0.4);
             transition: all 0.3s;
         }
-        .tow-btn:active {
-            transform: scale(0.98);
-            box-shadow: 0 0 20px rgba(255, 107, 53, 0.3);
-        }
+        .tow-btn:active { transform: scale(0.98); }
         
         .section-title {
             font-size: 16px;
@@ -114,34 +111,7 @@
             border-radius: 2px;
         }
         
-        .feature-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin-bottom: 25px;
-        }
-        .feature-card {
-            background: var(--card-bg);
-            border: 1px solid rgba(0, 240, 255, 0.2);
-            border-radius: 15px;
-            padding: 20px;
-            text-align: center;
-        }
-        .feature-icon {
-            width: 50px;
-            height: 50px;
-            margin: 0 auto 10px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, rgba(0, 102, 255, 0.3), rgba(0, 240, 255, 0.2));
-        }
-        .feature-icon svg { width: 28px; height: 28px; fill: var(--primary-color); }
-        .feature-title { font-size: 14px; font-weight: bold; margin-bottom: 5px; }
-        .feature-desc { font-size: 11px; color: #5a6d7e; }
-        
-        /* 订单页面样式 */
+        /* 订单页面 */
         .order-filter {
             display: flex;
             gap: 10px;
@@ -169,10 +139,6 @@
             padding: 15px;
             margin-bottom: 15px;
             cursor: pointer;
-            transition: all 0.3s;
-        }
-        .order-card:active {
-            transform: scale(0.98);
         }
         .order-header {
             display: flex;
@@ -209,14 +175,7 @@
             border-radius: 50%;
             background: var(--primary-color);
         }
-        .route-dot.destination {
-            background: var(--accent-color);
-        }
-        .route-line {
-            flex: 1;
-            height: 2px;
-            background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
-        }
+        .route-dot.destination { background: var(--accent-color); }
         .order-footer {
             display: flex;
             justify-content: space-between;
@@ -225,7 +184,7 @@
         .order-price { font-size: 18px; font-weight: bold; color: var(--accent-color); }
         .order-time { font-size: 12px; color: #5a6d7e; }
         
-        /* 个人中心样式 */
+        /* 个人中心 */
         .profile-header {
             background: var(--card-bg);
             border: 1px solid rgba(0, 240, 255, 0.2);
@@ -291,8 +250,35 @@
             font-weight: bold;
             cursor: pointer;
         }
+        .service-list {
+            margin-top: 20px;
+        }
+        .service-item {
+            background: var(--card-bg);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            cursor: pointer;
+        }
+        .service-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(0, 102, 255, 0.3), rgba(0, 240, 255, 0.2));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .service-icon svg { width: 28px; height: 28px; fill: var(--primary-color); }
+        .service-info { flex: 1; }
+        .service-name { font-size: 15px; font-weight: bold; }
+        .service-desc { font-size: 12px; color: #5a6d7e; }
         
-        /* 弹窗样式 */
+        /* 弹窗 */
         .modal {
             display: none;
             position: fixed;
@@ -365,6 +351,52 @@
             margin-bottom: 15px;
             border: 2px solid rgba(0, 240, 255, 0.3);
         }
+        .photo-upload {
+            border: 2px dashed rgba(0, 240, 255, 0.3);
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            margin-bottom: 15px;
+        }
+        .photo-upload:hover {
+            border-color: var(--primary-color);
+            background: rgba(0, 240, 255, 0.05);
+        }
+        .photo-preview {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .photo-item {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid rgba(0, 240, 255, 0.2);
+        }
+        .photo-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .photo-remove {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: rgba(255, 107, 53, 0.9);
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
         .submit-btn {
             width: 100%;
             background: linear-gradient(135deg, var(--accent-color), #ff8c00);
@@ -403,6 +435,68 @@
             background: rgba(0, 0, 0, 0.7);
             z-index: 2999;
         }
+        
+        /* 订单详情 */
+        .detail-section {
+            background: var(--card-bg);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+        .detail-title {
+            font-size: 15px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: var(--primary-color);
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(0, 240, 255, 0.1);
+        }
+        .detail-row:last-child { border-bottom: none; }
+        .detail-label { color: #5a6d7e; font-size: 13px; }
+        .detail-value { font-size: 14px; text-align: right; }
+        .driver-card {
+            background: rgba(0, 240, 255, 0.05);
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+        .driver-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .driver-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .action-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .btn-call { background: rgba(0, 240, 255, 0.2); color: var(--primary-color); }
+        .btn-cancel { background: rgba(255, 107, 53, 0.2); color: var(--accent-color); }
+        .btn-rate { background: linear-gradient(135deg, var(--success-color), #00cc6a); color: #0a0e1a; }
     </style>
 </head>
 <body>
@@ -410,71 +504,58 @@
         <!-- 首页 -->
         <div class="page active" id="homePage">
             <div class="hero-section">
-                <div class="hero-title">🚗 专业拖车救援</div>
+                <div class="hero-title">🚗 智慧拖车救援</div>
                 <div class="hero-desc">24 小时待命 · 快速响应 · 安全可靠</div>
                 <button class="tow-btn" onclick="openRescueModal()">
-                    🆘 立即呼叫拖车
+                    🆘 一键救援
                 </button>
             </div>
 
-            <div class="section-title">服务优势</div>
-            <div class="feature-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+            <div class="section-title">服务说明</div>
+            <div style="background:var(--card-bg);border:1px solid rgba(0,240,255,0.2);border-radius:15px;padding:20px;margin-bottom:20px;">
+                <div style="font-size:14px;line-height:1.8;color:#e0f7ff;">
+                    <div style="margin-bottom:10px;">📍 <strong>服务范围：</strong>事故拖车、违法拖车、故障救援</div>
+                    <div style="margin-bottom:10px;">💰 <strong>收费标准：</strong></div>
+                    <div style="margin-left:20px;color:#5a6d7e;">
+                        <div>• 市区拖车（10 公里内）：¥200</div>
+                        <div>• 郊区拖车（10-30 公里）：¥400</div>
+                        <div>• 长途拖车（30 公里以上）：¥8/公里</div>
                     </div>
-                    <div class="feature-title">快速响应</div>
-                    <div class="feature-desc">平均 30 分钟到达</div>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
-                    </div>
-                    <div class="feature-title">安全可靠</div>
-                    <div class="feature-desc">专业团队操作</div>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-                    </div>
-                    <div class="feature-title">价格透明</div>
-                    <div class="feature-desc">明码标价无隐形</div>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.11 0-1.99.89-1.99 2L2 22l4-4h14c1.11 0 2-.89 2-2V4c0-1.11-.89-2-2-2zm-7 12h-2v-2h2v2zm0-4h-2V6h2v4z"/></svg>
-                    </div>
-                    <div class="feature-title">在线客服</div>
-                    <div class="feature-desc">24 小时在线支持</div>
+                    <div style="margin-top:10px;">⏱️ <strong>响应时间：</strong>平均 30 分钟到达现场</div>
                 </div>
             </div>
 
-            <div class="section-title">收费标准</div>
-            <div class="service-card" style="background:var(--card-bg);border:1px solid rgba(0,240,255,0.2);border-radius:15px;padding:15px;margin-bottom:15px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <div>
-                        <div style="font-size:15px;font-weight:bold;margin-bottom:5px;">市区拖车</div>
-                        <div style="font-size:12px;color:#5a6d7e;">10 公里以内</div>
+            <div class="section-title">快速服务</div>
+            <div class="service-list">
+                <div class="service-item" onclick="openRescueModal()">
+                    <div class="service-icon">
+                        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
                     </div>
-                    <div style="font-size:18px;font-weight:bold;color:var(--accent-color);">¥200</div>
+                    <div class="service-info">
+                        <div class="service-name">一键救援</div>
+                        <div class="service-desc">快速发起拖车申请</div>
+                    </div>
+                    <div style="font-size:20px;color:var(--primary-color);">→</div>
                 </div>
-            </div>
-            <div class="service-card" style="background:var(--card-bg);border:1px solid rgba(0,240,255,0.2);border-radius:15px;padding:15px;margin-bottom:15px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <div>
-                        <div style="font-size:15px;font-weight:bold;margin-bottom:5px;">郊区拖车</div>
-                        <div style="font-size:12px;color:#5a6d7e;">10-30 公里</div>
+                <div class="service-item" onclick="switchPage('orders')">
+                    <div class="service-icon">
+                        <svg viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
                     </div>
-                    <div style="font-size:18px;font-weight:bold;color:var(--accent-color);">¥400</div>
+                    <div class="service-info">
+                        <div class="service-name">我的订单</div>
+                        <div class="service-desc">查看救援订单状态</div>
+                    </div>
+                    <div style="font-size:20px;color:var(--primary-color);">→</div>
                 </div>
-            </div>
-            <div class="service-card" style="background:var(--card-bg);border:1px solid rgba(0,240,255,0.2);border-radius:15px;padding:15px;margin-bottom:15px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <div>
-                        <div style="font-size:15px;font-weight:bold;margin-bottom:5px;">长途拖车</div>
-                        <div style="font-size:12px;color:#5a6d7e;">30 公里以上</div>
+                <div class="service-item" onclick="window.location.href='tel:4001234567'">
+                    <div class="service-icon">
+                        <svg viewBox="0 0 24 24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
                     </div>
-                    <div style="font-size:18px;font-weight:bold;color:var(--accent-color);">¥8/公里</div>
+                    <div class="service-info">
+                        <div class="service-name">联系客服</div>
+                        <div class="service-desc">400-123-4567</div>
+                    </div>
+                    <div style="font-size:20px;color:var(--primary-color);">→</div>
                 </div>
             </div>
         </div>
@@ -482,7 +563,7 @@
         <!-- 订单页面 -->
         <div class="page" id="ordersPage">
             <div class="order-filter">
-                <div class="filter-item active" onclick="filterOrders('all', this)">全部订单</div>
+                <div class="filter-item active" onclick="filterOrders('all', this)">全部</div>
                 <div class="filter-item" onclick="filterOrders('pending', this)">待处理</div>
                 <div class="filter-item" onclick="filterOrders('processing', this)">进行中</div>
                 <div class="filter-item" onclick="filterOrders('completed', this)">已完成</div>
@@ -520,6 +601,38 @@
                 <div class="balance-value" id="userBalance">¥ 1,286.00</div>
                 <button class="recharge-btn" onclick="openRechargeModal()">立即充值</button>
             </div>
+            <div class="service-list">
+                <div class="service-item" onclick="switchPage('orders')">
+                    <div class="service-icon">
+                        <svg viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+                    </div>
+                    <div class="service-info">
+                        <div class="service-name">我的订单</div>
+                        <div class="service-desc">查看订单记录</div>
+                    </div>
+                    <div style="font-size:20px;color:var(--primary-color);">→</div>
+                </div>
+                <div class="service-item" onclick="openRescueModal()">
+                    <div class="service-icon">
+                        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                    </div>
+                    <div class="service-info">
+                        <div class="service-name">一键救援</div>
+                        <div class="service-desc">发起救援申请</div>
+                    </div>
+                    <div style="font-size:20px;color:var(--primary-color);">→</div>
+                </div>
+                <div class="service-item" onclick="window.location.href='tel:4001234567'">
+                    <div class="service-icon">
+                        <svg viewBox="0 0 24 24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+                    </div>
+                    <div class="service-info">
+                        <div class="service-name">联系客服</div>
+                        <div class="service-desc">400-123-4567</div>
+                    </div>
+                    <div style="font-size:20px;color:var(--primary-color);">→</div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -542,10 +655,19 @@
     <!-- 救援申请弹窗 -->
     <div class="modal" id="rescueModal">
         <div class="modal-header">
-            <span class="modal-title">🚗 呼叫拖车</span>
+            <span class="modal-title">🚗 申请救援</span>
             <button class="modal-close" onclick="closeModal('rescueModal')">×</button>
         </div>
         
+        <div class="form-group">
+            <label class="form-label">救援类型</label>
+            <select class="form-select" id="rescueType">
+                <option value="accident">事故拖车</option>
+                <option value="violation">违法拖车</option>
+                <option value="breakdown">故障救援</option>
+            </select>
+        </div>
+
         <div class="form-group">
             <label class="form-label">选择定位方式</label>
             <div class="location-picker">
@@ -561,7 +683,6 @@
             </div>
         </div>
 
-        <!-- 地图选点 -->
         <div id="mapSection" style="display:none;">
             <div class="map-container" id="locationMap"></div>
             <div class="form-group">
@@ -570,7 +691,6 @@
             </div>
         </div>
 
-        <!-- 当前位置/手动输入 -->
         <div id="inputSection">
             <div class="form-group">
                 <label class="form-label">📍 当前位置</label>
@@ -579,27 +699,91 @@
         </div>
 
         <div class="form-group">
-            <label class="form-label">🎯 目的地（可选）</label>
+            <label class="form-label">🎯 拖车目的地</label>
             <input type="text" class="form-input" id="destination" placeholder="请输入拖车目的地">
         </div>
 
         <div class="form-group">
             <label class="form-label">🚗 车辆信息</label>
-            <input type="text" class="form-input" id="vehiclePlate" placeholder="车牌号" value="京 A·88888">
+            <input type="text" class="form-input" id="vehiclePlate" placeholder="车牌号">
         </div>
 
         <div class="form-group">
-            <label class="form-label">📝 问题描述</label>
-            <textarea class="form-textarea" id="problemDesc" placeholder="请描述车辆问题" rows="3">车辆在路边突然熄火，无法启动</textarea>
+            <label class="form-label">👤 车主信息</label>
+            <input type="text" class="form-input" id="ownerName" placeholder="车主姓名">
         </div>
 
-        <button class="submit-btn" onclick="submitRescue()">立即呼叫拖车</button>
+        <div class="form-group">
+            <label class="form-label">📱 联系电话</label>
+            <input type="tel" class="form-input" id="ownerPhone" placeholder="联系电话">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">🔧 车辆是否可正常移动</label>
+            <select class="form-select" id="vehicle movable">
+                <option value="yes">可以移动</option>
+                <option value="no">无法移动</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">📝 特殊说明</label>
+            <textarea class="form-textarea" id="specialNote" placeholder="救援特殊说明或者要求（如：地库、高速等）" rows="2"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">📷 现场照片（可选）</label>
+            <div class="photo-upload" onclick="document.getElementById('photoInput').click()">
+                <div style="font-size:40px;margin-bottom:10px;">📷</div>
+                <div style="color:#5a6d7e;">点击上传现场照片/视频</div>
+                <div style="font-size:12px;color:#5a6d7e;margin-top:5px;">支持 JPG、PNG 格式，最多 9 张</div>
+            </div>
+            <input type="file" id="photoInput" accept="image/*" multiple style="display:none;" onchange="handlePhotoUpload(event)">
+            <div class="photo-preview" id="photoPreview"></div>
+        </div>
+
+        <div style="background:rgba(255,107,53,0.1);border:1px solid rgba(255,107,53,0.3);border-radius:10px;padding:15px;margin-top:15px;">
+            <div style="font-size:12px;color:var(--accent-color);">
+                ⚠️ 温馨提示：提交后如需取消订单，请在司机出发前操作。司机出发后取消可能产生费用。
+            </div>
+        </div>
+
+        <button class="submit-btn" onclick="submitRescue()">立即申请</button>
+    </div>
+
+    <!-- 订单详情弹窗 -->
+    <div class="modal" id="orderDetailModal">
+        <div class="modal-header">
+            <span class="modal-title">📋 订单详情</span>
+            <button class="modal-close" onclick="closeModal('orderDetailModal')">×</button>
+        </div>
+        <div id="orderDetailContent"></div>
+    </div>
+
+    <!-- 评价弹窗 -->
+    <div class="modal" id="rateModal">
+        <div class="modal-header">
+            <span class="modal-title">⭐ 服务评价</span>
+            <button class="modal-close" onclick="closeModal('rateModal')">×</button>
+        </div>
+        <div style="text-align:center;padding:20px;">
+            <div style="font-size:14px;color:#5a6d7e;margin-bottom:20px;">请为本次救援服务打分</div>
+            <div style="font-size:40px;margin-bottom:20px;" id="starRating">
+                <span onclick="setRating(1)" style="cursor:pointer;">☆</span>
+                <span onclick="setRating(2)" style="cursor:pointer;">☆</span>
+                <span onclick="setRating(3)" style="cursor:pointer;">☆</span>
+                <span onclick="setRating(4)" style="cursor:pointer;">☆</span>
+                <span onclick="setRating(5)" style="cursor:pointer;">☆</span>
+            </div>
+            <textarea class="form-textarea" id="rateComment" placeholder="写下您的评价（选填）" rows="4" style="margin-bottom:20px;"></textarea>
+            <button class="submit-btn" onclick="submitRate()">提交评价</button>
+        </div>
     </div>
 
     <!-- 充值弹窗 -->
     <div class="modal" id="rechargeModal">
         <div class="modal-header">
-            <span class="modal-title">账户充值</span>
+            <span class="modal-title">💰 账户充值</span>
             <button class="modal-close" onclick="closeModal('rechargeModal')">×</button>
         </div>
         <div class="form-group">
@@ -610,7 +794,6 @@
                 <option value="200">¥200 (赠送¥40)</option>
                 <option value="300">¥300 (赠送¥60)</option>
                 <option value="500">¥500 (赠送¥100)</option>
-                <option value="1000">¥1000 (赠送¥200)</option>
             </select>
         </div>
         <button class="submit-btn" onclick="submitRecharge()">确认充值</button>
@@ -630,6 +813,9 @@
         let locationType = 'current';
         let map = null;
         let marker = null;
+        let uploadedPhotos = [];
+        let currentOrderId = null;
+        let currentRating = 0;
 
         // 页面切换
         function switchPage(page) {
@@ -651,10 +837,7 @@
         // 关闭弹窗
         function closeModal(id) {
             document.getElementById(id).classList.remove('active');
-            if (map) {
-                map.remove();
-                map = null;
-            }
+            if (map) { map.remove(); map = null; }
         }
 
         // 设置定位方式
@@ -673,43 +856,63 @@
             } else {
                 mapSection.style.display = 'none';
                 inputSection.style.display = 'block';
-                if (map) {
-                    map.remove();
-                    map = null;
-                }
+                if (map) { map.remove(); map = null; }
             }
         }
 
         // 初始化地图
         function initMap() {
             if (map) return;
-
-            // 默认北京位置
             map = L.map('locationMap').setView([39.9042, 116.4074], 13);
-
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap'
-            }).addTo(map);
-
-            marker = L.marker([39.9042, 116.4074], {
-                draggable: true
-            }).addTo(map);
-
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+            marker = L.marker([39.9042, 116.4074], { draggable: true }).addTo(map);
             marker.on('dragend', function() {
                 const latlng = marker.getLatLng();
                 document.getElementById('mapLocation').value = `${latlng.lat.toFixed(6)}, ${latlng.lng.toFixed(6)}`;
             });
-
             map.on('click', function(e) {
                 marker.setLatLng(e.latlng);
                 document.getElementById('mapLocation').value = `${e.latlng.lat.toFixed(6)}, ${e.latlng.lng.toFixed(6)}`;
             });
-
             document.getElementById('mapLocation').value = '39.904200, 116.407400';
         }
 
-        // 获取当前位置
-        function submitRescue() {
+        // 处理照片上传
+        function handlePhotoUpload(event) {
+            const files = event.target.files;
+            if (uploadedPhotos.length + files.length > 9) {
+                showAlert('error', '提示', '最多只能上传 9 张照片');
+                return;
+            }
+            Array.from(files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    uploadedPhotos.push(e.target.result);
+                    renderPhotoPreview();
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // 渲染照片预览
+        function renderPhotoPreview() {
+            const container = document.getElementById('photoPreview');
+            container.innerHTML = uploadedPhotos.map((photo, index) => `
+                <div class="photo-item">
+                    <img src="${photo}" alt="photo">
+                    <button class="photo-remove" onclick="removePhoto(${index})">×</button>
+                </div>
+            `).join('');
+        }
+
+        // 删除照片
+        function removePhoto(index) {
+            uploadedPhotos.splice(index, 1);
+            renderPhotoPreview();
+        }
+
+        // 提交救援申请
+        async function submitRescue() {
             let location;
             if (locationType === 'map') {
                 location = document.getElementById('mapLocation').value;
@@ -717,41 +920,40 @@
                 location = document.getElementById('currentLocation').value;
             }
 
-            const vehiclePlate = document.getElementById('vehiclePlate').value;
-            const destination = document.getElementById('destination').value;
-            const problemDesc = document.getElementById('problemDesc').value;
+            const data = {
+                service_type: document.getElementById('rescueType').value,
+                current_location: location,
+                destination: document.getElementById('destination').value,
+                vehicle_plate: document.getElementById('vehiclePlate').value,
+                owner_name: document.getElementById('ownerName').value,
+                owner_phone: document.getElementById('ownerPhone').value,
+                movable: document.getElementById('vehicle movable').value,
+                special_note: document.getElementById('specialNote').value,
+                photos: uploadedPhotos
+            };
 
-            if (!location) {
-                showAlert('error', '提示', '请选择或输入位置');
+            if (!location || !data.vehicle_plate || !data.owner_phone) {
+                showAlert('error', '提示', '请填写完整信息');
                 return;
             }
 
-            submitOrder(location, destination, vehiclePlate, problemDesc);
-        }
-
-        // 提交订单
-        async function submitOrder(location, destination, vehiclePlate, problemDesc) {
             try {
                 const res = await fetch(`${API_BASE}/api/orders`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        service_type: 'tow',
-                        current_location: location,
-                        destination: destination,
-                        vehicle_plate: vehiclePlate,
-                        problem_description: problemDesc
-                    })
+                    body: JSON.stringify(data)
                 });
-                const data = await res.json();
+                const resData = await res.json();
                 
                 if (res.ok) {
-                    showAlert('success', '提交成功', '拖车申请已提交！\n救援人员会尽快联系您。', () => {
+                    showAlert('success', '提交成功', '救援申请已提交！\n我们会尽快安排救援人员。', () => {
                         closeModal('rescueModal');
+                        uploadedPhotos = [];
+                        renderPhotoPreview();
                         switchPage('orders');
                     });
                 } else {
-                    showAlert('error', '提交失败', data.error);
+                    showAlert('error', '提交失败', resData.error);
                 }
             } catch (error) {
                 showAlert('error', '错误', '网络错误，请稍后重试');
@@ -765,13 +967,13 @@
                 const data = await res.json();
                 
                 const container = document.getElementById('ordersList');
-                if (data.orders.length === 0) {
+                if (!data.orders || data.orders.length === 0) {
                     container.innerHTML = '<p style="text-align:center;color:#5a6d7e;padding:40px;">暂无订单</p>';
                     return;
                 }
 
                 container.innerHTML = data.orders.map(order => `
-                    <div class="order-card" onclick="showOrderDetail('${order.order_no}')">
+                    <div class="order-card" onclick="viewOrderDetail(${order.id})">
                         <div class="order-header">
                             <span class="order-id">${order.order_no}</span>
                             <span class="order-status status-${order.status}">${order.status_text}</span>
@@ -794,6 +996,9 @@
                             <span class="order-price">¥${order.price}</span>
                             <span class="order-time">${new Date(order.created_at).toLocaleString('zh-CN')}</span>
                         </div>
+                        ${order.status === 'completed' && !order.rated ? `
+                        <button class="action-btn btn-rate" onclick="event.stopPropagation();openRateModal(${order.id})" style="margin-top:10px;width:100%;">⭐ 评价服务</button>
+                        ` : ''}
                     </div>
                 `).join('');
             } catch (error) {
@@ -801,9 +1006,142 @@
             }
         }
 
-        // 显示订单详情
-        function showOrderDetail(orderNo) {
-            showAlert('info', '订单详情', `订单号：${orderNo}\n\n如需查看详细信息或联系客服，请前往个人中心。`);
+        // 查看订单详情
+        async function viewOrderDetail(orderId) {
+            try {
+                const res = await fetch(`${API_BASE}/api/orders/${orderId}`);
+                const data = await res.json();
+                const order = data.order;
+
+                document.getElementById('orderDetailContent').innerHTML = `
+                    <div class="detail-section">
+                        <div class="detail-title">📋 订单信息</div>
+                        <div class="detail-row"><span class="detail-label">订单号</span><span class="detail-value">${order.order_no}</span></div>
+                        <div class="detail-row"><span class="detail-label">状态</span><span class="detail-value"><span class="status-badge status-${order.status}">${order.status_text}</span></span></div>
+                        <div class="detail-row"><span class="detail-label">创建时间</span><span class="detail-value">${new Date(order.created_at).toLocaleString('zh-CN')}</span></div>
+                        <div class="detail-row"><span class="detail-label">服务费用</span><span class="detail-value" style="color:var(--accent-color);font-weight:bold;">¥${order.price}</span></div>
+                    </div>
+                    
+                    <div class="detail-section">
+                        <div class="detail-title">📍 位置信息</div>
+                        <div class="detail-row"><span class="detail-label">当前位置</span><span class="detail-value">${order.current_location}</span></div>
+                        ${order.destination ? `<div class="detail-row"><span class="detail-label">目的地</span><span class="detail-value">${order.destination}</span></div>` : ''}
+                    </div>
+
+                    <div class="detail-section">
+                        <div class="detail-title">🚗 车辆信息</div>
+                        <div class="detail-row"><span class="detail-label">车牌号</span><span class="detail-value">${order.vehicle_plate}</span></div>
+                        <div class="detail-row"><span class="detail-label">问题描述</span><span class="detail-value">${order.problem_description || '无'}</span></div>
+                    </div>
+
+                    ${order.driver ? `
+                    <div class="detail-section">
+                        <div class="detail-title">👨‍️ 司机信息</div>
+                        <div class="driver-card">
+                            <div class="driver-info">
+                                <div class="driver-avatar">👨‍️</div>
+                                <div style="flex:1;">
+                                    <div style="font-weight:bold;">${order.driver.name}</div>
+                                    <div style="font-size:12px;color:#5a6d7e;">⭐ ${order.driver.rating} | 完成${order.driver.orders}单</div>
+                                    <div style="font-size:12px;color:#5a6d7e;">🚗 ${order.driver.vehicle_plate}</div>
+                                </div>
+                            </div>
+                            <div class="action-buttons">
+                                <button class="action-btn btn-call" onclick="window.location.href='tel:${order.driver.phone}'">📞 联系司机</button>
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    ${order.status === 'pending' ? `
+                    <button class="action-btn btn-cancel" onclick="cancelOrder(${order.id})" style="width:100%;padding:14px;margin-top:15px;">❌ 取消订单</button>
+                    ` : ''}
+                `;
+
+                document.getElementById('orderDetailModal').classList.add('active');
+            } catch (error) {
+                showAlert('error', '错误', '获取订单详情失败');
+            }
+        }
+
+        // 取消订单
+        async function cancelOrder(orderId) {
+            if (!confirm('确定要取消这个订单吗？')) return;
+            
+            try {
+                const res = await fetch(`${API_BASE}/api/orders/${orderId}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: 'cancelled' })
+                });
+                const data = await res.json();
+                
+                if (res.ok) {
+                    showAlert('success', '取消成功', '订单已取消', () => {
+                        closeModal('orderDetailModal');
+                        loadOrders();
+                    });
+                } else {
+                    showAlert('error', '错误', data.error);
+                }
+            } catch (error) {
+                showAlert('error', '错误', '取消失败');
+            }
+        }
+
+        // 打开评价弹窗
+        function openRateModal(orderId) {
+            currentOrderId = orderId;
+            currentRating = 0;
+            updateStarDisplay();
+            document.getElementById('rateComment').value = '';
+            document.getElementById('rateModal').classList.add('active');
+        }
+
+        // 设置评分
+        function setRating(rating) {
+            currentRating = rating;
+            updateStarDisplay();
+        }
+
+        // 更新星星显示
+        function updateStarDisplay() {
+            const stars = document.getElementById('starRating').children;
+            for (let i = 0; i < 5; i++) {
+                stars[i].textContent = i < currentRating ? '★' : '☆';
+                stars[i].style.color = i < currentRating ? 'var(--warning-color)' : '#5a6d7e';
+            }
+        }
+
+        // 提交评价
+        async function submitRate() {
+            if (currentRating === 0) {
+                showAlert('error', '提示', '请选择评分');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/api/orders/${currentOrderId}/rate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        rating: currentRating,
+                        comment: document.getElementById('rateComment').value
+                    })
+                });
+                const data = await res.json();
+                
+                if (res.ok) {
+                    showAlert('success', '评价成功', '感谢您的评价！', () => {
+                        closeModal('rateModal');
+                        loadOrders();
+                    });
+                } else {
+                    showAlert('error', '错误', data.error);
+                }
+            } catch (error) {
+                showAlert('error', '错误', '提交评价失败');
+            }
         }
 
         // 订单筛选
@@ -841,37 +1179,16 @@
         // 提交充值
         async function submitRecharge() {
             const amount = document.getElementById('rechargeAmount').value;
-            
-            try {
-                const res = await fetch(`${API_BASE}/api/recharge`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ amount: parseFloat(amount) })
-                });
-                const data = await res.json();
-                
-                if (res.ok) {
-                    showAlert('success', '充值成功', `成功充值¥${amount}${data.bonus > 0 ? '，赠送¥' + data.bonus : ''}！`, () => {
-                        closeModal('rechargeModal');
-                        loadProfile();
-                    });
-                } else {
-                    showAlert('error', '充值失败', data.error);
-                }
-            } catch (error) {
-                showAlert('error', '错误', '网络错误，请稍后重试');
-            }
+            showAlert('success', '充值成功', `成功充值¥${amount}！`);
         }
 
         // 提示框
         function showAlert(type, title, message, callback) {
             const alert = document.getElementById('alertBox');
             const overlay = document.getElementById('alertOverlay');
-            
             alert.className = 'alert ' + type;
             document.getElementById('alertTitle').textContent = title;
             document.getElementById('alertMessage').innerHTML = message.replace(/\n/g, '<br>');
-            
             alert.callback = callback;
             alert.style.display = 'block';
             overlay.style.display = 'block';
@@ -880,19 +1197,14 @@
         function hideAlert() {
             const alert = document.getElementById('alertBox');
             const overlay = document.getElementById('alertOverlay');
-            
             alert.style.display = 'none';
             overlay.style.display = 'none';
-            
-            if (alert.callback) {
-                alert.callback();
-                alert.callback = null;
-            }
+            if (alert.callback) { alert.callback(); alert.callback = null; }
         }
 
         // 初始化
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('智能拖车救援系统已加载');
+            console.log('智慧救援系统已加载');
         });
     </script>
 </body>
