@@ -137,6 +137,7 @@
             margin-bottom: 20px;
             border-bottom: 1px solid rgba(0, 240, 255, 0.2);
             padding-bottom: 15px;
+            overflow-x: auto;
         }
         .tab {
             padding: 10px 25px;
@@ -146,6 +147,7 @@
             cursor: pointer;
             font-size: 14px;
             color: #5a6d7e;
+            white-space: nowrap;
         }
         .tab.active {
             background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
@@ -158,15 +160,16 @@
             background: var(--card-bg);
             border: 1px solid rgba(0, 240, 255, 0.2);
             border-radius: 15px;
-            overflow: hidden;
+            overflow-x: auto;
         }
-        table { width: 100%; border-collapse: collapse; }
+        table { width: 100%; border-collapse: collapse; min-width: 1000px; }
         th, td { padding: 15px 20px; text-align: left; }
         th {
             background: rgba(0, 240, 255, 0.1);
             font-size: 13px;
             font-weight: bold;
             color: var(--primary-color);
+            white-space: nowrap;
         }
         tr { border-bottom: 1px solid rgba(0, 240, 255, 0.1); }
         tr:last-child { border-bottom: none; }
@@ -177,10 +180,12 @@
             border-radius: 10px;
             font-size: 12px;
             font-weight: bold;
+            white-space: nowrap;
         }
         .status-pending { background: rgba(255, 107, 53, 0.2); color: var(--accent-color); }
         .status-processing { background: rgba(0, 240, 255, 0.2); color: var(--primary-color); }
         .status-completed { background: rgba(0, 255, 136, 0.2); color: var(--success-color); }
+        .status-cancelled { background: rgba(128, 128, 128, 0.2); color: #888; }
         
         .action-btn {
             padding: 6px 14px;
@@ -189,10 +194,12 @@
             cursor: pointer;
             font-size: 12px;
             margin-right: 8px;
+            white-space: nowrap;
         }
         .btn-view { background: rgba(0, 240, 255, 0.2); color: var(--primary-color); }
         .btn-complete { background: rgba(0, 255, 136, 0.2); color: var(--success-color); }
         .btn-cancel { background: rgba(255, 107, 53, 0.2); color: var(--accent-color); }
+        .btn-assign { background: rgba(0, 102, 255, 0.2); color: var(--secondary-color); }
         
         /* 弹窗 */
         .modal {
@@ -213,7 +220,7 @@
             border: 2px solid rgba(0, 240, 255, 0.3);
             border-radius: 20px;
             padding: 30px;
-            max-width: 600px;
+            max-width: 700px;
             margin: 50px auto;
         }
         .modal-header {
@@ -251,6 +258,43 @@
             border: 2px solid rgba(0, 240, 255, 0.3);
         }
         
+        .timeline {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(0, 240, 255, 0.05);
+            border-radius: 10px;
+        }
+        .timeline-item {
+            display: flex;
+            gap: 15px;
+            padding: 10px 0;
+            border-left: 2px solid var(--primary-color);
+            padding-left: 20px;
+            position: relative;
+        }
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -6px;
+            top: 15px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--primary-color);
+        }
+        .timeline-time { font-size: 12px; color: #5a6d7e; min-width: 60px; }
+        .timeline-content { font-size: 14px; }
+        
+        .form-select {
+            width: 100%;
+            background: rgba(16, 28, 48, 0.8);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 10px;
+            padding: 12px 16px;
+            color: var(--text-color);
+            font-size: 14px;
+        }
+        
         .alert {
             position: fixed;
             top: 50%;
@@ -274,6 +318,17 @@
             bottom: 0;
             background: rgba(0, 0, 0, 0.7);
             z-index: 2999;
+        }
+        
+        .refresh-btn {
+            background: rgba(0, 240, 255, 0.2);
+            color: var(--primary-color);
+            border: 1px solid var(--primary-color);
+            padding: 8px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 13px;
+            margin-left: 10px;
         }
     </style>
 </head>
@@ -301,6 +356,7 @@
             <div class="admin-title">🚗 拖车救援系统 - 后台管理</div>
             <div class="admin-user">
                 <span id="adminName">管理员</span>
+                <button class="refresh-btn" onclick="refreshData()">🔄 刷新</button>
                 <button class="logout-btn" onclick="logout()">退出登录</button>
             </div>
         </div>
@@ -385,6 +441,7 @@
                                 <th>余额</th>
                                 <th>积分</th>
                                 <th>订单数</th>
+                                <th>总消费</th>
                                 <th>注册时间</th>
                             </tr>
                         </thead>
@@ -404,10 +461,39 @@
             </div>
             <div id="orderDetail"></div>
             <div class="map-box" id="orderMap"></div>
-            <div style="margin-top:20px;display:flex;gap:10px;">
+            
+            <div class="timeline" id="orderTimeline">
+                <div style="font-size:14px;font-weight:bold;margin-bottom:10px;">📝 订单时间线</div>
+                <div id="timelineContent"></div>
+            </div>
+            
+            <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap;">
                 <button class="action-btn btn-complete" onclick="updateOrderStatus('completed')" style="flex:1;padding:12px;">✅ 标记完成</button>
                 <button class="action-btn btn-cancel" onclick="updateOrderStatus('cancelled')" style="flex:1;padding:12px;">❌ 取消订单</button>
+                <button class="action-btn btn-assign" onclick="showAssignDriver()" style="flex:1;padding:12px;">🚛 分配司机</button>
             </div>
+        </div>
+    </div>
+
+    <!-- 分配司机弹窗 -->
+    <div class="modal" id="assignModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">🚛 分配司机</span>
+                <button class="modal-close" onclick="closeModal('assignModal')">×</button>
+            </div>
+            <div class="form-group">
+                <label class="form-label">选择司机</label>
+                <select class="form-select" id="driverSelect" onchange="onDriverChange()">
+                    <option value="">请选择司机</option>
+                </select>
+            </div>
+            <div id="driverInfo" style="margin:15px 0;padding:15px;background:rgba(0,240,255,0.05);border-radius:10px;display:none;">
+                <div class="detail-row"><span class="detail-label">司机姓名</span><span class="detail-value" id="d_name"></span></div>
+                <div class="detail-row"><span class="detail-label">联系电话</span><span class="detail-value" id="d_phone"></span></div>
+                <div class="detail-row"><span class="detail-label">救援车辆</span><span class="detail-value" id="d_vehicle"></span></div>
+            </div>
+            <button class="login-btn" onclick="confirmAssignDriver()">确认分配</button>
         </div>
     </div>
 
@@ -423,41 +509,51 @@
         const API_BASE = window.location.origin;
         let currentTab = 'orders';
         let allOrders = [];
+        let allDrivers = [];
         let currentOrderId = null;
         let orderMap = null;
-
-        // 模拟数据
-        const mockDrivers = [
-            { id: 1, name: '王师傅', phone: '139****6666', rating: 4.9, orders: 328, vehicle_plate: '京 B·99999', vehicle_model: '江铃特顺救援车', status: '空闲' },
-            { id: 2, name: '李师傅', phone: '138****5555', rating: 4.8, orders: 256, vehicle_plate: '京 C·88888', vehicle_model: '福田救援车', status: '服务中' },
-            { id: 3, name: '张师傅', phone: '137****7777', rating: 4.9, orders: 412, vehicle_plate: '京 D·66666', vehicle_model: '依维柯救援车', status: '空闲' }
-        ];
-
-        const mockUsers = [
-            { id: 1, username: '用户 8829', phone: '138****1234', balance: 1286, points: 3200, orders: 28, created_at: '2026-01-15' },
-            { id: 2, username: '用户 7756', phone: '139****5678', balance: 568, points: 1500, orders: 12, created_at: '2026-02-01' },
-            { id: 3, username: '用户 3321', phone: '137****9012', balance: 2100, points: 5600, orders: 45, created_at: '2025-12-10' }
-        ];
+        let selectedDriver = null;
 
         // 登录
         async function login() {
             const username = document.getElementById('adminUsername').value;
             const password = document.getElementById('adminPassword').value;
 
-            // 简单验证（实际应该调用 API）
-            if (username === 'admin' && password === 'admin123') {
-                document.getElementById('loginPage').style.display = 'none';
-                document.getElementById('adminPanel').classList.add('active');
-                loadDashboard();
-            } else {
-                showAlert('error', '登录失败', '账号或密码错误');
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    localStorage.setItem('adminToken', data.token);
+                    document.getElementById('loginPage').style.display = 'none';
+                    document.getElementById('adminPanel').classList.add('active');
+                    document.getElementById('adminName').textContent = data.admin.username;
+                    loadDashboard();
+                } else {
+                    showAlert('error', '登录失败', data.error);
+                }
+            } catch (error) {
+                showAlert('error', '错误', '网络错误，请稍后重试');
             }
         }
 
         // 退出
         function logout() {
+            localStorage.removeItem('adminToken');
             document.getElementById('loginPage').style.display = 'flex';
             document.getElementById('adminPanel').classList.remove('active');
+        }
+
+        // 刷新数据
+        function refreshData() {
+            loadDashboard();
+            if (currentTab === 'orders') loadOrders();
+            if (currentTab === 'drivers') loadDrivers();
+            if (currentTab === 'users') loadUsers();
         }
 
         // 切换标签页
@@ -476,22 +572,23 @@
 
         // 加载仪表盘
         async function loadDashboard() {
-            await loadOrders();
-            
-            const pending = allOrders.filter(o => o.status === 'pending').length;
-            const processing = allOrders.filter(o => o.status === 'processing').length;
-            const completed = allOrders.filter(o => o.status === 'completed').length;
-            
-            document.getElementById('totalOrders').textContent = allOrders.length;
-            document.getElementById('pendingOrders').textContent = pending;
-            document.getElementById('processingOrders').textContent = processing;
-            document.getElementById('completedOrders').textContent = completed;
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/stats`);
+                const data = await res.json();
+                
+                document.getElementById('totalOrders').textContent = data.totalOrders || 0;
+                document.getElementById('pendingOrders').textContent = data.pendingOrders || 0;
+                document.getElementById('processingOrders').textContent = data.processingOrders || 0;
+                document.getElementById('completedOrders').textContent = data.completedOrders || 0;
+            } catch (error) {
+                console.error('加载统计数据失败:', error);
+            }
         }
 
         // 加载订单
         async function loadOrders() {
             try {
-                const res = await fetch(`${API_BASE}/api/orders?status=all&limit=100`);
+                const res = await fetch(`${API_BASE}/api/admin/orders?status=all&limit=100`);
                 const data = await res.json();
                 allOrders = data.orders || [];
                 
@@ -504,13 +601,13 @@
                 tbody.innerHTML = allOrders.map(order => `
                     <tr>
                         <td style="font-family:monospace;">${order.order_no}</td>
-                        <td>${order.vehicle_plate || '未知'}</td>
-                        <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${order.current_location || '未知'}</td>
-                        <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${order.destination || '无'}</td>
+                        <td>用户${order.user_id || '-'}</td>
+                        <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${order.current_location || ''}">${order.current_location || '未知'}</td>
+                        <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${order.destination || ''}">${order.destination || '无'}</td>
                         <td>${order.vehicle_plate || '-'}</td>
                         <td style="color:var(--accent-color);font-weight:bold;">¥${order.price}</td>
                         <td><span class="status-badge status-${order.status}">${order.status_text}</span></td>
-                        <td style="font-size:12px;color:#5a6d7e;">${new Date(order.created_at).toLocaleString('zh-CN')}</td>
+                        <td style="font-size:12px;color:#5a6d7e;white-space:nowrap;">${new Date(order.created_at).toLocaleString('zh-CN')}</td>
                         <td>
                             <button class="action-btn btn-view" onclick="viewOrder(${order.id})">查看</button>
                         </td>
@@ -518,37 +615,65 @@
                 `).join('');
             } catch (error) {
                 console.error('加载订单失败:', error);
+                showAlert('error', '错误', '加载订单失败');
             }
         }
 
         // 加载司机
-        function loadDrivers() {
-            const tbody = document.getElementById('driversTable');
-            tbody.innerHTML = mockDrivers.map(driver => `
-                <tr>
-                    <td>${driver.name}</td>
-                    <td>${driver.phone}</td>
-                    <td>⭐ ${driver.rating}</td>
-                    <td>${driver.orders}</td>
-                    <td>${driver.vehicle_model} (${driver.vehicle_plate})</td>
-                    <td><span class="status-badge ${driver.status === '空闲' ? 'status-completed' : 'status-processing'}">${driver.status}</span></td>
-                </tr>
-            `).join('');
+        async function loadDrivers() {
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/drivers`);
+                const data = await res.json();
+                allDrivers = data.drivers || [];
+                
+                const tbody = document.getElementById('driversTable');
+                if (allDrivers.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#5a6d7e;padding:40px;">暂无司机数据</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = allDrivers.map(driver => `
+                    <tr>
+                        <td>${driver.name}</td>
+                        <td>${driver.phone}</td>
+                        <td>⭐ ${driver.rating}</td>
+                        <td>${driver.orders}</td>
+                        <td>${driver.vehicle_model} (${driver.vehicle_plate})</td>
+                        <td><span class="status-badge ${driver.status === '空闲' ? 'status-completed' : 'status-processing'}">${driver.status}</span></td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('加载司机失败:', error);
+            }
         }
 
         // 加载用户
-        function loadUsers() {
-            const tbody = document.getElementById('usersTable');
-            tbody.innerHTML = mockUsers.map(user => `
-                <tr>
-                    <td>${user.username}</td>
-                    <td>${user.phone}</td>
-                    <td style="color:var(--success-color);">¥${user.balance}</td>
-                    <td>${user.points}</td>
-                    <td>${user.orders}</td>
-                    <td style="font-size:12px;color:#5a6d7e;">${user.created_at}</td>
-                </tr>
-            `).join('');
+        async function loadUsers() {
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/users`);
+                const data = await res.json();
+                const users = data.users || [];
+                
+                const tbody = document.getElementById('usersTable');
+                if (users.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#5a6d7e;padding:40px;">暂无用户数据</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = users.map(user => `
+                    <tr>
+                        <td>${user.username}</td>
+                        <td>${user.phone}</td>
+                        <td style="color:var(--success-color);font-weight:bold;">¥${user.balance}</td>
+                        <td>${user.points}</td>
+                        <td>${user.orders}</td>
+                        <td style="color:var(--accent-color);">¥${user.total_spent}</td>
+                        <td style="font-size:12px;color:#5a6d7e;white-space:nowrap;">${new Date(user.created_at).toLocaleString('zh-CN')}</td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('加载用户失败:', error);
+            }
         }
 
         // 查看订单详情
@@ -556,12 +681,12 @@
             currentOrderId = orderId;
             
             try {
-                const res = await fetch(`${API_BASE}/api/orders/${orderId}`);
+                const res = await fetch(`${API_BASE}/api/admin/orders/${orderId}`);
                 const data = await res.json();
                 const order = data.order;
 
                 document.getElementById('orderDetail').innerHTML = `
-                    <div class="detail-row"><span class="detail-label">订单号</span><span class="detail-value">${order.order_no}</span></div>
+                    <div class="detail-row"><span class="detail-label">订单号</span><span class="detail-value" style="font-family:monospace;">${order.order_no}</span></div>
                     <div class="detail-row"><span class="detail-label">状态</span><span class="detail-value"><span class="status-badge status-${order.status}">${order.status_text}</span></span></div>
                     <div class="detail-row"><span class="detail-label">当前位置</span><span class="detail-value">${order.current_location}</span></div>
                     <div class="detail-row"><span class="detail-label">目的地</span><span class="detail-value">${order.destination || '无'}</span></div>
@@ -572,8 +697,21 @@
                     ${order.driver ? `
                     <div class="detail-row"><span class="detail-label">分配司机</span><span class="detail-value">${order.driver.name} (${order.driver.phone})</span></div>
                     <div class="detail-row"><span class="detail-label">救援车辆</span><span class="detail-value">${order.driver.vehicle_model} (${order.driver.vehicle_plate})</span></div>
-                    ` : ''}
+                    ` : '<div class="detail-row"><span class="detail-label">分配司机</span><span class="detail-value" style="color:#5a6d7e;">未分配</span></div>'}
                 `;
+
+                // 时间线
+                const timelineContent = document.getElementById('timelineContent');
+                if (order.timeline && order.timeline.length > 0) {
+                    timelineContent.innerHTML = order.timeline.map(t => `
+                        <div class="timeline-item">
+                            <div class="timeline-time">${t.time}</div>
+                            <div class="timeline-content">${t.content}</div>
+                        </div>
+                    `).join('');
+                } else {
+                    timelineContent.innerHTML = '<div style="color:#5a6d7e;text-align:center;padding:20px;">暂无时间线记录</div>';
+                }
 
                 document.getElementById('orderModal').classList.add('active');
                 
@@ -592,7 +730,7 @@
 
             // 尝试解析坐标或使用默认位置
             let lat = 39.9042, lng = 116.4074;
-            const coords = order.current_location.match(/(-?\d+\.?\d*),\s*(-?\d+\.?\d*)/);
+            const coords = order.current_location?.match(/(-?\d+\.?\d*),\s*(-?\d+\.?\d*)/);
             if (coords) {
                 lat = parseFloat(coords[1]);
                 lng = parseFloat(coords[2]);
@@ -626,13 +764,97 @@
             if (!currentOrderId) return;
 
             try {
-                // 这里需要后端 API 支持
-                showAlert('success', '操作成功', `订单已标记为${status === 'completed' ? '已完成' : '已取消'}`, () => {
-                    closeModal('orderModal');
-                    loadDashboard();
+                const res = await fetch(`${API_BASE}/api/admin/orders/${currentOrderId}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status })
                 });
+                const data = await res.json();
+                
+                if (res.ok) {
+                    showAlert('success', '操作成功', `订单已标记为${status === 'completed' ? '已完成' : '已取消'}`, () => {
+                        closeModal('orderModal');
+                        loadDashboard();
+                        loadOrders();
+                    });
+                } else {
+                    showAlert('error', '错误', data.error);
+                }
             } catch (error) {
                 showAlert('error', '错误', '更新状态失败');
+            }
+        }
+
+        // 显示分配司机
+        async function showAssignDriver() {
+            if (!currentOrderId) return;
+
+            // 加载司机列表
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/drivers`);
+                const data = await res.json();
+                allDrivers = data.drivers || [];
+
+                const select = document.getElementById('driverSelect');
+                select.innerHTML = '<option value="">请选择司机</option>' + 
+                    allDrivers.map(d => `<option value="${d.id}">${d.name} - ${d.vehicle_plate}</option>`).join('');
+                
+                document.getElementById('driverInfo').style.display = 'none';
+                document.getElementById('assignModal').classList.add('active');
+            } catch (error) {
+                showAlert('error', '错误', '加载司机列表失败');
+            }
+        }
+
+        // 司机选择变化
+        function onDriverChange() {
+            const driverId = document.getElementById('driverSelect').value;
+            selectedDriver = allDrivers.find(d => d.id == driverId);
+            
+            if (selectedDriver) {
+                document.getElementById('d_name').textContent = selectedDriver.name;
+                document.getElementById('d_phone').textContent = selectedDriver.phone;
+                document.getElementById('d_vehicle').textContent = `${selectedDriver.vehicle_model} (${selectedDriver.vehicle_plate})`;
+                document.getElementById('driverInfo').style.display = 'block';
+            } else {
+                document.getElementById('driverInfo').style.display = 'none';
+            }
+        }
+
+        // 确认分配司机
+        async function confirmAssignDriver() {
+            if (!selectedDriver) {
+                showAlert('error', '提示', '请选择司机');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/orders/${currentOrderId}/driver`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        driver_id: selectedDriver.id,
+                        driver_name: selectedDriver.name,
+                        driver_phone: selectedDriver.phone,
+                        driver_rating: selectedDriver.rating,
+                        vehicle_plate: selectedDriver.vehicle_plate,
+                        vehicle_model: selectedDriver.vehicle_model
+                    })
+                });
+                const data = await res.json();
+                
+                if (res.ok) {
+                    showAlert('success', '分配成功', `已分配司机：${selectedDriver.name}`, () => {
+                        closeModal('assignModal');
+                        closeModal('orderModal');
+                        loadDashboard();
+                        loadOrders();
+                    });
+                } else {
+                    showAlert('error', '错误', data.error);
+                }
+            } catch (error) {
+                showAlert('error', '错误', '分配司机失败');
             }
         }
 
@@ -672,6 +894,16 @@
         document.addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && document.getElementById('loginPage').style.display !== 'none') {
                 login();
+            }
+        });
+
+        // 页面加载时检查登录状态
+        window.addEventListener('load', () => {
+            const token = localStorage.getItem('adminToken');
+            if (token) {
+                document.getElementById('loginPage').style.display = 'none';
+                document.getElementById('adminPanel').classList.add('active');
+                loadDashboard();
             }
         });
     </script>
