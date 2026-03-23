@@ -31,8 +31,9 @@ router.post('/', async (req, res) => {
 
     const orderNo = 'RZ' + new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14) + Math.random().toString(36).slice(2, 4).toUpperCase();
 
-    const prices = { 'tow': 200, 'oil': 80, 'battery': 100, 'tire': 150, 'water': 500, 'medical': 300, 'other': 100 };
-    const price = prices[service_type] || 100;
+    // 只保留拖车服务价格
+    const prices = { 'tow': 200 };
+    const price = prices[service_type] || 200;
 
     const driver = mockDrivers[Math.floor(Math.random() * mockDrivers.length)];
 
@@ -48,15 +49,25 @@ router.post('/', async (req, res) => {
       orderNo, 1, service_type,
       vehicle_type || 'sedan', vehicle_plate || '京 A·88888',
       vehicle_brand || '大众', vehicle_color || '白色',
-      current_location, destination || current_location,
+      current_location, destination || '',
       address || '', problem_description || '',
       price, driver.id, driver.name, driver.phone, driver.rating,
       driver.vehicle_plate, driver.vehicle_model
     ]);
 
-    await run(`INSERT INTO order_timeline (order_id, status, description) VALUES (?, 'processing', '订单已提交')`, [result.lastInsertRowid]);
+    await run(`INSERT INTO order_timeline (order_id, status, description) VALUES (?, 'processing', '订单已提交，拖车师傅正在前往')`, [result.lastInsertRowid]);
 
-    res.status(201).json({ message: '订单创建成功', orderId: result.lastInsertRowid, orderNo });
+    res.status(201).json({ 
+      message: '订单创建成功', 
+      orderId: result.lastInsertRowid, 
+      orderNo,
+      price,
+      driver: {
+        name: driver.name,
+        phone: driver.phone,
+        eta: '30 分钟'
+      }
+    });
   } catch (error) {
     console.error('创建订单错误:', error);
     res.status(500).json({ error: '创建订单失败' });
@@ -87,10 +98,13 @@ router.get('/', async (req, res) => {
       status: order.status,
       status_text: order.status === 'pending' ? '待处理' : order.status === 'processing' ? '进行中' : '已完成',
       service_type: order.service_type,
+      service_name: '拖车救援',
       price: order.price,
       created_at: order.created_at,
       vehicle_type: order.vehicle_type,
       vehicle_plate: order.vehicle_plate,
+      current_location: order.current_location,
+      destination: order.destination,
       driver: order.driver_name ? {
         name: order.driver_name,
         phone: order.driver_phone,
@@ -129,23 +143,21 @@ router.get('/:id', async (req, res) => {
       status: order.status,
       status_text: order.status === 'pending' ? '待处理' : order.status === 'processing' ? '进行中' : '已完成',
       service_type: order.service_type,
+      service_name: '拖车救援',
       price: order.price,
       created_at: order.created_at,
       vehicle_type: order.vehicle_type,
       vehicle_plate: order.vehicle_plate,
       current_location: order.current_location,
       destination: order.destination,
+      problem_description: order.problem_description,
       driver: order.driver_name ? {
         name: order.driver_name,
         phone: order.driver_phone,
         rating: order.driver_rating,
-        orders: mockDrivers.find(d => d.id === order.driver_id)?.orders || 0
-      } : null,
-      rescue_vehicle: order.rescue_vehicle_plate ? {
-        plate: order.rescue_vehicle_plate,
-        model: order.rescue_vehicle_model,
-        status: order.status === 'processing' ? '正在前往' : '已完成',
-        progress: order.progress
+        orders: mockDrivers.find(d => d.id === order.driver_id)?.orders || 0,
+        vehicle_plate: order.rescue_vehicle_plate,
+        vehicle_model: order.rescue_vehicle_model
       } : null,
       timeline: timeline.map(t => ({
         time: new Date(t.created_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
