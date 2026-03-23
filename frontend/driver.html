@@ -416,53 +416,59 @@
 
             <!-- 个人报表 -->
             <div id="reportContent" style="display:none;">
-                <div class="section-title" style="font-size:16px;font-weight:bold;margin-bottom:15px;">📊 收入统计</div>
-                <div class="stats-row" style="grid-template-columns:repeat(2,1fr);margin-bottom:25px;">
-                    <div class="stat-card">
-                        <div class="stat-value" id="reportTodayOrders" style="font-size:28px;">0</div>
-                        <div class="stat-label">今日订单</div>
+                <!-- 统计卡片 -->
+                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:15px;margin-bottom:25px;">
+                    <div style="background:var(--card-bg);border:1px solid rgba(0,240,255,0.2);border-radius:15px;padding:20px;text-align:center;">
+                        <div style="font-size:28px;font-weight:bold;color:var(--primary-color);margin-bottom:8px;" id="reportTodayOrders">0</div>
+                        <div style="font-size:12px;color:#5a6d7e;">今日订单</div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="reportTodayIncome" style="font-size:28px;">¥0</div>
-                        <div class="stat-label">今日收入</div>
+                    <div style="background:var(--card-bg);border:1px solid rgba(0,240,255,0.2);border-radius:15px;padding:20px;text-align:center;">
+                        <div style="font-size:28px;font-weight:bold;color:var(--success-color);margin-bottom:8px;" id="reportTodayIncome">¥0</div>
+                        <div style="font-size:12px;color:#5a6d7e;">今日收入</div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="reportMonthOrders" style="font-size:28px;">0</div>
-                        <div class="stat-label">本月订单</div>
+                    <div style="background:var(--card-bg);border:1px solid rgba(0,240,255,0.2);border-radius:15px;padding:20px;text-align:center;">
+                        <div style="font-size:28px;font-weight:bold;color:var(--secondary-color);margin-bottom:8px;" id="reportMonthOrders">0</div>
+                        <div style="font-size:12px;color:#5a6d7e;">本月订单</div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="reportMonthIncome" style="font-size:28px;">¥0</div>
-                        <div class="stat-label">本月收入</div>
+                    <div style="background:var(--card-bg);border:1px solid rgba(0,240,255,0.2);border-radius:15px;padding:20px;text-align:center;">
+                        <div style="font-size:28px;font-weight:bold;color:var(--accent-color);margin-bottom:8px;" id="reportMonthIncome">¥0</div>
+                        <div style="font-size:12px;color:#5a6d7e;">本月收入</div>
                     </div>
                 </div>
 
-                <div class="section-title" style="font-size:15px;font-weight:bold;margin:20px 0 15px;">📈 近 7 日收入</div>
-                <div class="table-container" style="margin-bottom:25px;">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th style="font-size:12px;">日期</th>
-                                <th style="font-size:12px;">订单数</th>
-                                <th style="font-size:12px;">收入</th>
-                            </tr>
-                        </thead>
-                        <tbody id="dailyStatsTable"></tbody>
-                    </table>
+                <!-- 近 7 日收入 -->
+                <div style="background:var(--card-bg);border:1px solid rgba(0,240,255,0.2);border-radius:15px;padding:20px;margin-bottom:25px;">
+                    <div style="font-size:15px;font-weight:bold;margin-bottom:15px;color:var(--primary-color);">📈 近 7 日收入</div>
+                    <div style="overflow-x:auto;">
+                        <table style="width:100%;border-collapse:collapse;">
+                            <thead>
+                                <tr style="border-bottom:1px solid rgba(0,240,255,0.1);">
+                                    <th style="padding:12px 15px;text-align:left;font-size:12px;color:#5a6d7e;font-weight:normal;">日期</th>
+                                    <th style="padding:12px 15px;text-align:center;font-size:12px;color:#5a6d7e;font-weight:normal;">订单数</th>
+                                    <th style="padding:12px 15px;text-align:right;font-size:12px;color:#5a6d7e;font-weight:normal;">收入</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dailyStatsTable"></tbody>
+                        </table>
+                    </div>
                 </div>
 
-                <div class="section-title" style="font-size:15px;font-weight:bold;margin:20px 0 15px;">📋 历史订单</div>
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th style="font-size:12px;">订单号</th>
-                                <th style="font-size:12px;">日期</th>
-                                <th style="font-size:12px;">状态</th>
-                                <th style="font-size:12px;">收入</th>
-                            </tr>
-                        </thead>
-                        <tbody id="historyOrdersTable"></tbody>
-                    </table>
+                <!-- 历史订单 -->
+                <div style="background:var(--card-bg);border:1px solid rgba(0,240,255,0.2);border-radius:15px;padding:20px;">
+                    <div style="font-size:15px;font-weight:bold;margin-bottom:15px;color:var(--primary-color);">📋 历史订单</div>
+                    <div style="overflow-x:auto;">
+                        <table style="width:100%;border-collapse:collapse;">
+                            <thead>
+                                <tr style="border-bottom:1px solid rgba(0,240,255,0.1);">
+                                    <th style="padding:12px 15px;text-align:left;font-size:12px;color:#5a6d7e;font-weight:normal;">订单号</th>
+                                    <th style="padding:12px 15px;text-align:center;font-size:12px;color:#5a6d7e;font-weight:normal;">日期</th>
+                                    <th style="padding:12px 15px;text-align:center;font-size:12px;color:#5a6d7e;font-weight:normal;">状态</th>
+                                    <th style="padding:12px 15px;text-align:right;font-size:12px;color:#5a6d7e;font-weight:normal;">收入</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyOrdersTable"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
