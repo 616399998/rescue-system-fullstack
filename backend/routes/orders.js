@@ -109,13 +109,23 @@ router.post('/orders', async (req, res) => {
   }
 });
 
-// 获取订单列表（个人端）
+// 获取订单列表（个人端、司机端）
 router.get('/orders', async (req, res) => {
   try {
-    const { status, page = 1, limit = 10 } = req.query;
+    const { status, page = 1, limit = 10, driver_id } = req.query;
     
-    let query = 'SELECT * FROM orders WHERE user_id = 1';
+    let query = 'SELECT * FROM orders WHERE 1=1';
     const params = [];
+
+    // 司机端查询分配给自己的订单
+    if (driver_id) {
+      query += ' AND driver_id = ?';
+      params.push(driver_id);
+    } else {
+      // 个人端查询自己的订单
+      query += ' AND user_id = ?';
+      params.push(1);
+    }
 
     if (status && status !== 'all') {
       query += ' AND status = ?';

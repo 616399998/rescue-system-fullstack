@@ -517,37 +517,7 @@
         let isOnline = true;
         let uploadedPhotos = [];
         let currentPhotoType = ''; // arrival, departure, delivery
-
-        // 模拟订单数据
-        const mockOrders = [
-            {
-                id: 1,
-                order_no: 'RZ20260323000001',
-                status: 'pending',
-                current_location: '北京市朝阳区建国路 88 号',
-                destination: '北京市朝阳区修车厂',
-                vehicle_plate: '京 A·88888',
-                problem_description: '车辆熄火无法启动',
-                price: 200,
-                created_at: new Date().toISOString(),
-                owner_phone: '138****1234',
-                owner_name: '张先生'
-            },
-            {
-                id: 2,
-                order_no: 'RZ20260323000002',
-                status: 'processing',
-                current_location: '北京市海淀区中关村大街 1 号',
-                destination: '北京市海淀区汽车维修中心',
-                vehicle_plate: '京 C·66666',
-                problem_description: '轮胎爆胎需要拖车',
-                price: 400,
-                created_at: new Date(Date.now() - 3600000).toISOString(),
-                owner_phone: '139****5678',
-                owner_name: '李女士',
-                driver_action: 'going'
-            }
-        ];
+        let driverInfo = { id: 1, name: '王师傅', phone: '139****6666' };
 
         // 登录
         function login() {
@@ -608,14 +578,24 @@
         }
 
         // 加载仪表盘
-        function loadDashboard() {
-            const today = new Date().toDateString();
-            const todayOrders = mockOrders.filter(o => new Date(o.created_at).toDateString() === today);
-            const completed = todayOrders.filter(o => o.status === 'completed').length;
-            const income = todayOrders.filter(o => o.status === 'completed').reduce((sum, o) => sum + o.price, 0);
-            document.getElementById('todayOrders').textContent = todayOrders.length;
-            document.getElementById('completedToday').textContent = completed;
-            document.getElementById('todayIncome').textContent = '¥' + income;
+        async function loadDashboard() {
+            try {
+                // 从 API 加载订单
+                const res = await fetch(`${API_BASE}/api/orders?driver_id=${driverInfo.id}`);
+                const data = await res.json();
+                allOrders = data.orders || [];
+                
+                const today = new Date().toDateString();
+                const todayOrders = allOrders.filter(o => new Date(o.created_at).toDateString() === today);
+                const completed = todayOrders.filter(o => o.status === 'completed').length;
+                const income = todayOrders.filter(o => o.status === 'completed').reduce((sum, o) => sum + (o.price || 0), 0);
+                
+                document.getElementById('todayOrders').textContent = todayOrders.length;
+                document.getElementById('completedToday').textContent = completed;
+                document.getElementById('todayIncome').textContent = '¥' + income;
+            } catch (error) {
+                console.error('加载订单失败:', error);
+            }
             loadOrders();
         }
 
@@ -623,9 +603,9 @@
         function loadOrders() {
             const container = document.getElementById('orderList');
             let filteredOrders = [];
-            if (currentTab === 'new') filteredOrders = mockOrders.filter(o => o.status === 'pending');
-            else if (currentTab === 'ongoing') filteredOrders = mockOrders.filter(o => o.status === 'processing');
-            else filteredOrders = mockOrders.filter(o => o.status === 'completed' || o.status === 'cancelled');
+            if (currentTab === 'new') filteredOrders = allOrders.filter(o => o.status === 'pending');
+            else if (currentTab === 'ongoing') filteredOrders = allOrders.filter(o => o.status === 'processing');
+            else filteredOrders = allOrders.filter(o => o.status === 'completed' || o.status === 'cancelled');
 
             if (filteredOrders.length === 0) {
                 container.innerHTML = `<div class="empty-state"><div class="empty-icon">${currentTab === 'new' ? '📭' : currentTab === 'ongoing' ? '🕐' : '📚'}</div><div>暂无${currentTab === 'new' ? '新订单' : currentTab === 'ongoing' ? '进行中订单' : '历史订单'}</div></div>`;
@@ -640,7 +620,7 @@
                     'cancelled': '<span class="order-status status-cancelled">已取消</span>'
                 };
                 return `
-                    <div class="order-card">
+                    <div class="order-card" onclick="viewOrder(${order.id})">
                         <div class="order-header">
                             <span class="order-no">${order.order_no}</span>
                             ${statusMap[order.status]}
@@ -660,20 +640,20 @@
                             <div class="info-item"><div class="info-label">服务费用</div><div class="info-value" style="color:var(--accent-color);font-weight:bold;">¥${order.price}</div></div>
                         </div>
                         <div class="order-actions">
-                            <button class="action-btn btn-call" onclick="callCustomer('${order.owner_phone}')">📞 联系客户</button>
-                            <button class="action-btn btn-navigate" onclick="navigate('${order.current_location}')">🗺️ 导航</button>
+                            <button class="action-btn btn-call" onclick="event.stopPropagation();callCustomer('${order.owner_phone}')">📞 联系客户</button>
+                            <button class="action-btn btn-navigate" onclick="event.stopPropagation();navigate('${order.current_location}')">🗺️ 导航</button>
                         </div>
-                        ${order.status === 'pending' ? `<button class="action-btn btn-start" onclick="startOrder(${order.id})" style="width:100%;margin-top:10px;">✅ 开始服务</button>` : ''}
-                        ${order.status === 'processing' && order.driver_action === 'arrived' ? `<button class="action-btn btn-complete" onclick="completeOrder(${order.id})" style="width:100%;margin-top:10px;">✨ 完成订单</button>` : ''}
+                        ${order.status === 'pending' ? `<button class="action-btn btn-start" onclick="event.stopPropagation();startOrder(${order.id})" style="width:100%;margin-top:10px;">✅ 开始服务</button>` : ''}
+                        ${order.status === 'processing' && order.driver_action === 'arrived' ? `<button class="action-btn btn-complete" onclick="event.stopPropagation();completeOrder(${order.id})" style="width:100%;margin-top:10px;">✨ 完成订单</button>` : ''}
                     </div>
                 `;
             }).join('');
         }
 
         // 查看订单详情
-        function viewOrder(orderId) {
+        async function viewOrder(orderId) {
             currentOrderId = orderId;
-            const order = mockOrders.find(o => o.id === orderId);
+            const order = allOrders.find(o => o.id === orderId);
             if (!order) return;
 
             document.getElementById('orderDetail').innerHTML = `
@@ -722,23 +702,42 @@
         }
 
         // 开始服务
-        function startOrder(orderId) {
-            const order = mockOrders.find(o => o.id === orderId);
-            if (order) {
-                order.status = 'processing';
-                order.driver_action = 'going';
-                closeModal('orderModal');
-                showAlert('success', '开始服务', '订单已开始，请前往现场', () => { loadOrders(); loadDashboard(); });
+        async function startOrder(orderId) {
+            try {
+                const res = await fetch(`${API_BASE}/api/orders/${orderId}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: 'processing', driver_action: 'going' })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    closeModal('orderModal');
+                    showAlert('success', '开始服务', '订单已开始，请前往现场', () => { loadDashboard(); });
+                } else {
+                    showAlert('error', '错误', data.error);
+                }
+            } catch (error) {
+                showAlert('error', '错误', '开始服务失败');
             }
         }
 
         // 标记到达
-        function markArrived(orderId) {
-            const order = mockOrders.find(o => o.id === orderId);
-            if (order) {
-                order.driver_action = 'arrived';
-                closeModal('orderModal');
-                showAlert('success', '已到达', '请拍摄现场照片', () => { loadOrders(); });
+        async function markArrived(orderId) {
+            try {
+                const res = await fetch(`${API_BASE}/api/orders/${orderId}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ driver_action: 'arrived' })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    closeModal('orderModal');
+                    showAlert('success', '已到达', '请拍摄现场照片', () => { loadDashboard(); });
+                } else {
+                    showAlert('error', '错误', data.error);
+                }
+            } catch (error) {
+                showAlert('error', '错误', '标记到达失败');
             }
         }
 
@@ -820,12 +819,22 @@
         }
 
         // 完成订单
-        function completeOrder(orderId) {
-            const order = mockOrders.find(o => o.id === orderId);
-            if (order) {
-                order.status = 'completed';
-                closeModal('orderModal');
-                showAlert('success', '订单完成', '感谢您的服务！', () => { loadOrders(); loadDashboard(); });
+        async function completeOrder(orderId) {
+            try {
+                const res = await fetch(`${API_BASE}/api/orders/${orderId}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: 'completed' })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    closeModal('orderModal');
+                    showAlert('success', '订单完成', '感谢您的服务！', () => { loadDashboard(); });
+                } else {
+                    showAlert('error', '错误', data.error);
+                }
+            } catch (error) {
+                showAlert('error', '错误', '完成订单失败');
             }
         }
 
