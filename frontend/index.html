@@ -1069,10 +1069,10 @@
             if (!confirm('确定要取消这个订单吗？')) return;
             
             try {
-                const res = await fetch(`${API_BASE}/api/orders/${orderId}/status`, {
+                const res = await fetch(`${API_BASE}/api/orders/${orderId}/cancel`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ status: 'cancelled' })
+                    body: JSON.stringify({ reason: '用户取消订单' })
                 });
                 const data = await res.json();
                 

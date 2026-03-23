@@ -527,7 +527,17 @@
                 localStorage.setItem('driverToken', 'driver_token_' + username);
                 document.getElementById('loginPage').style.display = 'none';
                 document.getElementById('driverPanel').classList.add('active');
-                document.getElementById('driverName').textContent = '王师傅';
+                
+                // 根据账号设置司机信息
+                if (username === 'driver001') {
+                    driverInfo = { id: 1, name: '王师傅', phone: '139****6666' };
+                } else if (username === 'driver002') {
+                    driverInfo = { id: 2, name: '李师傅', phone: '138****5555' };
+                } else {
+                    driverInfo = { id: 1, name: '王师傅', phone: '139****6666' };
+                }
+                
+                document.getElementById('driverName').textContent = driverInfo.name;
                 loadDashboard();
             } else {
                 showAlert('error', '登录失败', '请输入账号和密码');
