@@ -345,6 +345,7 @@ router.get('/drivers', async (req, res) => {
 // 获取可派司机
 router.get('/dispatch/available-drivers', async (req, res) => {
   try {
+    // 获取所有有订单记录的司机
     const drivers = await all(`
       SELECT DISTINCT
         driver_id as id,
@@ -355,8 +356,15 @@ router.get('/dispatch/available-drivers', async (req, res) => {
         rescue_vehicle_model as vehicle_model
       FROM orders 
       WHERE driver_id IS NOT NULL
-      AND driver_id NOT IN (SELECT driver_id FROM orders WHERE status = 'processing')
     `);
+
+    // 获取正在服务中的司机 ID
+    const busyDrivers = await all(`
+      SELECT DISTINCT driver_id 
+      FROM orders 
+      WHERE status = 'processing' AND driver_id IS NOT NULL
+    `);
+    const busyIds = busyDrivers.map(d => d.driver_id);
 
     const formattedDrivers = drivers.map((d, i) => ({
       id: d.id,
@@ -365,7 +373,7 @@ router.get('/dispatch/available-drivers', async (req, res) => {
       rating: d.rating,
       vehicle_plate: d.vehicle_plate,
       vehicle_model: d.vehicle_model,
-      status: '空闲',
+      status: busyIds.includes(d.id) ? '服务中' : '空闲',
       location: ['朝阳区', '海淀区', '丰台区'][i % 3],
       today_orders: Math.floor(Math.random() * 10)
     }));
