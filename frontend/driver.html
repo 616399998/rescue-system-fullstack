@@ -410,7 +410,7 @@
             </div>
 
             <!-- 订单列表 -->
-            <div id="ordersContent">
+            <div id="ordersContent" style="display:block;">
                 <div id="orderList"></div>
             </div>
 
@@ -707,10 +707,16 @@
 
         // 切换页面
         function switchPage(page) {
+            // 更新导航状态
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             event.currentTarget.classList.add('active');
-            document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
             
+            // 隐藏所有内容区域
+            document.getElementById('ordersContent').style.display = 'none';
+            document.getElementById('reportContent').style.display = 'none';
+            document.getElementById('profileContent').style.display = 'none';
+            
+            // 显示对应页面
             if (page === 'orders') {
                 document.getElementById('ordersContent').style.display = 'block';
                 loadDashboard();
