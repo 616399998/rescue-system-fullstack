@@ -458,22 +458,22 @@
                         <button onclick="exportReport()" style="padding:8px 16px;background:rgba(0,240,255,0.2);border:1px solid rgba(0,240,255,0.3);border-radius:10px;color:var(--primary-color);font-size:12px;cursor:pointer;">📥 导出报表</button>
                     </div>
                     <div style="overflow-x:auto;">
-                        <table style="width:100%;border-collapse:collapse;">
+                        <table style="width:100%;border-collapse:collapse;min-width:400px;">
                             <thead>
                                 <tr style="border-bottom:1px solid rgba(0,240,255,0.1);">
-                                    <th style="padding:12px 15px;text-align:left;font-size:12px;color:#5a6d7e;font-weight:normal;">日期</th>
-                                    <th style="padding:12px 15px;text-align:center;font-size:12px;color:#5a6d7e;font-weight:normal;">订单数</th>
-                                    <th style="padding:12px 15px;text-align:center;font-size:12px;color:#5a6d7e;font-weight:normal;">已完成</th>
-                                    <th style="padding:12px 15px;text-align:right;font-size:12px;color:#5a6d7e;font-weight:normal;">收入</th>
+                                    <th style="padding:12px 15px;text-align:left;font-size:12px;color:#5a6d7e;font-weight:normal;white-space:nowrap;">日期</th>
+                                    <th style="padding:12px 15px;text-align:center;font-size:12px;color:#5a6d7e;font-weight:normal;white-space:nowrap;">订单数</th>
+                                    <th style="padding:12px 15px;text-align:center;font-size:12px;color:#5a6d7e;font-weight:normal;white-space:nowrap;">已完成</th>
+                                    <th style="padding:12px 15px;text-align:right;font-size:12px;color:#5a6d7e;font-weight:normal;white-space:nowrap;">收入</th>
                                 </tr>
                             </thead>
                             <tbody id="dailyStatsTable"></tbody>
                             <tfoot id="reportFooter" style="border-top:2px solid rgba(0,240,255,0.3);">
                                 <tr style="background:rgba(0,240,255,0.05);">
-                                    <td style="padding:12px 15px;font-size:13px;font-weight:bold;color:var(--primary-color);">合计</td>
-                                    <td style="padding:12px 15px;text-align:center;font-size:13px;font-weight:bold;" id="footerOrders">0</td>
-                                    <td style="padding:12px 15px;text-align:center;font-size:13px;font-weight:bold;" id="footerCompleted">0</td>
-                                    <td style="padding:12px 15px;text-align:right;font-size:13px;font-weight:bold;color:var(--success-color);" id="footerIncome">¥0</td>
+                                    <td style="padding:12px 15px;font-size:13px;font-weight:bold;color:var(--primary-color);white-space:nowrap;">合计</td>
+                                    <td style="padding:12px 15px;text-align:center;font-size:13px;font-weight:bold;white-space:nowrap;" id="footerOrders">0</td>
+                                    <td style="padding:12px 15px;text-align:center;font-size:13px;font-weight:bold;white-space:nowrap;" id="footerCompleted">0</td>
+                                    <td style="padding:12px 15px;text-align:right;font-size:13px;font-weight:bold;color:var(--success-color);white-space:nowrap;" id="footerIncome">¥0</td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -484,13 +484,13 @@
                 <div style="background:var(--card-bg);border:1px solid rgba(0,240,255,0.2);border-radius:15px;padding:20px;">
                     <div style="font-size:15px;font-weight:bold;margin-bottom:15px;color:var(--primary-color);">📋 订单明细</div>
                     <div style="overflow-x:auto;">
-                        <table style="width:100%;border-collapse:collapse;">
+                        <table style="width:100%;border-collapse:collapse;min-width:500px;">
                             <thead>
                                 <tr style="border-bottom:1px solid rgba(0,240,255,0.1);">
-                                    <th style="padding:12px 15px;text-align:left;font-size:12px;color:#5a6d7e;font-weight:normal;">订单号</th>
-                                    <th style="padding:12px 15px;text-align:center;font-size:12px;color:#5a6d7e;font-weight:normal;">日期</th>
-                                    <th style="padding:12px 15px;text-align:center;font-size:12px;color:#5a6d7e;font-weight:normal;">状态</th>
-                                    <th style="padding:12px 15px;text-align:right;font-size:12px;color:#5a6d7e;font-weight:normal;">收入</th>
+                                    <th style="padding:12px 15px;text-align:left;font-size:12px;color:#5a6d7e;font-weight:normal;white-space:nowrap;">订单号</th>
+                                    <th style="padding:12px 15px;text-align:center;font-size:12px;color:#5a6d7e;font-weight:normal;white-space:nowrap;">日期</th>
+                                    <th style="padding:12px 15px;text-align:center;font-size:12px;color:#5a6d7e;font-weight:normal;white-space:nowrap;">状态</th>
+                                    <th style="padding:12px 15px;text-align:right;font-size:12px;color:#5a6d7e;font-weight:normal;white-space:nowrap;">收入</th>
                                 </tr>
                             </thead>
                             <tbody id="historyOrdersTable"></tbody>
