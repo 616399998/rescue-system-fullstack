@@ -457,23 +457,23 @@
                         <div style="font-size:15px;font-weight:bold;color:var(--primary-color);">📊 订单汇总</div>
                         <button onclick="exportReport()" style="padding:8px 16px;background:rgba(0,240,255,0.2);border:1px solid rgba(0,240,255,0.3);border-radius:10px;color:var(--primary-color);font-size:12px;cursor:pointer;">📥 导出报表</button>
                     </div>
-                    <div style="overflow-x:auto;">
-                        <table style="width:100%;border-collapse:collapse;min-width:400px;">
+                    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+                        <table style="border-collapse:collapse;min-width:450px;">
                             <thead>
-                                <tr style="border-bottom:1px solid rgba(0,240,255,0.1);">
-                                    <th style="padding:12px 15px;text-align:left;font-size:12px;color:#5a6d7e;font-weight:normal;white-space:nowrap;">日期</th>
-                                    <th style="padding:12px 15px;text-align:center;font-size:12px;color:#5a6d7e;font-weight:normal;white-space:nowrap;">订单数</th>
-                                    <th style="padding:12px 15px;text-align:center;font-size:12px;color:#5a6d7e;font-weight:normal;white-space:nowrap;">已完成</th>
-                                    <th style="padding:12px 15px;text-align:right;font-size:12px;color:#5a6d7e;font-weight:normal;white-space:nowrap;">收入</th>
+                                <tr style="border-bottom:2px solid rgba(0,240,255,0.2);">
+                                    <th style="padding:14px 18px;text-align:left;font-size:13px;color:#5a6d7e;font-weight:600;white-space:nowrap;">日期</th>
+                                    <th style="padding:14px 18px;text-align:center;font-size:13px;color:#5a6d7e;font-weight:600;white-space:nowrap;">订单数</th>
+                                    <th style="padding:14px 18px;text-align:center;font-size:13px;color:#5a6d7e;font-weight:600;white-space:nowrap;">已完成</th>
+                                    <th style="padding:14px 18px;text-align:right;font-size:13px;color:#5a6d7e;font-weight:600;white-space:nowrap;">收入</th>
                                 </tr>
                             </thead>
                             <tbody id="dailyStatsTable"></tbody>
                             <tfoot id="reportFooter" style="border-top:2px solid rgba(0,240,255,0.3);">
                                 <tr style="background:rgba(0,240,255,0.05);">
-                                    <td style="padding:12px 15px;font-size:13px;font-weight:bold;color:var(--primary-color);white-space:nowrap;">合计</td>
-                                    <td style="padding:12px 15px;text-align:center;font-size:13px;font-weight:bold;white-space:nowrap;" id="footerOrders">0</td>
-                                    <td style="padding:12px 15px;text-align:center;font-size:13px;font-weight:bold;white-space:nowrap;" id="footerCompleted">0</td>
-                                    <td style="padding:12px 15px;text-align:right;font-size:13px;font-weight:bold;color:var(--success-color);white-space:nowrap;" id="footerIncome">¥0</td>
+                                    <td style="padding:14px 18px;font-size:13px;font-weight:bold;color:var(--primary-color);white-space:nowrap;">合计</td>
+                                    <td style="padding:14px 18px;text-align:center;font-size:13px;font-weight:bold;white-space:nowrap;" id="footerOrders">0</td>
+                                    <td style="padding:14px 18px;text-align:center;font-size:13px;font-weight:bold;white-space:nowrap;" id="footerCompleted">0</td>
+                                    <td style="padding:14px 18px;text-align:right;font-size:13px;font-weight:bold;color:var(--success-color);white-space:nowrap;" id="footerIncome">¥0</td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -483,14 +483,14 @@
                 <!-- 历史订单 -->
                 <div style="background:var(--card-bg);border:1px solid rgba(0,240,255,0.2);border-radius:15px;padding:20px;">
                     <div style="font-size:15px;font-weight:bold;margin-bottom:15px;color:var(--primary-color);">📋 订单明细</div>
-                    <div style="overflow-x:auto;">
-                        <table style="width:100%;border-collapse:collapse;min-width:500px;">
+                    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+                        <table style="border-collapse:collapse;min-width:600px;">
                             <thead>
-                                <tr style="border-bottom:1px solid rgba(0,240,255,0.1);">
-                                    <th style="padding:12px 15px;text-align:left;font-size:12px;color:#5a6d7e;font-weight:normal;white-space:nowrap;">订单号</th>
-                                    <th style="padding:12px 15px;text-align:center;font-size:12px;color:#5a6d7e;font-weight:normal;white-space:nowrap;">日期</th>
-                                    <th style="padding:12px 15px;text-align:center;font-size:12px;color:#5a6d7e;font-weight:normal;white-space:nowrap;">状态</th>
-                                    <th style="padding:12px 15px;text-align:right;font-size:12px;color:#5a6d7e;font-weight:normal;white-space:nowrap;">收入</th>
+                                <tr style="border-bottom:2px solid rgba(0,240,255,0.2);">
+                                    <th style="padding:14px 18px;text-align:left;font-size:13px;color:#5a6d7e;font-weight:600;white-space:nowrap;">订单号</th>
+                                    <th style="padding:14px 18px;text-align:center;font-size:13px;color:#5a6d7e;font-weight:600;white-space:nowrap;">日期</th>
+                                    <th style="padding:14px 18px;text-align:center;font-size:13px;color:#5a6d7e;font-weight:600;white-space:nowrap;">状态</th>
+                                    <th style="padding:14px 18px;text-align:right;font-size:13px;color:#5a6d7e;font-weight:600;white-space:nowrap;">收入</th>
                                 </tr>
                             </thead>
                             <tbody id="historyOrdersTable"></tbody>
@@ -1282,10 +1282,10 @@
                     footerIncome += stat.income;
                     return `
                         <tr style="border-bottom:1px solid rgba(0,240,255,0.05);">
-                            <td style="padding:12px 15px;font-size:12px;color:#e0f7ff;">${date}</td>
-                            <td style="padding:12px 15px;text-align:center;font-size:12px;">${stat.orders}</td>
-                            <td style="padding:12px 15px;text-align:center;font-size:12px;color:var(--success-color);">${stat.completed}</td>
-                            <td style="padding:12px 15px;text-align:right;font-size:12px;color:var(--success-color);font-weight:bold;">¥${stat.income}</td>
+                            <td style="padding:14px 18px;font-size:12px;color:#e0f7ff;white-space:nowrap;">${date}</td>
+                            <td style="padding:14px 18px;text-align:center;font-size:12px;white-space:nowrap;">${stat.orders}</td>
+                            <td style="padding:14px 18px;text-align:center;font-size:12px;color:var(--success-color);white-space:nowrap;">${stat.completed}</td>
+                            <td style="padding:14px 18px;text-align:right;font-size:12px;color:var(--success-color);font-weight:bold;white-space:nowrap;">¥${stat.income}</td>
                         </tr>
                     `;
                 }).join('');
@@ -1300,10 +1300,10 @@
                     const statusText = o.status === 'completed' ? '已完成' : o.status === 'cancelled' ? '已取消' : '进行中';
                     return `
                         <tr style="border-bottom:1px solid rgba(0,240,255,0.05);">
-                            <td style="padding:12px 15px;font-family:monospace;font-size:11px;color:var(--primary-color);">${o.order_no}</td>
-                            <td style="padding:12px 15px;text-align:center;font-size:11px;color:#5a6d7e;">${new Date(o.created_at).toLocaleDateString('zh-CN')}</td>
-                            <td style="padding:12px 15px;text-align:center;"><span class="order-status ${statusClass}">${statusText}</span></td>
-                            <td style="padding:12px 15px;text-align:right;font-size:12px;color:var(--accent-color);font-weight:bold;">¥${o.price || 0}</td>
+                            <td style="padding:14px 18px;font-family:monospace;font-size:12px;color:var(--primary-color);white-space:nowrap;">${o.order_no}</td>
+                            <td style="padding:14px 18px;text-align:center;font-size:12px;color:#5a6d7e;white-space:nowrap;">${new Date(o.created_at).toLocaleDateString('zh-CN')}</td>
+                            <td style="padding:14px 18px;text-align:center;white-space:nowrap;"><span class="order-status ${statusClass}">${statusText}</span></td>
+                            <td style="padding:14px 18px;text-align:right;font-size:13px;color:var(--accent-color);font-weight:bold;white-space:nowrap;">¥${o.price || 0}</td>
                         </tr>
                     `;
                 }).join('');
