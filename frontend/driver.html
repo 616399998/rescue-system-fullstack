@@ -377,40 +377,41 @@
         </div>
 
         <div class="driver-content">
-            <!-- 状态切换 -->
-            <div class="status-toggle">
-                <div class="status-text">
-                    <div style="font-weight:bold;margin-bottom:5px;">📡 接单状态</div>
-                    <div style="font-size:12px;color:#5a6d7e;" id="statusTip">在线可接收新订单</div>
+            <!-- 订单页面 -->
+            <div id="ordersPage">
+                <!-- 状态切换 -->
+                <div class="status-toggle">
+                    <div class="status-text">
+                        <div style="font-weight:bold;margin-bottom:5px;">📡 接单状态</div>
+                        <div style="font-size:12px;color:#5a6d7e;" id="statusTip">在线可接收新订单</div>
+                    </div>
+                    <div class="status-switch" id="statusSwitch" onclick="toggleStatus()"></div>
                 </div>
-                <div class="status-switch" id="statusSwitch" onclick="toggleStatus()"></div>
-            </div>
 
-            <!-- 统计卡片 -->
-            <div class="stats-row">
-                <div class="stat-card">
-                    <div class="stat-value" id="todayOrders">0</div>
-                    <div class="stat-label">今日订单</div>
+                <!-- 统计卡片 -->
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-value" id="todayOrders">0</div>
+                        <div class="stat-label">今日订单</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="completedToday">0</div>
+                        <div class="stat-label">已完成</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="todayIncome">¥0</div>
+                        <div class="stat-label">今日收入</div>
+                    </div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="completedToday">0</div>
-                    <div class="stat-label">已完成</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="todayIncome">¥0</div>
-                    <div class="stat-label">今日收入</div>
-                </div>
-            </div>
 
-            <!-- 订单标签页 -->
-            <div class="tabs">
-                <div class="tab active" onclick="switchTab('new', this)">新订单</div>
-                <div class="tab" onclick="switchTab('ongoing', this)">进行中</div>
-                <div class="tab" onclick="switchTab('history', this)">历史</div>
-            </div>
+                <!-- 订单标签页 -->
+                <div class="tabs">
+                    <div class="tab active" onclick="switchTab('new', this)">新订单</div>
+                    <div class="tab" onclick="switchTab('ongoing', this)">进行中</div>
+                    <div class="tab" onclick="switchTab('history', this)">历史</div>
+                </div>
 
-            <!-- 订单列表 -->
-            <div id="ordersContent" style="display:block;">
+                <!-- 订单列表 -->
                 <div id="orderList"></div>
             </div>
 
@@ -749,14 +750,14 @@
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             event.currentTarget.classList.add('active');
             
-            // 隐藏所有内容区域
-            document.getElementById('ordersContent').style.display = 'none';
+            // 隐藏所有页面
+            document.getElementById('ordersPage').style.display = 'none';
             document.getElementById('reportContent').style.display = 'none';
             document.getElementById('profileContent').style.display = 'none';
             
             // 显示对应页面
             if (page === 'orders') {
-                document.getElementById('ordersContent').style.display = 'block';
+                document.getElementById('ordersPage').style.display = 'block';
                 loadDashboard();
             } else if (page === 'report') {
                 document.getElementById('reportContent').style.display = 'block';
