@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>智慧救援系统</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- 腾讯地图 JS API v2 -->
+    <script type="text/javascript" src="https://map.qq.com/api/js?v=2.exp&key=OB4BZ-D463Q-YJWOT-IYQ4U-XMKVY-FQF5Y"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
@@ -860,20 +860,36 @@
             }
         }
 
-        // 初始化地图
+        // 初始化地图（腾讯地图）
         function initMap() {
             if (map) return;
-            map = L.map('locationMap').setView([39.9042, 116.4074], 13);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
-            marker = L.marker([39.9042, 116.4074], { draggable: true }).addTo(map);
-            marker.on('dragend', function() {
-                const latlng = marker.getLatLng();
-                document.getElementById('mapLocation').value = `${latlng.lat.toFixed(6)}, ${latlng.lng.toFixed(6)}`;
+            
+            // 创建腾讯地图
+            map = new qq.maps.Map(document.getElementById('locationMap'), {
+                center: new qq.maps.LatLng(39.9042, 116.4074),
+                zoom: 13,
+                disableDefaultControls: false
             });
-            map.on('click', function(e) {
-                marker.setLatLng(e.latlng);
-                document.getElementById('mapLocation').value = `${e.latlng.lat.toFixed(6)}, ${e.latlng.lng.toFixed(6)}`;
+            
+            // 创建可拖拽的标记
+            marker = new qq.maps.Marker({
+                position: new qq.maps.LatLng(39.9042, 116.4074),
+                map: map,
+                draggable: true
             });
+            
+            // 标记拖拽结束事件
+            qq.maps.event.addListener(marker, 'positionChanged', function() {
+                const latlng = marker.getPosition();
+                document.getElementById('mapLocation').value = `${latlng.getLat().toFixed(6)}, ${latlng.getLng().toFixed(6)}`;
+            });
+            
+            // 地图点击事件
+            qq.maps.event.addListener(map, 'click', function(e) {
+                marker.setPosition(e.latLng);
+                document.getElementById('mapLocation').value = `${e.latLng.getLat().toFixed(6)}, ${e.latLng.getLng().toFixed(6)}`;
+            });
+            
             document.getElementById('mapLocation').value = '39.904200, 116.407400';
         }
 

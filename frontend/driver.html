@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>拖车救援 - 司机端</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- 腾讯地图 JS API v2 -->
+    <script type="text/javascript" src="https://map.qq.com/api/js?v=2.exp&key=OB4BZ-D463Q-YJWOT-IYQ4U-XMKVY-FQF5Y"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
@@ -416,46 +416,72 @@
 
             <!-- 个人报表 -->
             <div id="reportContent" style="display:none;">
+                <!-- 时间筛选 -->
+                <div style="background:var(--card-bg);border:1px solid rgba(0,240,255,0.2);border-radius:15px;padding:15px;margin-bottom:20px;">
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                        <span style="font-size:13px;color:#5a6d7e;">📅 时间范围：</span>
+                        <button class="filter-item active" onclick="setReportRange('today', this)" style="padding:6px 14px;font-size:12px;">今日</button>
+                        <button class="filter-item" onclick="setReportRange('week', this)" style="padding:6px 14px;font-size:12px;">近 7 天</button>
+                        <button class="filter-item" onclick="setReportRange('month', this)" style="padding:6px 14px;font-size:12px;">本月</button>
+                        <button class="filter-item" onclick="setReportRange('custom', this)" style="padding:6px 14px;font-size:12px;">自定义</button>
+                        <input type="date" id="customStartDate" style="background:rgba(16,28,48,0.8);border:1px solid rgba(0,240,255,0.3);border-radius:8px;padding:6px 10px;color:var(--text-color);font-size:12px;display:none;" onchange="loadReport()">
+                        <span id="dateRangeSeparator" style="display:none;color:#5a6d7e;">至</span>
+                        <input type="date" id="customEndDate" style="background:rgba(16,28,48,0.8);border:1px solid rgba(0,240,255,0.3);border-radius:8px;padding:6px 10px;color:var(--text-color);font-size:12px;display:none;" onchange="loadReport()">
+                    </div>
+                </div>
+
                 <!-- 统计卡片 -->
                 <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:15px;margin-bottom:25px;">
                     <div style="background:var(--card-bg);border:1px solid rgba(0,240,255,0.2);border-radius:15px;padding:20px;text-align:center;">
                         <div style="font-size:28px;font-weight:bold;color:var(--primary-color);margin-bottom:8px;" id="reportTodayOrders">0</div>
-                        <div style="font-size:12px;color:#5a6d7e;">今日订单</div>
+                        <div style="font-size:12px;color:#5a6d7e;">订单数</div>
                     </div>
                     <div style="background:var(--card-bg);border:1px solid rgba(0,240,255,0.2);border-radius:15px;padding:20px;text-align:center;">
                         <div style="font-size:28px;font-weight:bold;color:var(--success-color);margin-bottom:8px;" id="reportTodayIncome">¥0</div>
-                        <div style="font-size:12px;color:#5a6d7e;">今日收入</div>
+                        <div style="font-size:12px;color:#5a6d7e;">总收入</div>
                     </div>
                     <div style="background:var(--card-bg);border:1px solid rgba(0,240,255,0.2);border-radius:15px;padding:20px;text-align:center;">
-                        <div style="font-size:28px;font-weight:bold;color:var(--secondary-color);margin-bottom:8px;" id="reportMonthOrders">0</div>
-                        <div style="font-size:12px;color:#5a6d7e;">本月订单</div>
+                        <div style="font-size:28px;font-weight:bold;color:var(--secondary-color);margin-bottom:8px;" id="reportAvgPrice">¥0</div>
+                        <div style="font-size:12px;color:#5a6d7e;">平均单价</div>
                     </div>
                     <div style="background:var(--card-bg);border:1px solid rgba(0,240,255,0.2);border-radius:15px;padding:20px;text-align:center;">
-                        <div style="font-size:28px;font-weight:bold;color:var(--accent-color);margin-bottom:8px;" id="reportMonthIncome">¥0</div>
-                        <div style="font-size:12px;color:#5a6d7e;">本月收入</div>
+                        <div style="font-size:28px;font-weight:bold;color:var(--accent-color);margin-bottom:8px;" id="reportCompletedRate">100%</div>
+                        <div style="font-size:12px;color:#5a6d7e;">完成率</div>
                     </div>
                 </div>
 
-                <!-- 近 7 日收入 -->
+                <!-- 汇总表格 -->
                 <div style="background:var(--card-bg);border:1px solid rgba(0,240,255,0.2);border-radius:15px;padding:20px;margin-bottom:25px;">
-                    <div style="font-size:15px;font-weight:bold;margin-bottom:15px;color:var(--primary-color);">📈 近 7 日收入</div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                        <div style="font-size:15px;font-weight:bold;color:var(--primary-color);">📊 订单汇总</div>
+                        <button onclick="exportReport()" style="padding:8px 16px;background:rgba(0,240,255,0.2);border:1px solid rgba(0,240,255,0.3);border-radius:10px;color:var(--primary-color);font-size:12px;cursor:pointer;">📥 导出报表</button>
+                    </div>
                     <div style="overflow-x:auto;">
                         <table style="width:100%;border-collapse:collapse;">
                             <thead>
                                 <tr style="border-bottom:1px solid rgba(0,240,255,0.1);">
                                     <th style="padding:12px 15px;text-align:left;font-size:12px;color:#5a6d7e;font-weight:normal;">日期</th>
                                     <th style="padding:12px 15px;text-align:center;font-size:12px;color:#5a6d7e;font-weight:normal;">订单数</th>
+                                    <th style="padding:12px 15px;text-align:center;font-size:12px;color:#5a6d7e;font-weight:normal;">已完成</th>
                                     <th style="padding:12px 15px;text-align:right;font-size:12px;color:#5a6d7e;font-weight:normal;">收入</th>
                                 </tr>
                             </thead>
                             <tbody id="dailyStatsTable"></tbody>
+                            <tfoot id="reportFooter" style="border-top:2px solid rgba(0,240,255,0.3);">
+                                <tr style="background:rgba(0,240,255,0.05);">
+                                    <td style="padding:12px 15px;font-size:13px;font-weight:bold;color:var(--primary-color);">合计</td>
+                                    <td style="padding:12px 15px;text-align:center;font-size:13px;font-weight:bold;" id="footerOrders">0</td>
+                                    <td style="padding:12px 15px;text-align:center;font-size:13px;font-weight:bold;" id="footerCompleted">0</td>
+                                    <td style="padding:12px 15px;text-align:right;font-size:13px;font-weight:bold;color:var(--success-color);" id="footerIncome">¥0</td>
+                                </tr>
+                            </tfoot>
                         </table>
                     </div>
                 </div>
 
                 <!-- 历史订单 -->
                 <div style="background:var(--card-bg);border:1px solid rgba(0,240,255,0.2);border-radius:15px;padding:20px;">
-                    <div style="font-size:15px;font-weight:bold;margin-bottom:15px;color:var(--primary-color);">📋 历史订单</div>
+                    <div style="font-size:15px;font-weight:bold;margin-bottom:15px;color:var(--primary-color);">📋 订单明细</div>
                     <div style="overflow-x:auto;">
                         <table style="width:100%;border-collapse:collapse;">
                             <thead>
@@ -656,6 +682,7 @@
         let uploadedPhotos = [];
         let currentPhotoType = ''; // arrival, departure, delivery
         let driverInfo = { id: 1, name: '王师傅', phone: '139****6666' };
+        let reportRangeType = 'today'; // today, week, month, custom
 
         // 登录
         function login() {
@@ -938,15 +965,24 @@
             setTimeout(() => initOrderMap(order), 100);
         }
 
-        // 初始化地图
+        // 初始化地图（腾讯地图）
         function initOrderMap(order) {
-            if (orderMap) orderMap.remove();
+            if (orderMap) {
+                orderMap = null; // 释放引用，腾讯地图会自动清理
+            }
             let lat = 39.9042, lng = 116.4074;
             const coords = order.current_location?.match(/(-?\d+\.?\d*),\s*(-?\d+\.?\d*)/);
             if (coords) { lat = parseFloat(coords[1]); lng = parseFloat(coords[2]); }
-            orderMap = L.map('orderMap').setView([lat, lng], 13);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(orderMap);
-            L.marker([lat, lng]).addTo(orderMap).bindPopup('📍 ' + order.current_location).openPopup();
+            
+            orderMap = new qq.maps.Map(document.getElementById('orderMap'), {
+                center: new qq.maps.LatLng(lat, lng),
+                zoom: 13
+            });
+            
+            new qq.maps.Marker({
+                position: new qq.maps.LatLng(lat, lng),
+                map: orderMap
+            });
         }
 
         // 开始服务
@@ -1091,13 +1127,14 @@
             window.location.href = `tel:${phone.replace(/\*/g, '')}`;
         }
 
-        // 导航
+        // 导航（腾讯地图）
         function navigate(location) {
             const coords = location.match(/(-?\d+\.?\d*),\s*(-?\d+\.?\d*)/);
             if (coords) {
-                window.open(`https://uri.amap.com/marker?position=${coords[1]},${coords[2]}&name=救援位置`, '_blank');
+                // 腾讯地图 URI Scheme
+                window.open(`qqmap://map/routeplan.html?type=drive&from=current&to=${coords[1]},${coords[2]}&to=救援位置`, '_blank');
             } else {
-                window.open(`https://uri.amap.com/search?keyword=${encodeURIComponent(location)}`, '_blank');
+                window.open(`qqmap://map/search.html?keyword=${encodeURIComponent(location)}`, '_blank');
             }
         }
 
@@ -1124,6 +1161,184 @@
             alert.style.display = 'none';
             overlay.style.display = 'none';
             if (alert.callback) { alert.callback(); alert.callback = null; }
+        }
+
+        // ==================== 报表功能增强 ====================
+        
+        // 设置报表时间范围
+        function setReportRange(rangeType, btn) {
+            reportRangeType = rangeType;
+            document.querySelectorAll('#reportContent .filter-item').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            const startDateInput = document.getElementById('customStartDate');
+            const endDateInput = document.getElementById('customEndDate');
+            const separator = document.getElementById('dateRangeSeparator');
+            
+            if (rangeType === 'custom') {
+                startDateInput.style.display = 'block';
+                endDateInput.style.display = 'block';
+                separator.style.display = 'block';
+                const today = new Date().toISOString().split('T')[0];
+                startDateInput.value = today;
+                endDateInput.value = today;
+            } else {
+                startDateInput.style.display = 'none';
+                endDateInput.style.display = 'none';
+                separator.style.display = 'none';
+            }
+            
+            loadReport();
+        }
+
+        // 加载个人报表（增强版）
+        async function loadReport() {
+            try {
+                const res = await fetch(`${API_BASE}/api/orders?driver_id=${driverInfo.id}`);
+                const data = await res.json();
+                let orders = data.orders || [];
+
+                const now = new Date();
+                let startDate, endDate;
+                
+                if (reportRangeType === 'today') {
+                    startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+                } else if (reportRangeType === 'week') {
+                    startDate = new Date(now);
+                    startDate.setDate(startDate.getDate() - 6);
+                    startDate.setHours(0, 0, 0, 0);
+                    endDate = new Date(now);
+                    endDate.setDate(endDate.getDate() + 1);
+                } else if (reportRangeType === 'month') {
+                    startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                    endDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+                } else if (reportRangeType === 'custom') {
+                    const startVal = document.getElementById('customStartDate').value;
+                    const endVal = document.getElementById('customEndDate').value;
+                    if (startVal && endVal) {
+                        startDate = new Date(startVal);
+                        startDate.setHours(0, 0, 0, 0);
+                        endDate = new Date(endVal);
+                        endDate.setDate(endDate.getDate() + 1);
+                    } else {
+                        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                        endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+                    }
+                }
+
+                const filteredOrders = orders.filter(o => {
+                    const orderDate = new Date(o.created_at);
+                    return orderDate >= startDate && orderDate < endDate;
+                });
+
+                const completedOrders = filteredOrders.filter(o => o.status === 'completed');
+                
+                const totalOrders = filteredOrders.length;
+                const totalIncome = completedOrders.reduce((sum, o) => sum + (o.price || 0), 0);
+                const avgPrice = completedOrders.length > 0 ? Math.round(totalIncome / completedOrders.length) : 0;
+                const completionRate = filteredOrders.length > 0 ? Math.round((completedOrders.length / filteredOrders.length) * 100) : 100;
+
+                document.getElementById('reportTodayOrders').textContent = totalOrders;
+                document.getElementById('reportTodayIncome').textContent = '¥' + totalIncome;
+                document.getElementById('reportAvgPrice').textContent = '¥' + avgPrice;
+                document.getElementById('reportCompletedRate').textContent = completionRate + '%';
+
+                const dailyStats = {};
+                const daysToShow = reportRangeType === 'today' ? 1 : reportRangeType === 'week' ? 7 : reportRangeType === 'month' ? 30 : Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+                
+                for (let i = daysToShow - 1; i >= 0; i--) {
+                    const date = new Date(startDate);
+                    date.setDate(date.getDate() + i);
+                    const dateStr = date.toISOString().split('T')[0];
+                    dailyStats[dateStr] = { orders: 0, completed: 0, income: 0 };
+                }
+
+                completedOrders.forEach(o => {
+                    const dateStr = new Date(o.created_at).toISOString().split('T')[0];
+                    if (dailyStats[dateStr]) {
+                        dailyStats[dateStr].orders++;
+                        dailyStats[dateStr].completed++;
+                        dailyStats[dateStr].income += (o.price || 0);
+                    }
+                });
+
+                filteredOrders.filter(o => o.status !== 'completed').forEach(o => {
+                    const dateStr = new Date(o.created_at).toISOString().split('T')[0];
+                    if (dailyStats[dateStr]) {
+                        dailyStats[dateStr].orders++;
+                    }
+                });
+
+                const tbody = document.getElementById('dailyStatsTable');
+                const sortedDates = Object.entries(dailyStats).sort((a, b) => a[0].localeCompare(b[0]));
+                
+                let footerOrders = 0, footerCompleted = 0, footerIncome = 0;
+                
+                tbody.innerHTML = sortedDates.map(([date, stat]) => {
+                    footerOrders += stat.orders;
+                    footerCompleted += stat.completed;
+                    footerIncome += stat.income;
+                    return `
+                        <tr style="border-bottom:1px solid rgba(0,240,255,0.05);">
+                            <td style="padding:12px 15px;font-size:12px;color:#e0f7ff;">${date}</td>
+                            <td style="padding:12px 15px;text-align:center;font-size:12px;">${stat.orders}</td>
+                            <td style="padding:12px 15px;text-align:center;font-size:12px;color:var(--success-color);">${stat.completed}</td>
+                            <td style="padding:12px 15px;text-align:right;font-size:12px;color:var(--success-color);font-weight:bold;">¥${stat.income}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                document.getElementById('footerOrders').textContent = footerOrders;
+                document.getElementById('footerCompleted').textContent = footerCompleted;
+                document.getElementById('footerIncome').textContent = '¥' + footerIncome;
+
+                const historyBody = document.getElementById('historyOrdersTable');
+                historyBody.innerHTML = filteredOrders.slice(0, 50).map(o => {
+                    const statusClass = o.status === 'completed' ? 'status-completed' : o.status === 'cancelled' ? 'status-cancelled' : 'status-going';
+                    const statusText = o.status === 'completed' ? '已完成' : o.status === 'cancelled' ? '已取消' : '进行中';
+                    return `
+                        <tr style="border-bottom:1px solid rgba(0,240,255,0.05);">
+                            <td style="padding:12px 15px;font-family:monospace;font-size:11px;color:var(--primary-color);">${o.order_no}</td>
+                            <td style="padding:12px 15px;text-align:center;font-size:11px;color:#5a6d7e;">${new Date(o.created_at).toLocaleDateString('zh-CN')}</td>
+                            <td style="padding:12px 15px;text-align:center;"><span class="order-status ${statusClass}">${statusText}</span></td>
+                            <td style="padding:12px 15px;text-align:right;font-size:12px;color:var(--accent-color);font-weight:bold;">¥${o.price || 0}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('加载报表失败:', error);
+                showAlert('error', '加载失败', '无法加载报表数据');
+            }
+        }
+
+        // 导出报表
+        function exportReport() {
+            const rows = document.querySelectorAll('#dailyStatsTable tr');
+            if (rows.length === 0) {
+                showAlert('info', '提示', '暂无数据可导出');
+                return;
+            }
+
+            let csv = '\uFEFF';
+            csv += '日期，订单数，已完成，收入\n';
+            
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length >= 4) {
+                    csv += `${cells[0].textContent},${cells[1].textContent},${cells[2].textContent},${cells[3].textContent.replace('¥', '')}\n`;
+                }
+            });
+
+            csv += `合计，${document.getElementById('footerOrders').textContent},${document.getElementById('footerCompleted').textContent},${document.getElementById('footerIncome').textContent.replace('¥', '')}\n`;
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.setAttribute('href', URL.createObjectURL(blob));
+            link.setAttribute('download', `司机报表_${new Date().toISOString().split('T')[0]}.csv`);
+            link.click();
+            
+            showAlert('success', '导出成功', '报表已下载到本地');
         }
 
         // 回车登录
