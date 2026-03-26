@@ -225,6 +225,20 @@ function initDatabase() {
             db.run(`INSERT OR IGNORE INTO users (id, username, password, balance, points, level) 
                     VALUES (1, 'user8829', 'hashed_pwd', 1286.00, 3200, 'VIP 会员')`, (err) => {
               if (err) console.error('插入默认用户失败:', err);
+            });
+            
+            // 插入默认司机账号
+            db.run(`INSERT OR IGNORE INTO drivers (id, name, phone, password, license_no, qualification_no, status, rating, total_orders)
+                    VALUES (1, '王师傅', '13900139001', '123456', '110000199001011234', '110000199001011234', 'active', 5.0, 128)`, (err) => {
+              if (err) console.error('插入默认司机失败:', err);
+            });
+            db.run(`INSERT OR IGNORE INTO drivers (id, name, phone, password, license_no, qualification_no, status, rating, total_orders)
+                    VALUES (2, '李师傅', '13900139002', '123456', '110000198502021234', '110000198502021234', 'active', 4.8, 256)`, (err) => {
+              if (err) console.error('插入默认司机失败:', err);
+            });
+            db.run(`INSERT OR IGNORE INTO drivers (id, name, phone, password, license_no, qualification_no, status, rating, total_orders)
+                    VALUES (3, '张师傅', '13900139003', '123456', '110000198803031234', '110000198803031234', 'active', 4.9, 89)`, (err) => {
+              if (err) console.error('插入默认司机失败:', err);
               resolve();
             });
           }

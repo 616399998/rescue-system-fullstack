@@ -102,7 +102,7 @@ router.post('/register', async (req, res) => {
 
     res.json({
       success: true,
-      message: '注册成功，请等待管理员审核',
+      message: '注册成功，可以直接登录',
       driverId: result.lastInsertRowid
     });
   } catch (error) {
@@ -486,6 +486,112 @@ router.get('/stats/:id', async (req, res) => {
   } catch (error) {
     console.error('获取统计错误:', error);
     res.status(500).json({ error: '获取统计失败' });
+  }
+});
+
+// 初始化模拟任务数据
+router.post('/init-mock', async (req, res) => {
+  try {
+    const mockOrders = [
+      {
+        order_no: 'RW20260326001',
+        service_type: 'accident',
+        channel: 'personal',
+        vehicle_plate: '京 P·11111',
+        owner_name: '刘先生',
+        owner_phone: '13800138011',
+        current_location: '北京市朝阳区三里屯路 19 号',
+        destination: '北京朝阳医院',
+        problem_description: '交通事故，车辆无法移动',
+        status: 'processing',
+        price: 350,
+        driver_id: 1,
+        driver_name: '王师傅',
+        driver_phone: '13900139001',
+        rescue_vehicle_plate: '京 K·001',
+        progress: 50
+      },
+      {
+        order_no: 'RW20260326002',
+        service_type: 'breakdown',
+        channel: 'personal',
+        vehicle_plate: '京 Q·22222',
+        owner_name: '陈女士',
+        owner_phone: '13800138012',
+        current_location: '北京市海淀区中关村南大街 5 号',
+        destination: '4S 店',
+        problem_description: '车辆抛锚，无法启动',
+        status: 'processing',
+        price: 280,
+        driver_id: 1,
+        driver_name: '王师傅',
+        driver_phone: '13900139001',
+        rescue_vehicle_plate: '京 K·001',
+        progress: 10
+      },
+      {
+        order_no: 'RW20260326003',
+        service_type: 'accident',
+        channel: 'insurance',
+        vehicle_plate: '京 R·33333',
+        owner_name: '赵先生',
+        owner_phone: '13800138013',
+        current_location: '北京市东城区东直门南大街 1 号',
+        destination: '修理厂',
+        problem_description: '多方事故',
+        status: 'completed',
+        price: 450,
+        driver_id: 1,
+        driver_name: '王师傅',
+        driver_phone: '13900139001',
+        rescue_vehicle_plate: '京 K·001',
+        progress: 100,
+        total_fee: 450
+      },
+      {
+        order_no: 'RW20260326004',
+        service_type: 'violation',
+        channel: 'traffic',
+        vehicle_plate: '京 S·44444',
+        owner_name: '孙先生',
+        owner_phone: '13800138014',
+        current_location: '北京市西城区西直门外大街 1 号',
+        destination: '停车场',
+        problem_description: '违停拖车',
+        status: 'pending',
+        price: 200,
+        driver_id: 2,
+        driver_name: '李师傅',
+        driver_phone: '13900139002',
+        rescue_vehicle_plate: '京 K·002',
+        progress: 0
+      }
+    ];
+
+    for (const order of mockOrders) {
+      const exists = await get('SELECT * FROM orders WHERE order_no = ?', [order.order_no]);
+      if (!exists) {
+        await run(`
+          INSERT INTO orders (
+            order_no, service_type, channel, vehicle_plate, owner_name, owner_phone,
+            current_location, destination, problem_description,
+            status, price, driver_id, driver_name, driver_phone,
+            rescue_vehicle_plate, progress, total_fee
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+          order.order_no, order.service_type, order.channel, order.vehicle_plate,
+          order.owner_name, order.owner_phone, order.current_location, order.destination,
+          order.problem_description, order.status, order.price, order.driver_id,
+          order.driver_name, order.driver_phone, order.rescue_vehicle_plate,
+          order.progress, order.total_fee || null
+        ]);
+      }
+    }
+
+    res.json({ success: true, message: '司机模拟数据已初始化' });
+  } catch (error) {
+    console.error('初始化司机模拟数据错误:', error);
+    res.status(500).json({ error: '初始化失败' });
   }
 });
 
