@@ -511,19 +511,38 @@
 
             <!-- 司机管理模块 -->
             <div id="driversModule" class="tab-content">
+                <div class="stats-grid" style="margin-bottom:20px;">
+                    <div class="stat-card primary">
+                        <div class="stat-value" id="totalDrivers">0</div>
+                        <div class="stat-label">总司机数</div>
+                    </div>
+                    <div class="stat-card success">
+                        <div class="stat-value" id="activeDrivers">0</div>
+                        <div class="stat-label">正常</div>
+                    </div>
+                    <div class="stat-card warning">
+                        <div class="stat-value" id="pendingDrivers">0</div>
+                        <div class="stat-label">待审核</div>
+                    </div>
+                    <div class="stat-card accent">
+                        <div class="stat-value" id="offlineDrivers">0</div>
+                        <div class="stat-label">已下线</div>
+                    </div>
+                </div>
                 <div class="table-container">
                     <table>
                         <thead>
                             <tr>
+                                <th>ID</th>
                                 <th>司机姓名</th>
                                 <th>联系电话</th>
+                                <th>驾驶证号</th>
+                                <th>从业资格证</th>
                                 <th>评分</th>
                                 <th>总订单</th>
-                                <th>已完成</th>
-                                <th>今日订单</th>
-                                <th>今日收入</th>
-                                <th>救援车辆</th>
                                 <th>状态</th>
+                                <th>注册时间</th>
+                                <th>操作</th>
                             </tr>
                         </thead>
                         <tbody id="driversTable"></tbody>
@@ -932,27 +951,102 @@
                 const data = await res.json();
                 allDrivers = data.drivers || [];
                 
+                // 统计数据
+                document.getElementById('totalDrivers').textContent = allDrivers.length;
+                document.getElementById('activeDrivers').textContent = allDrivers.filter(d => d.status === 'active').length;
+                document.getElementById('pendingDrivers').textContent = allDrivers.filter(d => d.status === 'pending').length;
+                document.getElementById('offlineDrivers').textContent = allDrivers.filter(d => d.status === 'offline').length;
+                
                 const tbody = document.getElementById('driversTable');
                 if (allDrivers.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#5a6d7e;padding:40px;">暂无司机数据</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#5a6d7e;padding:40px;">暂无司机数据</td></tr>';
                     return;
                 }
 
                 tbody.innerHTML = allDrivers.map(driver => `
                     <tr>
+                        <td>#${driver.id}</td>
                         <td>${driver.name}</td>
                         <td>${driver.phone}</td>
+                        <td style="font-size:12px;">${driver.license_no || '-'}</td>
+                        <td style="font-size:12px;">${driver.qualification_no || '-'}</td>
                         <td>⭐ ${driver.rating}</td>
                         <td>${driver.total_orders}</td>
-                        <td>${driver.completed_orders}</td>
-                        <td>${driver.today_orders}</td>
-                        <td style="color:var(--success-color);">¥${driver.today_income}</td>
-                        <td>${driver.vehicle_model} (${driver.vehicle_plate})</td>
-                        <td><span class="status-badge ${driver.status === '空闲' ? 'status-idle' : driver.status === '服务中' ? 'status-busy' : 'status-cancelled'}">${driver.status}</span></td>
+                        <td><span class="status-badge ${driver.status === 'active' ? 'status-idle' : driver.status === 'pending' ? 'status-busy' : 'status-cancelled'}">${driver.status_text}</span></td>
+                        <td style="font-size:12px;color:#5a6d7e;">${new Date(driver.created_at).toLocaleDateString('zh-CN')}</td>
+                        <td>
+                            ${driver.status === 'pending' ? `
+                                <button class="action-btn" style="padding:4px 8px;font-size:12px;background:var(--success-color);" onclick="approveDriver(${driver.id})">✅ 通过</button>
+                                <button class="action-btn" style="padding:4px 8px;font-size:12px;background:var(--danger-color);" onclick="rejectDriver(${driver.id})">❌ 拒绝</button>
+                            ` : `
+                                <button class="action-btn" style="padding:4px 8px;font-size:12px;background:#5a6d7e;" onclick="offlineDriver(${driver.id})">${driver.status === 'active' ? '⬇️ 下线' : '⬆️ 激活'}</button>
+                            `}
+                        </td>
                     </tr>
                 `).join('');
             } catch (error) {
                 console.error('加载司机失败:', error);
+            }
+        }
+
+        // 审核通过司机
+        async function approveDriver(driverId) {
+            if (!confirm('确认通过该司机审核？')) return;
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/drivers/${driverId}/approve`, { method: 'PUT' });
+                const data = await res.json();
+                if (data.success) {
+                    alert('司机已审核通过');
+                    loadDrivers();
+                } else {
+                    alert(data.error || '操作失败');
+                }
+            } catch (error) {
+                alert('操作失败');
+            }
+        }
+
+        // 拒绝司机
+        async function rejectDriver(driverId) {
+            const reason = prompt('请输入拒绝原因（可选）：');
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/drivers/${driverId}/reject`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reason })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert('已拒绝司机注册');
+                    loadDrivers();
+                } else {
+                    alert(data.error || '操作失败');
+                }
+            } catch (error) {
+                alert('操作失败');
+            }
+        }
+
+        // 下线/激活司机
+        async function offlineDriver(driverId) {
+            const currentStatus = allDrivers.find(d => d.id === driverId)?.status;
+            const action = currentStatus === 'active' ? '下线' : '激活';
+            if (!confirm(`确认${action}该司机？`)) return;
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/drivers/${driverId}/reject`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reason: currentStatus === 'active' ? '管理员下线' : '' })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(`司机已${action}`);
+                    loadDrivers();
+                } else {
+                    alert(data.error || '操作失败');
+                }
+            } catch (error) {
+                alert('操作失败');
             }
         }
 

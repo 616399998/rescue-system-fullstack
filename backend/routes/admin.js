@@ -303,42 +303,70 @@ router.put('/orders/:id/settle', async (req, res) => {
 
 // ==================== 司机管理 ====================
 
-// 获取司机列表 - 文档第 82-85 项
+// 获取司机列表（从 drivers 表）- 文档第 82-85 项
 router.get('/drivers', async (req, res) => {
   try {
     const drivers = await all(`
-      SELECT DISTINCT
-        driver_id as id,
-        driver_name as name,
-        driver_phone as phone,
-        driver_rating as rating,
-        rescue_vehicle_plate as vehicle_plate,
-        rescue_vehicle_model as vehicle_model,
-        COUNT(*) as total_orders,
-        SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_orders
-      FROM orders 
-      WHERE driver_id IS NOT NULL
-      GROUP BY driver_id
-      ORDER BY completed_orders DESC
+      SELECT 
+        id,
+        name,
+        phone,
+        license_no,
+        qualification_no,
+        status,
+        rating,
+        total_orders,
+        created_at
+      FROM drivers
+      ORDER BY created_at DESC
     `);
 
-    const formattedDrivers = drivers.map((d, i) => ({
+    const formattedDrivers = drivers.map(d => ({
       id: d.id,
       name: d.name,
       phone: d.phone,
+      license_no: d.license_no,
+      qualification_no: d.qualification_no,
       rating: d.rating,
-      vehicle_plate: d.vehicle_plate,
-      vehicle_model: d.vehicle_model,
-      total_orders: d.total_orders,
-      completed_orders: d.completed_orders,
-      status: i % 3 === 0 ? '空闲' : i % 3 === 1 ? '服务中' : '休息',
-      today_orders: Math.floor(Math.random() * 10),
-      today_income: Math.floor(Math.random() * 1000)
+      total_orders: d.total_orders || 0,
+      status: d.status, // active/offline/pending
+      status_text: d.status === 'active' ? '正常' : d.status === 'offline' ? '已下线' : '待审核',
+      created_at: d.created_at
     }));
 
     res.json({ drivers: formattedDrivers });
   } catch (error) {
+    console.error('获取司机列表错误:', error);
     res.status(500).json({ error: '获取司机列表失败' });
+  }
+});
+
+// 获取可派司机
+
+// 司机审核通过
+router.put('/drivers/:id/approve', async (req, res) => {
+  try {
+    const driverId = req.params.id;
+    
+    await run('UPDATE drivers SET status = ? WHERE id = ?', ['active', driverId]);
+    
+    res.json({ success: true, message: '司机已审核通过' });
+  } catch (error) {
+    res.status(500).json({ error: '审核失败' });
+  }
+});
+
+// 司机审核拒绝/下线
+router.put('/drivers/:id/reject', async (req, res) => {
+  try {
+    const driverId = req.params.id;
+    const { reason } = req.body;
+    
+    await run('UPDATE drivers SET status = ? WHERE id = ?', ['offline', driverId]);
+    
+    res.json({ success: true, message: `司机已${reason ? '拒绝' : '下线'}` });
+  } catch (error) {
+    res.status(500).json({ error: '操作失败' });
   }
 });
 
