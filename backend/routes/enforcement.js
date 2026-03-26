@@ -220,7 +220,7 @@ router.post('/upload', upload.array('files', 9), (req, res) => {
   }
 });
 
-// 逆地理编码（调用腾讯地图 Web Service API）
+// 坐标转换 + 逆地理编码（调用腾讯地图 Web Service API）
 router.post('/geocode', async (req, res) => {
   try {
     const { lat, lng } = req.body;
@@ -231,24 +231,44 @@ router.post('/geocode', async (req, res) => {
 
     const axios = require('axios');
     const key = '67MBZ-EF6RT-THAX4-VEGBL-7AYMJ-LGBXX';
-    const url = `https://apis.map.qq.com/ws/geocoder/v1/?location=${lat},${lng}&key=${key}`;
     
-    const response = await axios.get(url);
-    const data = response.data;
+    // 第一步：坐标转换（GPS 坐标转腾讯坐标）
+    const coordUrl = `https://apis.map.qq.com/ws/coord/v1/translate?locations=${lat},${lng}&type=1&key=${key}`;
+    const coordResponse = await axios.get(coordUrl);
+    const coordData = coordResponse.data;
     
-    if (data.status === 0 && data.result) {
-      const address = data.result.address || data.result.formatted_addresses.recommend || '';
+    console.log('坐标转换结果:', coordData);
+    
+    let finalLat = lat;
+    let finalLng = lng;
+    
+    if (coordData.status === 0 && coordData.locations && coordData.locations.length > 0) {
+      finalLat = coordData.locations[0].lat;
+      finalLng = coordData.locations[0].lng;
+      console.log('转换后坐标:', finalLat, finalLng);
+    }
+    
+    // 第二步：逆地理编码
+    const geocodeUrl = `https://apis.map.qq.com/ws/geocoder/v1/?location=${finalLat},${finalLng}&key=${key}`;
+    const geocodeResponse = await axios.get(geocodeUrl);
+    const geocodeData = geocodeResponse.data;
+    
+    console.log('逆地理编码结果:', geocodeData);
+    
+    if (geocodeData.status === 0 && geocodeData.result) {
+      const address = geocodeData.result.address || geocodeData.result.formatted_addresses?.recommend || '';
       res.json({ 
         success: true, 
         address,
-        fullResult: data.result
+        fullResult: geocodeData.result,
+        coordConverted: coordData.status === 0
       });
     } else {
-      res.json({ success: false, error: data.message || '逆地理编码失败' });
+      res.json({ success: false, error: geocodeData.message || '逆地理编码失败' });
     }
   } catch (error) {
-    console.error('逆地理编码错误:', error.message);
-    res.status(500).json({ error: '逆地理编码失败' });
+    console.error('地理编码错误:', error.message);
+    res.status(500).json({ error: '地理编码失败' });
   }
 });
 
