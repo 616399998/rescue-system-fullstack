@@ -226,6 +226,38 @@ router.post('/upload', upload.array('files', 9), (req, res) => {
   }
 });
 
+// 逆地理编码（调用腾讯地图 Web Service API）
+router.post('/geocode', async (req, res) => {
+  try {
+    const { lat, lng } = req.body;
+    
+    if (!lat || !lng) {
+      return res.status(400).json({ error: '缺少经纬度参数' });
+    }
+
+    const axios = require('axios');
+    const key = '67MBZ-EF6RT-THAX4-VEGBL-7AYMJ-LGBXX';
+    const url = `https://apis.map.qq.com/ws/geocoder/v1/?location=${lat},${lng}&key=${key}`;
+    
+    const response = await axios.get(url);
+    const data = response.data;
+    
+    if (data.status === 0 && data.result) {
+      const address = data.result.address || data.result.formatted_addresses.recommend || '';
+      res.json({ 
+        success: true, 
+        address,
+        fullResult: data.result
+      });
+    } else {
+      res.json({ success: false, error: data.message || '逆地理编码失败' });
+    }
+  } catch (error) {
+    console.error('逆地理编码错误:', error.message);
+    res.status(500).json({ error: '逆地理编码失败' });
+  }
+});
+
 // 初始化模拟数据
 router.post('/init-mock', async (req, res) => {
   try {

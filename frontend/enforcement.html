@@ -364,49 +364,28 @@
                     center: new qq.maps.LatLng(39.9042, 116.4074)
                 });
 
-                // 使用 PlaceSearch 进行 POI 搜索获取位置名称
-                const placeSearch = new qq.maps.PlaceSearch({
-                    complete: function(result) {
-                        console.log('逆地理编码完整结果:', JSON.stringify(result, null, 2));
-                        
-                        // 尝试多种可能的返回格式
-                        let address = '';
-                        
-                        if (result && result.detail) {
-                            // 格式 1: detail.address
-                            if (result.detail.address) {
-                                address = result.detail.address;
-                            }
-                            // 格式 2: detail.location (POI 名称)
-                            else if (result.detail.location) {
-                                address = typeof result.detail.location === 'string' ? result.detail.location : 
-                                         (result.detail.location.name || result.detail.location.address);
-                            }
-                            // 格式 3: detail.name
-                            else if (result.detail.name) {
-                                address = result.detail.name;
-                            }
-                            // 格式 4: 拼接地址组件
-                            else if (result.detail.addressComponents) {
-                                const comp = result.detail.addressComponents;
-                                address = [comp.province, comp.city, comp.district, comp.street].filter(Boolean).join('');
-                            }
-                        }
-                        
-                        if (address) {
-                            selectedAddress = address;
+                // 获取地址函数（调用后端 Web Service API）
+                async function fetchAddress(lat, lng) {
+                    document.getElementById('selectedInfo').textContent = '🔄 正在获取地址...';
+                    try {
+                        const res = await fetch('/api/enforcement/geocode', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ lat, lng })
+                        });
+                        const data = await res.json();
+                        if (data.success && data.address) {
+                            selectedAddress = data.address;
                             document.getElementById('selectedInfo').textContent = `📍 ${selectedAddress}`;
-                            console.log('✅ 获取到地址:', selectedAddress);
+                            console.log('✅ 地址:', selectedAddress);
                         } else {
-                            console.log('⚠️ 无法解析地址，使用坐标');
-                            document.getElementById('selectedInfo').textContent = `📍 坐标：${selectedLatLng.lat.toFixed(4)}, ${selectedLatLng.lng.toFixed(4)}`;
+                            document.getElementById('selectedInfo').textContent = `📍 坐标：${lat.toFixed(4)}, ${lng.toFixed(4)}`;
                         }
-                    },
-                    error: function(result) {
-                        console.log('逆地理编码失败:', result);
-                        document.getElementById('selectedInfo').textContent = `📍 坐标：${selectedLatLng.lat.toFixed(4)}, ${selectedLatLng.lng.toFixed(4)}`;
+                    } catch (error) {
+                        console.log('获取地址失败:', error);
+                        document.getElementById('selectedInfo').textContent = `📍 坐标：${lat.toFixed(4)}, ${lng.toFixed(4)}`;
                     }
-                });
+                }
 
                 // 获取当前位置（HTTPS 下可用）
                 if (navigator.geolocation) {
@@ -427,8 +406,8 @@
                             document.getElementById('selectedInfo').textContent = '🔄 正在获取地址...';
                             document.getElementById('coordInfo').textContent = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
                             
-                            // 逆地理编码获取地址
-                            placeSearch.searchNearby('', center, 100);
+                            // 调用 Web Service API 获取地址
+                            fetchAddress(lat, lng);
                         },
                         (error) => {
                             console.log('GPS 定位失败:', error.message);
@@ -455,8 +434,9 @@
                     document.getElementById('selectedInfo').textContent = '🔄 正在获取地址...';
                     document.getElementById('coordInfo').textContent = `${latLng.getLat().toFixed(6)}, ${latLng.getLng().toFixed(6)}`;
                     
-                    // 逆地理编码获取地址
-                    placeSearch.searchNearby('', latLng, 100);
+                    // 调用 Web Service API 获取地址
+                    fetchAddress(latLng.getLat(), latLng.getLng());
+                });
                 });
             }, 100);
         }
