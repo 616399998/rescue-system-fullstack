@@ -367,20 +367,44 @@
                 // 逆地理编码服务
                 const geocoder = new qq.maps.Geocoder({
                     complete: function(result) {
-                        console.log('逆地理编码结果:', result);
-                        if (result && result.detail && result.detail.address) {
-                            selectedAddress = result.detail.address;
+                        console.log('逆地理编码完整结果:', JSON.stringify(result, null, 2));
+                        
+                        // 尝试多种可能的返回格式
+                        let address = '';
+                        
+                        if (result && result.detail) {
+                            // 格式 1: detail.address
+                            if (result.detail.address) {
+                                address = result.detail.address;
+                            }
+                            // 格式 2: detail.location (POI 名称)
+                            else if (result.detail.location) {
+                                address = typeof result.detail.location === 'string' ? result.detail.location : 
+                                         (result.detail.location.name || result.detail.location.address);
+                            }
+                            // 格式 3: detail.name
+                            else if (result.detail.name) {
+                                address = result.detail.name;
+                            }
+                            // 格式 4: 拼接地址组件
+                            else if (result.detail.addressComponents) {
+                                const comp = result.detail.addressComponents;
+                                address = [comp.province, comp.city, comp.district, comp.street].filter(Boolean).join('');
+                            }
+                        }
+                        
+                        if (address) {
+                            selectedAddress = address;
                             document.getElementById('selectedInfo').textContent = `📍 ${selectedAddress}`;
-                        } else if (result && result.detail && result.detail.location) {
-                            selectedAddress = result.detail.location;
-                            document.getElementById('selectedInfo').textContent = `📍 ${selectedAddress}`;
+                            console.log('✅ 获取到地址:', selectedAddress);
                         } else {
-                            document.getElementById('selectedInfo').textContent = '📍 已选择位置';
+                            console.log('⚠️ 无法解析地址，使用坐标');
+                            document.getElementById('selectedInfo').textContent = `📍 坐标：${selectedLatLng.lat.toFixed(4)}, ${selectedLatLng.lng.toFixed(4)}`;
                         }
                     },
-                    error: function() {
-                        console.log('逆地理编码失败');
-                        document.getElementById('selectedInfo').textContent = '📍 已选择位置';
+                    error: function(result) {
+                        console.log('逆地理编码失败:', result);
+                        document.getElementById('selectedInfo').textContent = `📍 坐标：${selectedLatLng.lat.toFixed(4)}, ${selectedLatLng.lng.toFixed(4)}`;
                     }
                 });
 
