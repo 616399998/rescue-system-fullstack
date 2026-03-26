@@ -5,6 +5,12 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
+// 保险端管理员账号
+const INSURANCE_USERS = [
+  { username: 'insurance001', password: '123456', name: '人保 - 刘经理', company: '中国人民保险' },
+  { username: 'insurance002', password: '123456', name: '平安 - 陈专员', company: '中国平安保险' }
+];
+
 // 文件上传配置
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -36,6 +42,31 @@ const upload = multer({
 });
 
 // ==================== 保险端功能 ====================
+
+// 保险端登录
+router.post('/login', (req, res) => {
+  try {
+    const { username, password } = req.body;
+    
+    const user = INSURANCE_USERS.find(u => u.username === username && u.password === password);
+    
+    if (user) {
+      res.json({
+        success: true,
+        token: 'insurance_token_' + username + '_' + Date.now(),
+        user: {
+          username: user.username,
+          name: user.name,
+          company: user.company
+        }
+      });
+    } else {
+      res.status(401).json({ success: false, error: '账号或密码错误' });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, error: '服务器错误' });
+  }
+});
 
 // 创建拖车申请（保险报案拖车 - 文档第 25 项）
 router.post('/tow-request', async (req, res) => {
@@ -192,6 +223,97 @@ router.post('/upload', upload.array('files', 9), (req, res) => {
   } catch (error) {
     console.error('上传文件错误:', error);
     res.status(500).json({ error: '上传失败' });
+  }
+});
+
+// 初始化模拟数据
+router.post('/init-mock', async (req, res) => {
+  try {
+    const mockOrders = [
+      {
+        order_no: 'BX20260326001',
+        service_type: 'accident',
+        channel: 'insurance',
+        vehicle_plate: '京 F·44444',
+        owner_name: '孙八',
+        owner_phone: '13800138006',
+        insurance_no: 'PICC20260326001',
+        insurance_company: '中国人民保险',
+        is_garage: 0,
+        current_location: '北京市朝阳区北四环东路 8 号',
+        address: '39.9845,116.4074',
+        destination: '北京朝阳医院',
+        problem_description: '追尾事故，车辆前部受损',
+        status: 'pending',
+        price: 200
+      },
+      {
+        order_no: 'BX20260326002',
+        service_type: 'accident',
+        channel: 'insurance',
+        vehicle_plate: '京 G·55555',
+        owner_name: '周九',
+        owner_phone: '13800138007',
+        insurance_no: 'PA20260326002',
+        insurance_company: '中国平安保险',
+        is_garage: 1,
+        current_location: '北京市海淀区地下车库 B2 层',
+        address: '39.9788,116.3125',
+        destination: '4S 店',
+        problem_description: '地库剐蹭，车辆侧部受损',
+        status: 'processing',
+        price: 300,
+        driver_name: '刘师傅',
+        driver_phone: '13900139004',
+        rescue_vehicle_plate: '京 K·004'
+      },
+      {
+        order_no: 'BX20260326003',
+        service_type: 'accident',
+        channel: 'insurance',
+        vehicle_plate: '京 H·66666',
+        owner_name: '吴十',
+        owner_phone: '13800138008',
+        insurance_no: 'CPIC20260326003',
+        insurance_company: '太平洋保险',
+        is_garage: 0,
+        current_location: '北京市东城区王府井大街 138 号',
+        address: '39.9145,116.4125',
+        destination: '修理厂',
+        problem_description: '多方事故，车辆无法启动',
+        status: 'completed',
+        price: 500,
+        driver_name: '陈师傅',
+        driver_phone: '13900139005',
+        rescue_vehicle_plate: '京 K·005',
+        total_fee: 500
+      }
+    ];
+
+    for (const order of mockOrders) {
+      const exists = await get('SELECT * FROM orders WHERE order_no = ?', [order.order_no]);
+      if (!exists) {
+        await run(`
+          INSERT INTO orders (
+            order_no, service_type, channel, vehicle_plate, owner_name, owner_phone,
+            insurance_no, insurance_company, is_garage, current_location, address,
+            destination, problem_description, status, price, driver_name, driver_phone,
+            rescue_vehicle_plate, total_fee
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+          order.order_no, order.service_type, order.channel, order.vehicle_plate,
+          order.owner_name, order.owner_phone, order.insurance_no, order.insurance_company,
+          order.is_garage, order.current_location, order.address, order.destination,
+          order.problem_description, order.status, order.price, order.driver_name,
+          order.driver_phone, order.rescue_vehicle_plate, order.total_fee
+        ]);
+      }
+    }
+
+    res.json({ success: true, message: '模拟数据已初始化' });
+  } catch (error) {
+    console.error('初始化模拟数据错误:', error);
+    res.status(500).json({ error: '初始化失败' });
   }
 });
 

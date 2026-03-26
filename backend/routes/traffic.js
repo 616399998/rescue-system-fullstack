@@ -5,6 +5,12 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
+// 交管端管理员账号
+const TRAFFIC_USERS = [
+  { username: 'traffic001', password: '123456', name: '交管局 - 张警官', department: '交通管理局' },
+  { username: 'traffic002', password: '123456', name: '交管局 - 李警官', department: '交通管理局' }
+];
+
 // 文件上传配置
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -36,6 +42,31 @@ const upload = multer({
 });
 
 // ==================== 交管端功能 ====================
+
+// 交管端登录
+router.post('/login', (req, res) => {
+  try {
+    const { username, password } = req.body;
+    
+    const user = TRAFFIC_USERS.find(u => u.username === username && u.password === password);
+    
+    if (user) {
+      res.json({
+        success: true,
+        token: 'traffic_token_' + username + '_' + Date.now(),
+        user: {
+          username: user.username,
+          name: user.name,
+          department: user.department
+        }
+      });
+    } else {
+      res.status(401).json({ success: false, error: '账号或密码错误' });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, error: '服务器错误' });
+  }
+});
 
 // 创建拖车申请（违法拖车 - 文档第 24 项）
 router.post('/tow-request', async (req, res) => {
@@ -186,6 +217,91 @@ router.post('/upload', upload.array('files', 9), (req, res) => {
   } catch (error) {
     console.error('上传文件错误:', error);
     res.status(500).json({ error: '上传失败' });
+  }
+});
+
+// 初始化模拟数据
+router.post('/init-mock', async (req, res) => {
+  try {
+    const mockOrders = [
+      {
+        order_no: 'JT20260326001',
+        service_type: 'violation',
+        channel: 'traffic',
+        vehicle_plate: '京 A·12345',
+        owner_name: '张三',
+        owner_phone: '13800138001',
+        violation_type: '违停',
+        found_time: new Date().toISOString(),
+        found_location: '北京市朝阳区建国路 88 号 SOHO 现代城',
+        found_address: '39.9042,116.4074',
+        problem_description: '车辆违规停放在主干道，影响交通',
+        status: 'pending',
+        price: 200
+      },
+      {
+        order_no: 'JT20260326002',
+        service_type: 'violation',
+        channel: 'traffic',
+        vehicle_plate: '京 B·67890',
+        owner_name: '李四',
+        owner_phone: '13800138002',
+        violation_type: '占用应急车道',
+        found_time: new Date(Date.now() - 3600000).toISOString(),
+        found_location: '北京市东城区东长安街 1 号',
+        found_address: '39.9087,116.3975',
+        problem_description: '早高峰期间占用应急车道',
+        status: 'processing',
+        price: 200,
+        driver_name: '王师傅',
+        driver_phone: '13900139001',
+        rescue_vehicle_plate: '京 K·001'
+      },
+      {
+        order_no: 'JT20260326003',
+        service_type: 'violation',
+        channel: 'traffic',
+        vehicle_plate: '京 C·11111',
+        owner_name: '王五',
+        owner_phone: '13800138003',
+        violation_type: '事故车辆',
+        found_time: new Date(Date.now() - 7200000).toISOString(),
+        found_location: '北京市海淀区中关村大街 1 号',
+        found_address: '39.9788,116.3125',
+        problem_description: '交通事故，车辆无法移动',
+        status: 'completed',
+        price: 350,
+        driver_name: '李师傅',
+        driver_phone: '13900139002',
+        rescue_vehicle_plate: '京 K·002',
+        total_fee: 350
+      }
+    ];
+
+    for (const order of mockOrders) {
+      const exists = await get('SELECT * FROM orders WHERE order_no = ?', [order.order_no]);
+      if (!exists) {
+        await run(`
+          INSERT INTO orders (
+            order_no, service_type, channel, vehicle_plate, owner_name, owner_phone,
+            violation_type, found_time, found_location, found_address,
+            problem_description, status, price, driver_name, driver_phone,
+            rescue_vehicle_plate, total_fee, current_location
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+          order.order_no, order.service_type, order.channel, order.vehicle_plate,
+          order.owner_name, order.owner_phone, order.violation_type, order.found_time,
+          order.found_location, order.found_address, order.problem_description,
+          order.status, order.price, order.driver_name, order.driver_phone,
+          order.rescue_vehicle_plate, order.total_fee || null, order.found_location
+        ]);
+      }
+    }
+
+    res.json({ success: true, message: '模拟数据已初始化' });
+  } catch (error) {
+    console.error('初始化模拟数据错误:', error);
+    res.status(500).json({ error: '初始化失败' });
   }
 });
 

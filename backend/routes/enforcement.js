@@ -5,6 +5,12 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
+// 执法端管理员账号
+const ENFORCEMENT_USERS = [
+  { username: 'zf001', password: '123456', name: '执法大队 - 王队长', department: '综合执法局' },
+  { username: 'zf002', password: '123456', name: '执法大队 - 赵队员', department: '综合执法局' }
+];
+
 // 文件上传配置
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -36,6 +42,31 @@ const upload = multer({
 });
 
 // ==================== 执法端功能 ====================
+
+// 执法端登录
+router.post('/login', (req, res) => {
+  try {
+    const { username, password } = req.body;
+    
+    const user = ENFORCEMENT_USERS.find(u => u.username === username && u.password === password);
+    
+    if (user) {
+      res.json({
+        success: true,
+        token: 'enforcement_token_' + username + '_' + Date.now(),
+        user: {
+          username: user.username,
+          name: user.name,
+          department: user.department
+        }
+      });
+    } else {
+      res.status(401).json({ success: false, error: '账号或密码错误' });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, error: '服务器错误' });
+  }
+});
 
 // 创建拖车申请（违停拖车 - 文档第 24 项）
 router.post('/tow-request', async (req, res) => {
@@ -186,6 +217,72 @@ router.post('/upload', upload.array('files', 9), (req, res) => {
   } catch (error) {
     console.error('上传文件错误:', error);
     res.status(500).json({ error: '上传失败' });
+  }
+});
+
+// 初始化模拟数据
+router.post('/init-mock', async (req, res) => {
+  try {
+    const mockOrders = [
+      {
+        order_no: 'ZF20260326001',
+        service_type: 'violation',
+        channel: 'enforcement',
+        vehicle_plate: '京 D·22222',
+        owner_name: '赵六',
+        owner_phone: '13800138004',
+        violation_type: '违停',
+        found_time: new Date().toISOString(),
+        found_location: '北京市西城区西单北大街 131 号',
+        found_address: '39.9145,116.3723',
+        problem_description: '违规停放在步行街入口',
+        status: 'pending',
+        price: 200
+      },
+      {
+        order_no: 'ZF20260326002',
+        service_type: 'violation',
+        channel: 'enforcement',
+        vehicle_plate: '京 E·33333',
+        owner_name: '钱七',
+        owner_phone: '13800138005',
+        violation_type: '违停',
+        found_time: new Date(Date.now() - 5400000).toISOString(),
+        found_location: '北京市丰台区南三环西路 3 号',
+        found_address: '39.8670,116.3789',
+        problem_description: '消防通道违停',
+        status: 'processing',
+        price: 200,
+        driver_name: '张师傅',
+        driver_phone: '13900139003',
+        rescue_vehicle_plate: '京 K·003'
+      }
+    ];
+
+    for (const order of mockOrders) {
+      const exists = await get('SELECT * FROM orders WHERE order_no = ?', [order.order_no]);
+      if (!exists) {
+        await run(`
+          INSERT INTO orders (
+            order_no, service_type, channel, vehicle_plate, owner_name, owner_phone,
+            violation_type, found_time, found_location, found_address,
+            problem_description, status, price, driver_name, driver_phone,
+            rescue_vehicle_plate, current_location
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+          order.order_no, order.service_type, order.channel, order.vehicle_plate,
+          order.owner_name, order.owner_phone, order.violation_type, order.found_time,
+          order.found_location, order.found_address, order.problem_description,
+          order.status, order.price, order.driver_name, order.driver_phone,
+          order.rescue_vehicle_plate, order.found_location
+        ]);
+      }
+    }
+
+    res.json({ success: true, message: '模拟数据已初始化' });
+  } catch (error) {
+    console.error('初始化模拟数据错误:', error);
+    res.status(500).json({ error: '初始化失败' });
   }
 });
 

@@ -65,10 +65,32 @@
 </head>
 <body>
     <div class="app-container">
-        <div id="orderListPage" class="page active">
+        <div id="loginPage" class="page active">
             <div class="header">
                 <h1>🏥 保险端</h1>
                 <div class="header-subtitle">保险公司 · 事故拖车申请</div>
+            </div>
+            <div class="card" style="margin-top: 50px;">
+                <div class="form-group">
+                    <label>账号</label>
+                    <input type="text" id="loginUsername" placeholder="请输入账号" value="insurance001" />
+                </div>
+                <div class="form-group">
+                    <label>密码</label>
+                    <input type="password" id="loginPassword" placeholder="请输入密码" value="123456" />
+                </div>
+                <button class="btn btn-primary" onclick="insuranceLogin()">登录</button>
+                <div style="margin-top:20px;font-size:12px;color:#5a6d7e;">
+                    <div>测试账号：</div>
+                    <div>insurance001 / 123456 - 人保 - 刘经理</div>
+                    <div>insurance002 / 123456 - 平安 - 陈专员</div>
+                </div>
+            </div>
+        </div>
+        <div id="orderListPage" class="page" style="display:none;">
+            <div class="header">
+                <h1>🏥 保险端</h1>
+                <div class="header-subtitle" id="userInfo">保险公司 · 事故拖车申请</div>
             </div>
             <div class="card">
                 <div class="card-title">📋 订单列表</div>
@@ -143,16 +165,76 @@
                 <svg class="nav-icon" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
                 <span class="nav-text">申请</span>
             </div>
+            <div class="nav-item" onclick="insuranceLogout()">
+                <svg class="nav-icon" viewBox="0 0 24 24"><path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H8c-1.11 0-2 .89-2 2v3h2V5h11v14H8v-3H6v3c0 1.11.89 2 2 2h11c1.11 0 2-.89 2-2V5c0-1.11-.89-2-2-2z"/></svg>
+                <span class="nav-text">退出</span>
+            </div>
         </div>
     </div>
     <script>
         const API_BASE = '/api';
         let currentOrder = null;
+        let currentUser = null;
         let map = null;
 
+        async function insuranceLogin() {
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+            if (!username || !password) { alert('请输入账号和密码'); return; }
+            try {
+                const res = await fetch(`${API_BASE}/insurance/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+                if (data.token) {
+                    currentUser = data.user;
+                    localStorage.setItem('insuranceToken', data.token);
+                    localStorage.setItem('insuranceUser', JSON.stringify(data.user));
+                    showOrderList();
+                } else {
+                    alert(data.error || '登录失败');
+                }
+            } catch (error) {
+                alert('登录失败，请重试');
+            }
+        }
+
+        function showOrderList() {
+            document.getElementById('loginPage').style.display = 'none';
+            document.getElementById('orderListPage').style.display = 'block';
+            document.getElementById('userInfo').textContent = `${currentUser.name} | ${currentUser.company}`;
+            initMockData();
+            loadOrders();
+        }
+
+        async function initMockData() {
+            try { await fetch(`${API_BASE}/insurance/init-mock`, { method: 'POST' }); }
+            catch (error) { console.error('初始化模拟数据失败:', error); }
+        }
+
+        function insuranceLogout() {
+            localStorage.removeItem('insuranceToken');
+            localStorage.removeItem('insuranceUser');
+            location.reload();
+        }
+
+        window.onload = function() {
+            const token = localStorage.getItem('insuranceToken');
+            const user = localStorage.getItem('insuranceUser');
+            if (token && user) {
+                currentUser = JSON.parse(user);
+                showOrderList();
+            }
+        };
+
         function switchPage(pageId) {
-            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-            document.getElementById(pageId).classList.add('active');
+            document.getElementById('loginPage').style.display = 'none';
+            document.getElementById('orderListPage').style.display = 'none';
+            document.getElementById('orderDetailPage').style.display = 'none';
+            document.getElementById('requestPage').style.display = 'none';
+            document.getElementById(pageId).style.display = 'block';
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             if (pageId === 'orderListPage') {
                 document.querySelectorAll('.nav-item')[0].classList.add('active');
