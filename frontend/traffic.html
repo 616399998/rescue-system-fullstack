@@ -44,6 +44,11 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
+        .header-subtitle {
+            font-size: 12px;
+            color: #5a6d7e;
+            margin-top: 5px;
+        }
         .bottom-nav {
             position: fixed;
             bottom: 0;
@@ -288,6 +293,7 @@
         <div id="orderListPage" class="page active">
             <div class="header">
                 <h1>🚓 交管端</h1>
+                <div class="header-subtitle">交通管理部门 · 违法拖车申请</div>
             </div>
             <div class="card">
                 <div class="card-title">📋 订单列表</div>
@@ -547,38 +553,94 @@
         }
 
         // 地图选点
+        let selectedLatLng = null;
+        let marker = null;
+
         function selectLocation() {
-            if (!map) {
-                // 创建地图弹窗
-                const modal = document.createElement('div');
-                modal.className = 'modal active';
-                modal.innerHTML = `
-                    <div class="modal-content" style="max-width:90%;width:400px;">
-                        <div class="modal-title">地图选点</div>
-                        <div id="mapContainer" style="width:100%;height:300px;border-radius:8px;"></div>
-                        <button class="btn btn-primary" onclick="confirmLocation()" style="margin-top:10px;">确认选择</button>
-                        <button class="btn btn-warning" onclick="this.closest('.modal').remove()" style="margin-top:10px;">取消</button>
-                    </div>
-                `;
-                document.body.appendChild(modal);
+            const modal = document.createElement('div');
+            modal.id = 'locationModal';
+            modal.className = 'modal active';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width:90%;width:400px;">
+                    <div class="modal-title">📍 地图选点</div>
+                    <div style="font-size:12px;color:#8a9ba8;margin-bottom:10px;">点击地图选择位置，或自动获取当前位置</div>
+                    <div id="mapContainer" style="width:100%;height:350px;border-radius:8px;"></div>
+                    <div id="selectedInfo" style="font-size:12px;color:var(--primary-color);margin:10px 0;"></div>
+                    <button class="btn btn-primary" onclick="confirmLocation()" style="margin-top:10px;">确认选择</button>
+                    <button class="btn btn-warning" onclick="closeLocationModal()" style="margin-top:10px;">取消</button>
+                </div>
+            `;
+            document.body.appendChild(modal);
 
-                // 初始化地图
-                setTimeout(() => {
-                    map = new qq.maps.Map(document.getElementById('mapContainer'), {
-                        zoom: 13,
-                        center: new qq.maps.LatLng(39.9042, 116.4074) // 北京默认
-                    });
+            // 初始化地图
+            setTimeout(() => {
+                map = new qq.maps.Map(document.getElementById('mapContainer'), {
+                    zoom: 15,
+                    center: new qq.maps.LatLng(39.9042, 116.4074)
+                });
 
-                    // 添加点击事件
-                    qq.maps.event.addListener(map, 'click', function(event) {
-                        const latLng = event.latLng;
-                        document.getElementById('foundAddress').value = `${latLng.getLat()},${latLng.getLng()}`;
-                        
-                        // 反向地理编码（简化版）
-                        document.getElementById('foundLocation').value = `地图选点 (${latLng.getLat().toFixed(4)}, ${latLng.getLng().toFixed(4)})`;
+                // 先获取当前位置
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            const lat = position.coords.latitude;
+                            const lng = position.coords.longitude;
+                            const center = new qq.maps.LatLng(lat, lng);
+                            map.setCenter(center);
+                            map.setZoom(16);
+                            
+                            // 添加标记
+                            marker = new qq.maps.Marker({
+                                position: center,
+                                map: map
+                            });
+                            
+                            selectedLatLng = { lat, lng };
+                            document.getElementById('selectedInfo').textContent = `当前位置：${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+                        },
+                        (error) => {
+                            console.error('获取位置失败:', error);
+                        }
+                    );
+                }
+
+                // 添加点击事件
+                qq.maps.event.addListener(map, 'click', function(event) {
+                    const latLng = event.latLng;
+                    
+                    // 移除旧标记
+                    if (marker) marker.setMap(null);
+                    
+                    // 添加新标记
+                    marker = new qq.maps.Marker({
+                        position: latLng,
+                        map: map
                     });
-                }, 100);
+                    
+                    selectedLatLng = { lat: latLng.getLat(), lng: latLng.getLng() };
+                    document.getElementById('selectedInfo').textContent = `已选择：${latLng.getLat().toFixed(6)}, ${latLng.getLng().toFixed(6)}`;
+                });
+            }, 100);
+        }
+
+        function confirmLocation() {
+            if (!selectedLatLng) {
+                alert('请先选择位置');
+                return;
             }
+            
+            document.getElementById('foundAddress').value = `${selectedLatLng.lat},${selectedLatLng.lng}`;
+            document.getElementById('foundLocation').value = `地图选点 (${selectedLatLng.lat.toFixed(4)}, ${selectedLatLng.lng.toFixed(4)})`;
+            
+            closeLocationModal();
+        }
+
+        function closeLocationModal() {
+            const modal = document.getElementById('locationModal');
+            if (modal) modal.remove();
+            map = null;
+            selectedLatLng = null;
+            marker = null;
         }
 
         // 照片预览

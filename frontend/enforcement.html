@@ -19,8 +19,9 @@
         }
         body { font-family: 'Microsoft YaHei', sans-serif; background: linear-gradient(135deg, #0a0e1a 0%, #1a1f3a 50%, #0a0e1a 100%); color: var(--text-color); min-height: 100vh; }
         .app-container { max-width: 430px; margin: 0 auto; position: relative; min-height: 100vh; background: radial-gradient(ellipse at top, rgba(0, 240, 255, 0.1) 0%, transparent 50%); padding-bottom: 80px; }
-        .header { background: linear-gradient(135deg, rgba(0, 102, 255, 0.3), rgba(0, 240, 255, 0.1)); padding: 20px; text-align: center; border-bottom: 1px solid rgba(0, 240, 255, 0.3); }
-        .header h1 { font-size: 20px; font-weight: bold; background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .header { background: linear-gradient(135deg, rgba(255, 107, 53, 0.3), rgba(255, 140, 0, 0.1)); padding: 20px; text-align: center; border-bottom: 1px solid rgba(255, 107, 53, 0.3); }
+        .header h1 { font-size: 20px; font-weight: bold; background: linear-gradient(135deg, #ff6b35, #ff8c00); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .header-subtitle { font-size: 12px; color: #5a6d7e; margin-top: 5px; }
         .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; background: rgba(10, 14, 26, 0.95); border-top: 1px solid rgba(0, 240, 255, 0.3); display: flex; justify-content: space-around; padding: 10px 0; z-index: 1000; }
         .nav-item { display: flex; flex-direction: column; align-items: center; color: #5a6d7e; cursor: pointer; }
         .nav-item.active { color: var(--primary-color); }
@@ -61,7 +62,10 @@
 <body>
     <div class="app-container">
         <div id="orderListPage" class="page active">
-            <div class="header"><h1>⚖️ 执法端</h1></div>
+            <div class="header">
+                <h1>⚖️ 执法端</h1>
+                <div class="header-subtitle">执法部门 · 违停拖车申请</div>
+            </div>
             <div class="card">
                 <div class="card-title">📋 订单列表</div>
                 <div id="orderList"></div>
@@ -251,29 +255,66 @@
             }
         }
 
+        let selectedLatLng = null;
+        let marker = null;
+
         function selectLocation() {
             const modal = document.createElement('div');
+            modal.id = 'locationModal';
             modal.className = 'modal active';
             modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:2000;display:flex;justify-content:center;align-items:center;';
             modal.innerHTML = `
-                <div class="modal-content" style="background:var(--card-bg);border:1px solid rgba(0,240,255,0.3);border-radius:16px;padding:20px;width:90%;max-width:400px;">
-                    <div class="modal-title" style="font-size:18px;font-weight:bold;color:var(--primary-color);margin-bottom:15px;text-align:center;">地图选点</div>
-                    <div id="mapContainer" style="width:100%;height:300px;border-radius:8px;"></div>
-                    <button class="btn btn-warning" onclick="this.closest('.modal').remove()" style="margin-top:10px;">关闭</button>
+                <div class="modal-content" style="background:var(--card-bg);border:1px solid rgba(255,107,53,0.3);border-radius:16px;padding:20px;width:90%;max-width:400px;">
+                    <div class="modal-title" style="font-size:18px;font-weight:bold;color:#ff6b35;margin-bottom:15px;text-align:center;">📍 地图选点</div>
+                    <div style="font-size:12px;color:#8a9ba8;margin-bottom:10px;">点击地图选择位置，或自动获取当前位置</div>
+                    <div id="mapContainer" style="width:100%;height:350px;border-radius:8px;"></div>
+                    <div id="selectedInfo" style="font-size:12px;color:#ff6b35;margin:10px 0;"></div>
+                    <button class="btn btn-primary" onclick="confirmLocation()" style="margin-top:10px;">确认选择</button>
+                    <button class="btn btn-warning" onclick="closeLocationModal()" style="margin-top:10px;">取消</button>
                 </div>
             `;
             document.body.appendChild(modal);
             setTimeout(() => {
                 map = new qq.maps.Map(document.getElementById('mapContainer'), {
-                    zoom: 13,
+                    zoom: 15,
                     center: new qq.maps.LatLng(39.9042, 116.4074)
                 });
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            const lat = position.coords.latitude;
+                            const lng = position.coords.longitude;
+                            const center = new qq.maps.LatLng(lat, lng);
+                            map.setCenter(center);
+                            map.setZoom(16);
+                            marker = new qq.maps.Marker({ position: center, map: map });
+                            selectedLatLng = { lat, lng };
+                            document.getElementById('selectedInfo').textContent = `当前位置：${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+                        },
+                        (error) => { console.error('获取位置失败:', error); }
+                    );
+                }
                 qq.maps.event.addListener(map, 'click', function(event) {
                     const latLng = event.latLng;
-                    document.getElementById('foundAddress').value = `${latLng.getLat()},${latLng.getLng()}`;
-                    document.getElementById('foundLocation').value = `地图选点 (${latLng.getLat().toFixed(4)}, ${latLng.getLng().toFixed(4)})`;
+                    if (marker) marker.setMap(null);
+                    marker = new qq.maps.Marker({ position: latLng, map: map });
+                    selectedLatLng = { lat: latLng.getLat(), lng: latLng.getLng() };
+                    document.getElementById('selectedInfo').textContent = `已选择：${latLng.getLat().toFixed(6)}, ${latLng.getLng().toFixed(6)}`;
                 });
             }, 100);
+        }
+
+        function confirmLocation() {
+            if (!selectedLatLng) { alert('请先选择位置'); return; }
+            document.getElementById('foundAddress').value = `${selectedLatLng.lat},${selectedLatLng.lng}`;
+            document.getElementById('foundLocation').value = `地图选点 (${selectedLatLng.lat.toFixed(4)}, ${selectedLatLng.lng.toFixed(4)})`;
+            closeLocationModal();
+        }
+
+        function closeLocationModal() {
+            const modal = document.getElementById('locationModal');
+            if (modal) modal.remove();
+            map = null; selectedLatLng = null; marker = null;
         }
 
         window.onload = function() {
