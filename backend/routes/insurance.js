@@ -238,9 +238,15 @@ router.post('/geocode', async (req, res) => {
     const axios = require('axios');
     const key = '67MBZ-EF6RT-THAX4-VEGBL-7AYMJ-LGBXX';
     
+    // 添加 Referer 头以通过域名白名单验证
+    const headers = {
+      'Referer': 'https://akesurescue.com',
+      'User-Agent': 'Mozilla/5.0'
+    };
+    
     // 第一步：坐标转换（GPS 坐标转腾讯坐标）
     const coordUrl = `https://apis.map.qq.com/ws/coord/v1/translate?locations=${lat},${lng}&type=1&key=${key}`;
-    const coordResponse = await axios.get(coordUrl);
+    const coordResponse = await axios.get(coordUrl, { headers });
     const coordData = coordResponse.data;
     
     console.log('坐标转换结果:', coordData);
@@ -256,7 +262,7 @@ router.post('/geocode', async (req, res) => {
     
     // 第二步：逆地理编码
     const geocodeUrl = `https://apis.map.qq.com/ws/geocoder/v1/?location=${finalLat},${finalLng}&key=${key}`;
-    const geocodeResponse = await axios.get(geocodeUrl);
+    const geocodeResponse = await axios.get(geocodeUrl, { headers });
     const geocodeData = geocodeResponse.data;
     
     console.log('逆地理编码结果:', geocodeData);
