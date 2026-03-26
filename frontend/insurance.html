@@ -276,6 +276,7 @@
 
         let selectedLatLng = null;
         let marker = null;
+        let selectedAddress = '';
 
         function selectLocation() {
             const modal = document.createElement('div');
@@ -287,7 +288,7 @@
                     <div class="modal-title" style="font-size:18px;font-weight:bold;color:#00ff88;margin-bottom:15px;text-align:center;">📍 地图选点</div>
                     <div style="font-size:12px;color:#8a9ba8;margin-bottom:10px;">点击地图选择位置，或自动获取当前位置</div>
                     <div id="mapContainer" style="width:100%;height:350px;border-radius:8px;"></div>
-                    <div id="selectedInfo" style="font-size:12px;color:#00ff88;margin:10px 0;"></div>
+                    <div id="selectedInfo" style="font-size:13px;color:#00ff88;margin:10px 0;font-weight:bold;"></div>
                     <button class="btn btn-primary" onclick="confirmLocation()" style="margin-top:10px;">确认选择</button>
                     <button class="btn btn-warning" onclick="closeLocationModal()" style="margin-top:10px;">取消</button>
                 </div>
@@ -298,6 +299,7 @@
                     zoom: 15,
                     center: new qq.maps.LatLng(39.9042, 116.4074)
                 });
+                const geocoder = new qq.maps.Geocoder();
                 if (navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(
                         (position) => {
@@ -308,7 +310,14 @@
                             map.setZoom(16);
                             marker = new qq.maps.Marker({ position: center, map: map });
                             selectedLatLng = { lat, lng };
-                            document.getElementById('selectedInfo').textContent = `当前位置：${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+                            geocoder.getAddress(center, function(result) {
+                                if (result && result.detail && result.detail.address) {
+                                    selectedAddress = result.detail.address;
+                                    document.getElementById('selectedInfo').textContent = `📍 ${selectedAddress}`;
+                                } else {
+                                    document.getElementById('selectedInfo').textContent = `当前位置：${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+                                }
+                            });
                         },
                         (error) => { console.error('获取位置失败:', error); }
                     );
@@ -318,7 +327,16 @@
                     if (marker) marker.setMap(null);
                     marker = new qq.maps.Marker({ position: latLng, map: map });
                     selectedLatLng = { lat: latLng.getLat(), lng: latLng.getLng() };
-                    document.getElementById('selectedInfo').textContent = `已选择：${latLng.getLat().toFixed(6)}, ${latLng.getLng().toFixed(6)}`;
+                    document.getElementById('selectedInfo').textContent = '🔄 正在获取地址...';
+                    geocoder.getAddress(latLng, function(result) {
+                        if (result && result.detail && result.detail.address) {
+                            selectedAddress = result.detail.address;
+                            document.getElementById('selectedInfo').textContent = `📍 ${selectedAddress}`;
+                        } else {
+                            selectedAddress = '';
+                            document.getElementById('selectedInfo').textContent = `已选择：${latLng.getLat().toFixed(4)}, ${latLng.getLng().toFixed(4)}`;
+                        }
+                    });
                 });
             }, 100);
         }
@@ -326,14 +344,14 @@
         function confirmLocation() {
             if (!selectedLatLng) { alert('请先选择位置'); return; }
             document.getElementById('accidentAddress').value = `${selectedLatLng.lat},${selectedLatLng.lng}`;
-            document.getElementById('accidentLocation').value = `地图选点 (${selectedLatLng.lat.toFixed(4)}, ${selectedLatLng.lng.toFixed(4)})`;
+            document.getElementById('accidentLocation').value = selectedAddress || `地图选点 (${selectedLatLng.lat.toFixed(4)}, ${selectedLatLng.lng.toFixed(4)})`;
             closeLocationModal();
         }
 
         function closeLocationModal() {
             const modal = document.getElementById('locationModal');
             if (modal) modal.remove();
-            map = null; selectedLatLng = null; marker = null;
+            map = null; selectedLatLng = null; selectedAddress = ''; marker = null;
         }
 
         window.onload = function() {
