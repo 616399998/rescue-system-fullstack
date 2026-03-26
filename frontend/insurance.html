@@ -383,8 +383,8 @@
                     center: new qq.maps.LatLng(39.9042, 116.4074)
                 });
 
-                // 逆地理编码服务（使用 LocationConvert）
-                const converter = new qq.maps.LocationConvert({
+                // 使用 PlaceSearch 进行 POI 搜索获取位置名称
+                const placeSearch = new qq.maps.PlaceSearch({
                     complete: function(result) {
                         console.log('逆地理编码完整结果:', JSON.stringify(result, null, 2));
                         
@@ -447,7 +447,7 @@
                             document.getElementById('coordInfo').textContent = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
                             
                             // 逆地理编码获取地址
-                            converter.convert(center);
+                            placeSearch.searchNearby('', center, 100);
                         },
                         (error) => {
                             console.log('GPS 定位失败:', error.message);
@@ -475,7 +475,7 @@
                     document.getElementById('coordInfo').textContent = `${latLng.getLat().toFixed(6)}, ${latLng.getLng().toFixed(6)}`;
                     
                     // 逆地理编码获取地址
-                    converter.convert(latLng);
+                    placeSearch.searchNearby('', latLng, 100);
                 });
             }, 100);
         }
