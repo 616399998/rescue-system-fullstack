@@ -679,46 +679,29 @@
                     center: new qq.maps.LatLng(39.9042, 116.4074)
                 });
 
-                // 逆地理编码服务
-                const geocoder = new qq.maps.Geocoder({
+                // 逆地理编码服务（使用 LocationConvert）
+                const converter = new qq.maps.LocationConvert({
                     complete: function(result) {
-                        console.log('逆地理编码完整结果:', JSON.stringify(result, null, 2));
-                        
-                        // 尝试多种可能的返回格式
+                        console.log('逆地理编码结果:', result);
                         let address = '';
                         
-                        if (result && result.detail) {
-                            // 格式 1: detail.address
-                            if (result.detail.address) {
-                                address = result.detail.address;
-                            }
-                            // 格式 2: detail.location (POI 名称)
-                            else if (result.detail.location) {
-                                address = typeof result.detail.location === 'string' ? result.detail.location : 
-                                         (result.detail.location.name || result.detail.location.address);
-                            }
-                            // 格式 3: detail.name
-                            else if (result.detail.name) {
-                                address = result.detail.name;
-                            }
-                            // 格式 4: 拼接地址组件
-                            else if (result.detail.addressComponents) {
-                                const comp = result.detail.addressComponents;
-                                address = [comp.province, comp.city, comp.district, comp.street].filter(Boolean).join('');
-                            }
+                        if (result && result.detail && result.detail.address) {
+                            address = result.detail.address;
+                        } else if (result && result.detail && result.detail.location) {
+                            address = typeof result.detail.location === 'string' ? result.detail.location : 
+                                     (result.detail.location.name || result.detail.location.address || '');
                         }
                         
                         if (address) {
                             selectedAddress = address;
                             document.getElementById('selectedInfo').textContent = `📍 ${selectedAddress}`;
-                            console.log('✅ 获取到地址:', selectedAddress);
+                            console.log('✅ 地址:', selectedAddress);
                         } else {
-                            console.log('⚠️ 无法解析地址，使用坐标');
                             document.getElementById('selectedInfo').textContent = `📍 坐标：${selectedLatLng.lat.toFixed(4)}, ${selectedLatLng.lng.toFixed(4)}`;
                         }
                     },
-                    error: function(result) {
-                        console.log('逆地理编码失败:', result);
+                    error: function() {
+                        console.log('逆地理编码失败');
                         document.getElementById('selectedInfo').textContent = `📍 坐标：${selectedLatLng.lat.toFixed(4)}, ${selectedLatLng.lng.toFixed(4)}`;
                     }
                 });
@@ -743,7 +726,7 @@
                             document.getElementById('coordInfo').textContent = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
                             
                             // 逆地理编码获取地址
-                            geocoder.getAddress(center);
+                            converter.convert(center);
                         },
                         (error) => {
                             console.log('GPS 定位失败:', error.message);
@@ -771,7 +754,7 @@
                     document.getElementById('coordInfo').textContent = `${latLng.getLat().toFixed(6)}, ${latLng.getLng().toFixed(6)}`;
                     
                     // 逆地理编码获取地址
-                    geocoder.getAddress(latLng);
+                    converter.convert(latLng);
                 });
             }, 100);
         }
