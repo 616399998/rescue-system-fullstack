@@ -19,6 +19,7 @@ function initDatabase() {
       
       // 创建表
       const tables = [
+        // 用户表
         `CREATE TABLE IF NOT EXISTS users (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           username TEXT UNIQUE NOT NULL,
@@ -30,6 +31,7 @@ function initDatabase() {
           level TEXT DEFAULT 'VIP 会员',
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )`,
+        // 订单表（扩展）
         `CREATE TABLE IF NOT EXISTS orders (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           order_no TEXT UNIQUE NOT NULL,
@@ -69,8 +71,21 @@ function initDatabase() {
           rated INTEGER DEFAULT 0,
           rating INTEGER,
           comment TEXT,
-          settled INTEGER DEFAULT 0
+          settled INTEGER DEFAULT 0,
+          channel TEXT DEFAULT 'personal',
+          violation_type TEXT,
+          found_time DATETIME,
+          found_location TEXT,
+          found_address TEXT,
+          is_garage INTEGER DEFAULT 0,
+          sign_photo TEXT,
+          sign_user TEXT,
+          navigation_started INTEGER DEFAULT 0,
+          arrived_at_site DATETIME,
+          arrived_at_dest DATETIME,
+          rejected_reason TEXT
         )`,
+        // 订单时间线
         `CREATE TABLE IF NOT EXISTS order_timeline (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           order_id INTEGER NOT NULL,
@@ -78,6 +93,7 @@ function initDatabase() {
           description TEXT NOT NULL,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )`,
+        // 充值记录
         `CREATE TABLE IF NOT EXISTS recharge_records (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           user_id INTEGER NOT NULL,
@@ -86,12 +102,114 @@ function initDatabase() {
           status TEXT DEFAULT 'completed',
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )`,
+        // 派单日志
         `CREATE TABLE IF NOT EXISTS dispatch_log (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           order_id INTEGER NOT NULL,
           driver_id INTEGER NOT NULL,
           admin_user TEXT DEFAULT 'admin',
           dispatched_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`,
+        // 司机表（新增）
+        `CREATE TABLE IF NOT EXISTS drivers (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          phone TEXT UNIQUE NOT NULL,
+          password TEXT NOT NULL,
+          license_no TEXT,
+          license_expiry DATE,
+          qualification_no TEXT,
+          qualification_expiry DATE,
+          vehicle_id INTEGER,
+          status TEXT DEFAULT 'active',
+          rating REAL DEFAULT 5.0,
+          total_orders INTEGER DEFAULT 0,
+          latitude REAL,
+          longitude REAL,
+          last_location_update DATETIME,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`,
+        // 车辆表（新增）
+        `CREATE TABLE IF NOT EXISTS vehicles (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          plate_no TEXT UNIQUE NOT NULL,
+          model TEXT,
+          type TEXT DEFAULT 'tow',
+          device_no TEXT,
+          insurance_no TEXT,
+          insurance_expiry DATE,
+          inspection_expiry DATE,
+          mileage INTEGER DEFAULT 0,
+          status TEXT DEFAULT 'active',
+          driver_id INTEGER,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`,
+        // 车辆位置记录（新增）
+        `CREATE TABLE IF NOT EXISTS vehicle_locations (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          vehicle_id INTEGER NOT NULL,
+          latitude REAL NOT NULL,
+          longitude REAL NOT NULL,
+          speed REAL,
+          direction REAL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`,
+        // 机构客户表（新增）
+        `CREATE TABLE IF NOT EXISTS customers (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          contact_name TEXT,
+          contact_phone TEXT,
+          address TEXT,
+          default_destination TEXT,
+          pricing_formula TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`,
+        // 商户表（新增）
+        `CREATE TABLE IF NOT EXISTS merchants (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          license_no TEXT,
+          contact_name TEXT,
+          contact_phone TEXT,
+          address TEXT,
+          service_scope TEXT,
+          contract_start DATE,
+          contract_end DATE,
+          status TEXT DEFAULT 'active',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`,
+        // 通知消息表（新增）
+        `CREATE TABLE IF NOT EXISTS notifications (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER,
+          driver_id INTEGER,
+          type TEXT,
+          title TEXT,
+          content TEXT NOT NULL,
+          is_read INTEGER DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`,
+        // 维修保养记录表（新增）
+        `CREATE TABLE IF NOT EXISTS vehicle_maintenance (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          vehicle_id INTEGER NOT NULL,
+          type TEXT,
+          description TEXT,
+          cost REAL,
+          applicant_id INTEGER,
+          status TEXT DEFAULT 'pending',
+          approved_by INTEGER,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`,
+        // 配置模板表（新增）
+        `CREATE TABLE IF NOT EXISTS config_templates (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          type TEXT NOT NULL,
+          name TEXT NOT NULL,
+          content TEXT,
+          is_active INTEGER DEFAULT 1,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )`
       ];
 

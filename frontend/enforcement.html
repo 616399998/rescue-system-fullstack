@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>执法端 - 智慧救援</title>
+    <script type="text/javascript" src="https://map.qq.com/api/js?v=2.exp&key=OB4BZ-D463Q-YJWOT-IYQ4U-XMKVY-FQF5Y"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary-color: #00f0ff;
+            --secondary-color: #0066ff;
+            --bg-color: #0a0e1a;
+            --card-bg: rgba(16, 28, 48, 0.95);
+            --text-color: #e0f7ff;
+            --accent-color: #ff6b35;
+            --success-color: #00ff88;
+            --warning-color: #ffa500;
+        }
+        body { font-family: 'Microsoft YaHei', sans-serif; background: linear-gradient(135deg, #0a0e1a 0%, #1a1f3a 50%, #0a0e1a 100%); color: var(--text-color); min-height: 100vh; }
+        .app-container { max-width: 430px; margin: 0 auto; position: relative; min-height: 100vh; background: radial-gradient(ellipse at top, rgba(0, 240, 255, 0.1) 0%, transparent 50%); padding-bottom: 80px; }
+        .header { background: linear-gradient(135deg, rgba(0, 102, 255, 0.3), rgba(0, 240, 255, 0.1)); padding: 20px; text-align: center; border-bottom: 1px solid rgba(0, 240, 255, 0.3); }
+        .header h1 { font-size: 20px; font-weight: bold; background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; background: rgba(10, 14, 26, 0.95); border-top: 1px solid rgba(0, 240, 255, 0.3); display: flex; justify-content: space-around; padding: 10px 0; z-index: 1000; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; color: #5a6d7e; cursor: pointer; }
+        .nav-item.active { color: var(--primary-color); }
+        .nav-icon { width: 24px; height: 24px; margin-bottom: 4px; fill: currentColor; }
+        .nav-text { font-size: 11px; }
+        .page { display: none; padding: 15px; }
+        .page.active { display: block; }
+        .card { background: var(--card-bg); border: 1px solid rgba(0, 240, 255, 0.2); border-radius: 12px; padding: 15px; margin-bottom: 15px; }
+        .card-title { font-size: 14px; font-weight: bold; color: var(--primary-color); margin-bottom: 10px; }
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 20px; font-size: 14px; font-weight: bold; cursor: pointer; transition: all 0.3s; margin-top: 10px; }
+        .btn-primary { background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); color: #000; }
+        .btn-success { background: linear-gradient(135deg, var(--success-color), #00cc6a); color: #000; }
+        .btn-warning { background: linear-gradient(135deg, var(--warning-color), #ff8c00); color: #000; }
+        .btn:active { transform: scale(0.98); }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 13px; color: #8a9ba8; margin-bottom: 5px; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(0, 240, 255, 0.2); border-radius: 8px; color: var(--text-color); font-size: 14px; }
+        .form-group textarea { resize: vertical; min-height: 80px; }
+        .order-item { background: rgba(16, 28, 48, 0.6); border-radius: 10px; padding: 12px; margin-bottom: 10px; border: 1px solid rgba(0, 240, 255, 0.1); cursor: pointer; }
+        .order-item:active { background: rgba(0, 240, 255, 0.1); }
+        .order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .order-no { font-size: 13px; font-weight: bold; color: var(--primary-color); }
+        .order-status { font-size: 11px; padding: 3px 8px; border-radius: 10px; background: rgba(0, 240, 255, 0.2); color: var(--primary-color); }
+        .order-status.processing { background: rgba(255, 165, 0, 0.2); color: var(--warning-color); }
+        .order-status.completed { background: rgba(0, 255, 136, 0.2); color: var(--success-color); }
+        .order-info { font-size: 12px; color: #8a9ba8; line-height: 1.6; }
+        .order-info span { color: var(--text-color); }
+        .timeline { position: relative; padding-left: 20px; }
+        .timeline::before { content: ''; position: absolute; left: 8px; top: 0; bottom: 0; width: 2px; background: rgba(0, 240, 255, 0.2); }
+        .timeline-item { position: relative; padding-bottom: 15px; }
+        .timeline-item::before { content: ''; position: absolute; left: -16px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--primary-color); }
+        .timeline-time { font-size: 11px; color: #5a6d7e; }
+        .timeline-content { font-size: 13px; color: var(--text-color); margin-top: 4px; }
+        .photo-upload { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+        .photo-item { width: 80px; height: 80px; border-radius: 8px; object-fit: cover; border: 1px solid rgba(0, 240, 255, 0.2); }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div id="orderListPage" class="page active">
+            <div class="header"><h1>⚖️ 执法端</h1></div>
+            <div class="card">
+                <div class="card-title">📋 订单列表</div>
+                <div id="orderList"></div>
+            </div>
+        </div>
+        <div id="orderDetailPage" class="page">
+            <div class="header"><h1>订单详情</h1></div>
+            <div id="orderDetail"></div>
+            <div class="card">
+                <div class="card-title">📋 处理时间线</div>
+                <div id="orderTimeline" class="timeline"></div>
+            </div>
+        </div>
+        <div id="requestPage" class="page">
+            <div class="header"><h1>📝 拖车申请</h1></div>
+            <div class="card">
+                <div class="form-group">
+                    <label>车牌号 *</label>
+                    <input type="text" id="vehiclePlate" placeholder="请输入车牌号" />
+                </div>
+                <div class="form-group">
+                    <label>车主姓名 *</label>
+                    <input type="text" id="ownerName" placeholder="请输入车主姓名" />
+                </div>
+                <div class="form-group">
+                    <label>车主电话 *</label>
+                    <input type="tel" id="ownerPhone" placeholder="请输入车主电话" />
+                </div>
+                <div class="form-group">
+                    <label>违法类型 *</label>
+                    <select id="violationType">
+                        <option value="违停">违停</option>
+                        <option value="占用应急车道">占用应急车道</option>
+                        <option value="事故车辆">事故车辆</option>
+                        <option value="其他">其他</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>发现时间</label>
+                    <input type="datetime-local" id="foundTime" />
+                </div>
+                <div class="form-group">
+                    <label>发现地点（地址） *</label>
+                    <input type="text" id="foundLocation" placeholder="请输入详细地址" />
+                </div>
+                <div class="form-group">
+                    <label>发现地点（坐标）</label>
+                    <input type="text" id="foundAddress" placeholder="点击地图获取" readonly />
+                    <button class="btn btn-warning" onclick="selectLocation()" style="margin-top:5px;">📍 地图选点</button>
+                </div>
+                <div class="form-group">
+                    <label>需求描述</label>
+                    <textarea id="description" placeholder="请描述具体情况"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>特殊说明</label>
+                    <textarea id="specialNote" placeholder="其他需要说明的事项"></textarea>
+                </div>
+                <button class="btn btn-primary" onclick="submitRequest()">提交申请</button>
+            </div>
+        </div>
+        <div class="bottom-nav">
+            <div class="nav-item active" onclick="switchPage('orderListPage')">
+                <svg class="nav-icon" viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+                <span class="nav-text">订单</span>
+            </div>
+            <div class="nav-item" onclick="switchPage('requestPage')">
+                <svg class="nav-icon" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                <span class="nav-text">申请</span>
+            </div>
+        </div>
+    </div>
+    <script>
+        const API_BASE = '/api';
+        let currentOrder = null;
+        let map = null;
+
+        function switchPage(pageId) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            if (pageId === 'orderListPage') {
+                document.querySelectorAll('.nav-item')[0].classList.add('active');
+                loadOrders();
+            }
+        }
+
+        async function loadOrders() {
+            try {
+                const res = await fetch(`${API_BASE}/enforcement/orders`);
+                const data = await res.json();
+                const orderList = document.getElementById('orderList');
+                if (data.orders.length === 0) {
+                    orderList.innerHTML = '<div style="text-align:center;color:#5a6d7e;padding:20px;">暂无订单</div>';
+                    return;
+                }
+                orderList.innerHTML = data.orders.map(order => `
+                    <div class="order-item" onclick="loadOrderDetail(${order.id})">
+                        <div class="order-header">
+                            <span class="order-no">${order.order_no}</span>
+                            <span class="order-status ${order.status}">${order.status_text}</span>
+                        </div>
+                        <div class="order-info">
+                            车牌：<span>${order.vehicle_plate}</span><br/>
+                            违法类型：<span>${order.violation_type}</span><br/>
+                            地点：<span>${order.found_location}</span><br/>
+                            司机：<span>${order.driver_name || '待分配'}</span>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('加载订单失败:', error);
+            }
+        }
+
+        async function loadOrderDetail(orderId) {
+            try {
+                const res = await fetch(`${API_BASE}/enforcement/orders/${orderId}`);
+                const data = await res.json();
+                currentOrder = data.order;
+                const order = data.order;
+                document.getElementById('orderDetail').innerHTML = `
+                    <div class="card">
+                        <div class="card-title">📋 订单信息</div>
+                        <div style="font-size:13px;line-height:1.8;">
+                            <div>订单号：<span style="color:var(--primary-color)">${order.order_no}</span></div>
+                            <div>状态：<span>${order.status === 'pending' ? '待审核' : order.status === 'processing' ? '处理中' : order.status === 'completed' ? '已完成' : '已取消'}</span></div>
+                            <div>车牌号：<span>${order.vehicle_plate}</span></div>
+                            <div>车主：<span>${order.owner_name || '未填写'} (${order.owner_phone})</span></div>
+                            <div>违法类型：<span>${order.violation_type}</span></div>
+                            <div>发现时间：<span>${new Date(order.found_time).toLocaleString('zh-CN')}</span></div>
+                            <div>发现地点：<span>${order.found_location}</span></div>
+                            ${order.description ? `<div>描述：<span>${order.description}</span></div>` : ''}
+                            ${order.special_note ? `<div>备注：<span>${order.special_note}</span></div>` : ''}
+                            ${order.driver ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(0,240,255,0.2)"><div>司机：<strong>${order.driver.name}</strong></div><div>电话：<strong>${order.driver.phone}</strong></div></div>` : ''}
+                        </div>
+                    </div>
+                `;
+                document.getElementById('orderTimeline').innerHTML = order.timeline.map(t => `
+                    <div class="timeline-item">
+                        <div class="timeline-time">${t.time}</div>
+                        <div class="timeline-content">${t.content}</div>
+                    </div>
+                `).join('');
+                switchPage('orderDetailPage');
+            } catch (error) {
+                alert('加载订单详情失败');
+            }
+        }
+
+        async function submitRequest() {
+            const vehicle_plate = document.getElementById('vehiclePlate').value;
+            const owner_name = document.getElementById('ownerName').value;
+            const owner_phone = document.getElementById('ownerPhone').value;
+            const violation_type = document.getElementById('violationType').value;
+            const found_time = document.getElementById('foundTime').value;
+            const found_location = document.getElementById('foundLocation').value;
+            const found_address = document.getElementById('foundAddress').value;
+            const description = document.getElementById('description').value;
+            const special_note = document.getElementById('specialNote').value;
+
+            if (!vehicle_plate || !owner_name || !owner_phone || !found_location) {
+                alert('请填写必填信息');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/enforcement/tow-request`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ vehicle_plate, owner_name, owner_phone, violation_type, found_time, found_location, found_address, description, special_note, photos: [] })
+                });
+                const data = await res.json();
+                alert(data.message || '申请已提交');
+                if (data.orderId) {
+                    document.getElementById('vehiclePlate').value = '';
+                    document.getElementById('ownerName').value = '';
+                    document.getElementById('ownerPhone').value = '';
+                    document.getElementById('foundLocation').value = '';
+                    document.getElementById('foundAddress').value = '';
+                    document.getElementById('description').value = '';
+                    document.getElementById('specialNote').value = '';
+                    switchPage('orderListPage');
+                }
+            } catch (error) {
+                alert('提交失败，请重试');
+            }
+        }
+
+        function selectLocation() {
+            const modal = document.createElement('div');
+            modal.className = 'modal active';
+            modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:2000;display:flex;justify-content:center;align-items:center;';
+            modal.innerHTML = `
+                <div class="modal-content" style="background:var(--card-bg);border:1px solid rgba(0,240,255,0.3);border-radius:16px;padding:20px;width:90%;max-width:400px;">
+                    <div class="modal-title" style="font-size:18px;font-weight:bold;color:var(--primary-color);margin-bottom:15px;text-align:center;">地图选点</div>
+                    <div id="mapContainer" style="width:100%;height:300px;border-radius:8px;"></div>
+                    <button class="btn btn-warning" onclick="this.closest('.modal').remove()" style="margin-top:10px;">关闭</button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            setTimeout(() => {
+                map = new qq.maps.Map(document.getElementById('mapContainer'), {
+                    zoom: 13,
+                    center: new qq.maps.LatLng(39.9042, 116.4074)
+                });
+                qq.maps.event.addListener(map, 'click', function(event) {
+                    const latLng = event.latLng;
+                    document.getElementById('foundAddress').value = `${latLng.getLat()},${latLng.getLng()}`;
+                    document.getElementById('foundLocation').value = `地图选点 (${latLng.getLat().toFixed(4)}, ${latLng.getLng().toFixed(4)})`;
+                });
+            }, 100);
+        }
+
+        window.onload = function() {
+            loadOrders();
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('foundTime').value = now.toISOString().slice(0, 16);
+        };
+    </script>
+</body>
+</html>
