@@ -374,11 +374,15 @@
                             marker = new qq.maps.Marker({ position: center, map: map });
                             selectedLatLng = { lat, lng };
                             geocoder.getAddress(center, function(result) {
+                                console.log('地理编码结果:', result);
                                 if (result && result.detail && result.detail.address) {
                                     selectedAddress = result.detail.address;
                                     document.getElementById('selectedInfo').textContent = `📍 ${selectedAddress}`;
+                                } else if (result && result.detail && result.detail.location) {
+                                    selectedAddress = result.detail.location.name || '未知位置';
+                                    document.getElementById('selectedInfo').textContent = `📍 ${selectedAddress}`;
                                 } else {
-                                    document.getElementById('selectedInfo').textContent = `当前位置：${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+                                    document.getElementById('selectedInfo').textContent = `🔄 获取地址中...`;
                                 }
                             });
                         },
@@ -392,12 +396,16 @@
                     selectedLatLng = { lat: latLng.getLat(), lng: latLng.getLng() };
                     document.getElementById('selectedInfo').textContent = '🔄 正在获取地址...';
                     geocoder.getAddress(latLng, function(result) {
+                        console.log('选点地理编码结果:', result);
                         if (result && result.detail && result.detail.address) {
                             selectedAddress = result.detail.address;
                             document.getElementById('selectedInfo').textContent = `📍 ${selectedAddress}`;
+                        } else if (result && result.detail && result.detail.location) {
+                            selectedAddress = result.detail.location.name || '未知位置';
+                            document.getElementById('selectedInfo').textContent = `📍 ${selectedAddress}`;
                         } else {
                             selectedAddress = '';
-                            document.getElementById('selectedInfo').textContent = `已选择：${latLng.getLat().toFixed(4)}, ${latLng.getLng().toFixed(4)}`;
+                            document.getElementById('selectedInfo').textContent = `📍 坐标：${latLng.getLat().toFixed(4)}, ${latLng.getLng().toFixed(4)}`;
                         }
                     });
                 });
