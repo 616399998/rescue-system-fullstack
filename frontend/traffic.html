@@ -663,9 +663,9 @@
             modal.innerHTML = `
                 <div class="modal-content" style="max-width:90%;width:400px;">
                     <div class="modal-title">📍 地图选点</div>
-                    <div style="font-size:12px;color:#8a9ba8;margin-bottom:10px;">点击地图选择位置，或自动获取当前位置</div>
-                    <div id="mapContainer" style="width:100%;height:400px;border-radius:8px;"></div>
-                    <div id="selectedInfo" style="font-size:14px;color:var(--primary-color);margin:10px 0;font-weight:bold;min-height:40px;"></div>
+                    <div style="font-size:12px;color:#8a9ba8;margin-bottom:10px;">请在地图上点击选择位置</div>
+                    <div id="mapContainer" style="width:100%;height:450px;border-radius:8px;"></div>
+                    <div id="selectedInfo" style="font-size:14px;color:var(--primary-color);margin:10px 0;font-weight:bold;min-height:40px;">💡 请在地图上点击选择位置</div>
                     <div style="font-size:12px;color:#5a6d7e;margin:5px 0;">📍 坐标：<span id="coordInfo">-</span></div>
                     <button class="btn btn-primary" onclick="confirmLocation()" style="margin-top:10px;">确认选择</button>
                     <button class="btn btn-warning" onclick="closeLocationModal()" style="margin-top:10px;">取消</button>
@@ -675,60 +675,9 @@
 
             setTimeout(() => {
                 map = new qq.maps.Map(document.getElementById('mapContainer'), {
-                    zoom: 15,
+                    zoom: 13,
                     center: new qq.maps.LatLng(39.9042, 116.4074)
                 });
-
-                // 添加 POI 检索服务
-                const searchService = new qq.maps.SearchService({
-                    complete: function(results) {
-                        const pois = results.detail.pois;
-                        if (pois && pois.length > 0) {
-                            const poi = pois[0];
-                            selectedAddress = poi.name + (poi.address ? ' (' + poi.address + ')' : '');
-                            document.getElementById('selectedInfo').textContent = `📍 ${selectedAddress}`;
-                            document.getElementById('coordInfo').textContent = `${poi.latLng.getLat().toFixed(6)}, ${poi.latLng.getLng().toFixed(6)}`;
-                        }
-                    }
-                });
-
-                // 逆地理编码服务
-                const geocoder = new qq.maps.Geocoder();
-
-                // 获取当前位置
-                if (navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition(
-                        (position) => {
-                            const lat = position.coords.latitude;
-                            const lng = position.coords.longitude;
-                            const center = new qq.maps.LatLng(lat, lng);
-                            map.setCenter(center);
-                            map.setZoom(16);
-                            
-                            marker = new qq.maps.Marker({
-                                position: center,
-                                map: map
-                            });
-                            
-                            selectedLatLng = { lat, lng };
-                            document.getElementById('coordInfo').textContent = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-                            
-                            // 使用 POI 检索获取位置名称
-                            searchService.searchNearby('', center, 100);
-                            
-                            // 同时用逆地理编码作为备选
-                            geocoder.getAddress(center, function(result) {
-                                if (!selectedAddress && result && result.detail) {
-                                    selectedAddress = result.detail.address || result.detail.location || '当前位置';
-                                    document.getElementById('selectedInfo').textContent = `📍 ${selectedAddress}`;
-                                }
-                            });
-                        },
-                        (error) => {
-                            console.error('获取位置失败:', error);
-                        }
-                    );
-                }
 
                 // 点击地图选点
                 qq.maps.event.addListener(map, 'click', function(event) {
@@ -743,19 +692,8 @@
                     
                     selectedLatLng = { lat: latLng.getLat(), lng: latLng.getLng() };
                     selectedAddress = '';
-                    document.getElementById('selectedInfo').textContent = '🔄 正在获取位置信息...';
+                    document.getElementById('selectedInfo').textContent = '📍 已选择坐标点';
                     document.getElementById('coordInfo').textContent = `${latLng.getLat().toFixed(6)}, ${latLng.getLng().toFixed(6)}`;
-                    
-                    // 使用 POI 检索获取位置名称
-                    searchService.searchNearby('', latLng, 100);
-                    
-                    // 同时用逆地理编码作为备选
-                    geocoder.getAddress(latLng, function(result) {
-                        if (!selectedAddress && result && result.detail) {
-                            selectedAddress = result.detail.address || result.detail.location || '已选位置';
-                            document.getElementById('selectedInfo').textContent = `📍 ${selectedAddress}`;
-                        }
-                    });
                 });
             }, 100);
         }

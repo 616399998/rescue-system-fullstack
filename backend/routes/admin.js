@@ -370,20 +370,23 @@ router.put('/drivers/:id/reject', async (req, res) => {
   }
 });
 
-// 获取可派司机
+// 获取可派司机（从 drivers 表读取）
 router.get('/dispatch/available-drivers', async (req, res) => {
   try {
-    // 获取所有有订单记录的司机
+    // 从 drivers 表获取所有正常状态的司机
     const drivers = await all(`
-      SELECT DISTINCT
-        driver_id as id,
-        driver_name as name,
-        driver_phone as phone,
-        driver_rating as rating,
-        rescue_vehicle_plate as vehicle_plate,
-        rescue_vehicle_model as vehicle_model
-      FROM orders 
-      WHERE driver_id IS NOT NULL
+      SELECT 
+        id,
+        name,
+        phone,
+        rating,
+        status,
+        license_no,
+        qualification_no,
+        total_orders
+      FROM drivers
+      WHERE status = 'active'
+      ORDER BY rating DESC, total_orders DESC
     `);
 
     // 获取正在服务中的司机 ID
@@ -394,20 +397,20 @@ router.get('/dispatch/available-drivers', async (req, res) => {
     `);
     const busyIds = busyDrivers.map(d => d.driver_id);
 
-    const formattedDrivers = drivers.map((d, i) => ({
+    const formattedDrivers = drivers.map(d => ({
       id: d.id,
       name: d.name,
       phone: d.phone,
       rating: d.rating,
-      vehicle_plate: d.vehicle_plate,
-      vehicle_model: d.vehicle_model,
-      status: busyIds.includes(d.id) ? '服务中' : '空闲',
-      location: ['朝阳区', '海淀区', '丰台区'][i % 3],
-      today_orders: Math.floor(Math.random() * 10)
+      license_no: d.license_no,
+      qualification_no: d.qualification_no,
+      total_orders: d.total_orders || 0,
+      status: busyIds.includes(d.id) ? '服务中' : '空闲'
     }));
 
     res.json({ drivers: formattedDrivers });
   } catch (error) {
+    console.error('获取可派司机错误:', error);
     res.status(500).json({ error: '获取司机列表失败' });
   }
 });
