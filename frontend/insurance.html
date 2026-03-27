@@ -366,8 +366,12 @@
                 // 加载路线信息（从事故地点到目的地）
                 loadRouteInfo(order);
                 
-                switchPage('orderDetailPage');
+                // 确保页面切换在数据加载完成后执行
+                setTimeout(() => {
+                    switchPage('orderDetailPage');
+                }, 100);
             } catch (error) {
+                console.error('加载订单详情错误:', error);
                 showCustomAlert('error', '错误', '加载订单详情失败');
             }
         }
