@@ -1185,90 +1185,101 @@
         let orderMarker = null;
         
         async function initOrderMap(order) {
+            // 确保 DOM 元素存在
+            const mapContainer = document.getElementById('orderMap');
+            if (!mapContainer) {
+                console.error('地图容器不存在');
+                return;
+            }
+            
             if (orderTencentMap) {
                 orderTencentMap.destroy();
                 orderTencentMap = null;
+                orderMarker = null;
             }
 
             let lat = 39.9042, lng = 116.4074;
-            const address = order.address || order.current_location;
             
-            // 尝试从 address 字段解析坐标
-            if (address && address.includes(',')) {
-                const coords = address.split(',');
+            // 优先从 address 字段解析坐标（存储的是坐标）
+            if (order.address && order.address.includes(',')) {
+                const coords = order.address.split(',');
                 if (coords.length === 2) {
                     lat = parseFloat(coords[0]);
                     lng = parseFloat(coords[1]);
+                    console.log('从 address 解析坐标:', lat, lng);
                 }
             }
 
-            orderTencentMap = new qq.maps.Map(document.getElementById('orderMap'), {
+            orderTencentMap = new qq.maps.Map(mapContainer, {
                 center: new qq.maps.LatLng(lat, lng),
-                zoom: 14
+                zoom: 13
             });
 
+            // 添加起点标记
             orderMarker = new qq.maps.Marker({
                 position: new qq.maps.LatLng(lat, lng),
-                map: orderTencentMap
+                map: orderTencentMap,
+                title: '起点：' + order.current_location
             });
 
-            // 如果有目的地，显示路线
-            if (order.destination && order.destination_coord) {
-                let toLat = 39.9087, toLng = 116.4295; // 默认交警队
+            // 如果有目的地坐标，显示路线
+            if (order.destination_coord && order.destination_coord.includes(',')) {
                 const destCoords = order.destination_coord.split(',');
                 if (destCoords.length === 2) {
-                    toLat = parseFloat(destCoords[0]);
-                    toLng = parseFloat(destCoords[1]);
-                }
+                    const toLat = parseFloat(destCoords[0]);
+                    const toLng = parseFloat(destCoords[1]);
+                    console.log('目的地坐标:', toLat, toLng);
 
-                // 添加目的地标记
-                new qq.maps.Marker({
-                    position: new qq.maps.LatLng(toLat, toLng),
-                    map: orderTencentMap,
-                    title: order.destination
-                });
-
-                // 调用路线规划 API
-                try {
-                    const routeRes = await fetch(`${API_BASE}/api/traffic/calculate-route`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            from: { lat, lng },
-                            to: { lat: toLat, lng: toLng }
-                        })
+                    // 添加目的地标记
+                    const destMarker = new qq.maps.Marker({
+                        position: new qq.maps.LatLng(toLat, toLng),
+                        map: orderTencentMap,
+                        title: '终点：' + order.destination
                     });
-                    const routeData = await routeRes.json();
 
-                    if (routeData.success && routeData.polyline) {
-                        const polyPoints = [];
-                        const points = routeData.polyline.split(';');
-                        points.forEach(point => {
-                            const coords = point.split(',');
-                            if (coords.length === 2) {
-                                polyPoints.push(new qq.maps.LatLng(parseFloat(coords[0]), parseFloat(coords[1])));
-                            }
+                    // 调用路线规划 API
+                    try {
+                        const routeRes = await fetch(`${API_BASE}/api/traffic/calculate-route`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                from: { lat, lng },
+                                to: { lat: toLat, lng: toLng }
+                            })
                         });
+                        const routeData = await routeRes.json();
+                        console.log('路线数据:', routeData);
 
-                        if (polyPoints.length > 0) {
-                            new qq.maps.Polyline({
-                                map: orderTencentMap,
-                                path: polyPoints,
-                                strokeColor: '#ff6b35',
-                                strokeWeight: 5,
-                                strokeOpacity: 0.8
+                        if (routeData.success && routeData.polyline && routeData.polyline.length > 0) {
+                            const polyPoints = [];
+                            const points = routeData.polyline.split(';');
+                            points.forEach(point => {
+                                const coords = point.split(',');
+                                if (coords.length === 2) {
+                                    polyPoints.push(new qq.maps.LatLng(parseFloat(coords[0]), parseFloat(coords[1])));
+                                }
                             });
 
-                            // 调整视野
-                            const bounds = new qq.maps.LatLngBounds();
-                            bounds.extend(new qq.maps.LatLng(lat, lng));
-                            bounds.extend(new qq.maps.LatLng(toLat, toLng));
-                            polyPoints.forEach(p => bounds.extend(p));
-                            orderTencentMap.fitBounds(bounds);
+                            if (polyPoints.length > 0) {
+                                new qq.maps.Polyline({
+                                    map: orderTencentMap,
+                                    path: polyPoints,
+                                    strokeColor: '#ff6b35',
+                                    strokeWeight: 5,
+                                    strokeOpacity: 0.8
+                                });
+
+                                // 调整视野显示完整路线
+                                const bounds = new qq.maps.LatLngBounds();
+                                bounds.extend(new qq.maps.LatLng(lat, lng));
+                                bounds.extend(new qq.maps.LatLng(toLat, toLng));
+                                polyPoints.forEach(p => bounds.extend(p));
+                                orderTencentMap.fitBounds(bounds);
+                            }
                         }
+                    } catch (error) {
+                        console.error('加载路线失败:', error);
                     }
-                } catch (error) {
-                    console.error('加载路线失败:', error);
                 }
             }
         }
