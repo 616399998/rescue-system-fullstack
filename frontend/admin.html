@@ -1142,7 +1142,16 @@
                 }
 
                 document.getElementById('orderModal').classList.add('active');
-                setTimeout(() => initOrderMap(order), 100);
+                // 等待弹窗动画完成后再初始化地图
+                setTimeout(() => {
+                    console.log('初始化地图，订单数据:', {
+                        id: order.id,
+                        address: order.address,
+                        destination: order.destination,
+                        destination_coord: order.destination_coord
+                    });
+                    initOrderMap(order);
+                }, 300);
             } catch (error) {
                 showAlert('error', '错误', '获取订单详情失败');
             }
@@ -1185,6 +1194,11 @@
         let orderMarker = null;
         
         async function initOrderMap(order) {
+            console.log('=== 开始初始化地图 ===');
+            console.log('订单 ID:', order.id);
+            console.log('起点坐标 (address):', order.address);
+            console.log('终点坐标 (destination_coord):', order.destination_coord);
+            
             // 确保 DOM 元素存在
             const mapContainer = document.getElementById('orderMap');
             if (!mapContainer) {
@@ -1192,6 +1206,7 @@
                 return;
             }
             
+            // 清理旧地图
             if (orderTencentMap) {
                 orderTencentMap.destroy();
                 orderTencentMap = null;
@@ -1200,16 +1215,21 @@
 
             let lat = 39.9042, lng = 116.4074;
             
-            // 优先从 address 字段解析坐标（存储的是坐标）
-            if (order.address && order.address.includes(',')) {
+            // 从 address 字段解析起点坐标
+            if (order.address && typeof order.address === 'string' && order.address.includes(',')) {
                 const coords = order.address.split(',');
                 if (coords.length === 2) {
                     lat = parseFloat(coords[0]);
                     lng = parseFloat(coords[1]);
-                    console.log('从 address 解析坐标:', lat, lng);
+                    console.log('✅ 起点坐标解析成功:', lat, lng);
+                } else {
+                    console.log('❌ address 格式错误:', order.address);
                 }
+            } else {
+                console.log('❌ address 无效:', order.address);
             }
 
+            // 初始化地图
             orderTencentMap = new qq.maps.Map(mapContainer, {
                 center: new qq.maps.LatLng(lat, lng),
                 zoom: 13
@@ -1223,12 +1243,12 @@
             });
 
             // 如果有目的地坐标，显示路线
-            if (order.destination_coord && order.destination_coord.includes(',')) {
+            if (order.destination_coord && typeof order.destination_coord === 'string' && order.destination_coord.includes(',')) {
                 const destCoords = order.destination_coord.split(',');
                 if (destCoords.length === 2) {
                     const toLat = parseFloat(destCoords[0]);
                     const toLng = parseFloat(destCoords[1]);
-                    console.log('目的地坐标:', toLat, toLng);
+                    console.log('✅ 终点坐标解析成功:', toLat, toLng);
 
                     // 添加目的地标记
                     const destMarker = new qq.maps.Marker({
@@ -1239,6 +1259,7 @@
 
                     // 调用路线规划 API
                     try {
+                        console.log('调用路线规划 API...');
                         const routeRes = await fetch(`${API_BASE}/api/traffic/calculate-route`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -1248,7 +1269,7 @@
                             })
                         });
                         const routeData = await routeRes.json();
-                        console.log('路线数据:', routeData);
+                        console.log('路线规划结果:', routeData);
 
                         if (routeData.success && routeData.polyline && routeData.polyline.length > 0) {
                             const polyPoints = [];
@@ -1261,6 +1282,7 @@
                             });
 
                             if (polyPoints.length > 0) {
+                                console.log('绘制路线，点数:', polyPoints.length);
                                 new qq.maps.Polyline({
                                     map: orderTencentMap,
                                     path: polyPoints,
@@ -1275,13 +1297,22 @@
                                 bounds.extend(new qq.maps.LatLng(toLat, toLng));
                                 polyPoints.forEach(p => bounds.extend(p));
                                 orderTencentMap.fitBounds(bounds);
+                                console.log('✅ 路线绘制完成');
                             }
+                        } else {
+                            console.log('❌ 路线规划失败:', routeData);
                         }
                     } catch (error) {
-                        console.error('加载路线失败:', error);
+                        console.error('❌ 加载路线异常:', error);
                     }
+                } else {
+                    console.log('❌ destination_coord 格式错误:', order.destination_coord);
                 }
+            } else {
+                console.log('❌ destination_coord 无效:', order.destination_coord);
             }
+            
+            console.log('=== 地图初始化完成 ===');
         }
 
         // 关闭弹窗
