@@ -700,9 +700,12 @@
 
         <div class="form-group">
             <label class="form-label">🎯 拖车目的地</label>
-            <input type="text" class="form-input" id="destination" placeholder="请输入拖车目的地" readonly>
+            <input type="text" class="form-input" id="destination" placeholder="点击地图选点" readonly>
             <input type="hidden" id="destinationCoord">
-            <button class="btn btn-primary" onclick="pickDestination()" style="margin-top:8px;width:100%;">📍 地图选点</button>
+            <button class="map-select-btn" onclick="pickDestination()" style="background: linear-gradient(135deg, #00f0ff, #0066ff); box-shadow: 0 4px 15px rgba(0, 240, 255, 0.3);">
+                <span style="font-size:16px;margin-right:6px;">📍</span>
+                <span>地图选点</span>
+            </button>
         </div>
 
         <div class="form-group">
@@ -886,13 +889,19 @@
             modal.id = 'currentLocationModal';
             modal.className = 'modal active';
             modal.innerHTML = `
-                <div class="modal-content" style="max-width:90%;width:400px;position:relative;z-index:10001;">
-                    <div class="modal-title">📍 选择当前位置</div>
-                    <div style="font-size:12px;color:#8a9ba8;margin-bottom:10px;">点击地图选择位置</div>
-                    <div id="currentMapContainer" style="width:100%;height:450px;border-radius:8px;position:relative;z-index:1;"></div>
-                    <div id="currentSelectedInfo" style="font-size:14px;color:var(--primary-color);margin:10px 0;font-weight:bold;min-height:40px;">💡 请在地图上点击选择位置</div>
-                    <button class="btn btn-primary" onclick="confirmCurrentLocation()" style="margin-top:10px;">确认选择</button>
-                    <button class="btn btn-warning" onclick="closeCurrentLocationModal()" style="margin-top:10px;">取消</button>
+                <div class="modal-content" style="max-width:90%;width:400px;position:relative;z-index:10001;background:#1a1f2e;border-radius:12px;padding:20px;">
+                    <div class="modal-title" style="font-size:18px;font-weight:bold;color:#fff;margin-bottom:10px;text-align:center;">📍 选择当前位置</div>
+                    <div style="font-size:12px;color:#8a9ba8;margin-bottom:15px;text-align:center;">点击地图选择位置</div>
+                    <div id="currentMapContainer" style="width:100%;height:400px;border-radius:8px;position:relative;z-index:1;overflow:hidden;"></div>
+                    <div id="currentSelectedInfo" style="font-size:14px;color:#ff6b35;margin:15px 0;font-weight:bold;min-height:40px;text-align:center;background:rgba(255,107,53,0.1);padding:10px;border-radius:6px;">💡 请在地图上点击选择位置</div>
+                    <div style="display:flex;gap:10px;margin-top:15px;">
+                        <button class="map-select-btn" onclick="confirmCurrentLocation()" style="flex:1;margin-top:0;">
+                            <span>确认选择</span>
+                        </button>
+                        <button class="map-select-btn" onclick="closeCurrentLocationModal()" style="flex:1;margin-top:0;background: linear-gradient(135deg, #5a6d7e, #3a4d5e); box-shadow: 0 4px 15px rgba(90, 109, 126, 0.3);">
+                            <span>取消</span>
+                        </button>
+                    </div>
                 </div>
             `;
             document.body.appendChild(modal);
@@ -967,13 +976,19 @@
             modal.id = 'destLocationModal';
             modal.className = 'modal active';
             modal.innerHTML = `
-                <div class="modal-content" style="max-width:90%;width:400px;position:relative;z-index:10001;">
-                    <div class="modal-title">📍 选择目的地</div>
-                    <div style="font-size:12px;color:#8a9ba8;margin-bottom:10px;">点击地图选择目的地</div>
-                    <div id="destMapContainer" style="width:100%;height:450px;border-radius:8px;position:relative;z-index:1;"></div>
-                    <div id="destSelectedInfo" style="font-size:14px;color:var(--primary-color);margin:10px 0;font-weight:bold;min-height:40px;">💡 请在地图上点击选择位置</div>
-                    <button class="btn btn-primary" onclick="confirmDestination()" style="margin-top:10px;">确认选择</button>
-                    <button class="btn btn-warning" onclick="closeDestLocationModal()" style="margin-top:10px;">取消</button>
+                <div class="modal-content" style="max-width:90%;width:400px;position:relative;z-index:10001;background:#1a1f2e;border-radius:12px;padding:20px;">
+                    <div class="modal-title" style="font-size:18px;font-weight:bold;color:#fff;margin-bottom:10px;text-align:center;">📍 选择目的地</div>
+                    <div style="font-size:12px;color:#8a9ba8;margin-bottom:15px;text-align:center;">点击地图选择目的地</div>
+                    <div id="destMapContainer" style="width:100%;height:400px;border-radius:8px;position:relative;z-index:1;overflow:hidden;"></div>
+                    <div id="destSelectedInfo" style="font-size:14px;color:#00f0ff;margin:15px 0;font-weight:bold;min-height:40px;text-align:center;background:rgba(0,240,255,0.1);padding:10px;border-radius:6px;">💡 请在地图上点击选择位置</div>
+                    <div style="display:flex;gap:10px;margin-top:15px;">
+                        <button class="map-select-btn" onclick="confirmDestination()" style="flex:1;margin-top:0;">
+                            <span>确认选择</span>
+                        </button>
+                        <button class="map-select-btn" onclick="closeDestLocationModal()" style="flex:1;margin-top:0;background: linear-gradient(135deg, #5a6d7e, #3a4d5e); box-shadow: 0 4px 15px rgba(90, 109, 126, 0.3);">
+                            <span>取消</span>
+                        </button>
+                    </div>
                 </div>
             `;
             document.body.appendChild(modal);
