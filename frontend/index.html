@@ -410,6 +410,26 @@
             margin-top: 20px;
         }
         
+        .map-select-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #ff6b35, #ffa500);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+        }
+        .map-select-btn:active { transform: scale(0.98); }
+        .map-select-btn:hover { box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4); }
+        
         /* 提示框 */
         .alert {
             position: fixed;
@@ -694,9 +714,12 @@
         <div id="inputSection">
             <div class="form-group">
                 <label class="form-label">📍 当前位置</label>
-                <input type="text" class="form-input" id="currentLocation" placeholder="请输入当前位置或点击地图选点" readonly>
+                <input type="text" class="form-input" id="currentLocation" placeholder="点击地图选点" readonly>
                 <input type="hidden" id="currentCoord">
-                <button class="btn btn-primary" onclick="pickCurrentLocation()" style="margin-top:8px;width:100%;">📍 地图选点</button>
+                <button class="map-select-btn" onclick="pickCurrentLocation()">
+                    <span style="font-size:16px;margin-right:6px;">📍</span>
+                    <span>地图选点</span>
+                </button>
             </div>
         </div>
 
