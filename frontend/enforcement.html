@@ -460,7 +460,6 @@
                             
                             selectedLatLng = { lat, lng };
                             document.getElementById('selectedInfo').textContent = '🔄 正在获取地址...';
-                            document.getElementById('coordInfo').textContent = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
                             
                             // 调用 Web Service API 获取地址
                             fetchAddress(lat, lng);
@@ -488,7 +487,6 @@
                     selectedLatLng = { lat: latLng.getLat(), lng: latLng.getLng() };
                     selectedAddress = '';
                     document.getElementById('selectedInfo').textContent = '🔄 正在获取地址...';
-                    document.getElementById('coordInfo').textContent = `${latLng.getLat().toFixed(6)}, ${latLng.getLng().toFixed(6)}`;
                     
                     // 调用 Web Service API 获取地址
                     fetchAddress(latLng.getLat(), latLng.getLng());
