@@ -778,70 +778,62 @@
                     title: station.name
                 });
                 
-                // 调用腾讯地图路线规划 API 获取路线坐标
-                const key = '67MBZ-EF6RT-THAX4-VEGBL-7AYMJ-LGBXX';
-                const routeUrl = `https://apis.map.qq.com/ws/direction/v1/driving/?from=${fromCoord.lat},${fromCoord.lng}&to=${station.lat},${station.lng}&key=${key}`;
+                // 调用后端代理的路线规划 API（避免 CORS 问题）
+                const routeRes = await fetch(`${API_BASE}/traffic/calculate-route`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        from: fromCoord,
+                        to: { lat: station.lat, lng: station.lng }
+                    })
+                });
+                const routeData = await routeRes.json();
                 
-                try {
-                    const response = await fetch(routeUrl);
-                    const data = await response.json();
+                if (routeData.success && routeData.polyline) {
+                    const distance = routeData.distanceText;
+                    const duration = routeData.durationText;
                     
-                    if (data.status === 0 && data.result && data.result.routes && data.result.routes.length > 0) {
-                        const route = data.result.routes[0];
-                        const distance = (route.distance / 1000).toFixed(1);
-                        const duration = Math.round(route.duration / 60);
-                        
-                        // 解析路线坐标点
-                        const polyPoints = [];
-                        const steps = route.steps || [];
-                        
-                        steps.forEach(step => {
-                            if (step.polyline) {
-                                const points = step.polyline.split(';');
-                                points.forEach(point => {
-                                    const coords = point.split(',');
-                                    if (coords.length === 2) {
-                                        polyPoints.push(new qq.maps.LatLng(parseFloat(coords[0]), parseFloat(coords[1])));
-                                    }
-                                });
-                            }
+                    // 解析路线坐标点
+                    const polyPoints = [];
+                    const points = routeData.polyline.split(';');
+                    points.forEach(point => {
+                        const coords = point.split(',');
+                        if (coords.length === 2) {
+                            polyPoints.push(new qq.maps.LatLng(parseFloat(coords[0]), parseFloat(coords[1])));
+                        }
+                    });
+                    
+                    // 绘制路线
+                    if (polyPoints.length > 0) {
+                        routePolyline = new qq.maps.Polyline({
+                            map: routeMap,
+                            path: polyPoints,
+                            strokeColor: '#00f0ff',
+                            strokeWeight: 5,
+                            strokeOpacity: 0.8,
+                            strokeStyle: qq.maps.StrokeStyle.SOLID
                         });
                         
-                        // 绘制路线
-                        if (polyPoints.length > 0) {
-                            routePolyline = new qq.maps.Polyline({
-                                map: routeMap,
-                                path: polyPoints,
-                                strokeColor: '#00f0ff',
-                                strokeWeight: 5,
-                                strokeOpacity: 0.8,
-                                strokeStyle: qq.maps.StrokeStyle.SOLID
-                            });
-                            
-                            // 调整地图视野以显示完整路线
-                            const bounds = new qq.maps.LatLngBounds();
-                            bounds.extend(new qq.maps.LatLng(fromCoord.lat, fromCoord.lng));
-                            bounds.extend(new qq.maps.LatLng(station.lat, station.lng));
-                            polyPoints.forEach(p => bounds.extend(p));
-                            routeMap.fitBounds(bounds);
-                        }
-                        
-                        routeInfo.innerHTML = `
-                            <div style="display:flex;justify-content:space-between;padding:10px;background:rgba(0,240,255,0.1);border-radius:8px;margin-bottom:8px;">
-                                <span>📏 距离：<strong style="color:var(--primary-color);">${distance}公里</strong></span>
-                                <span>⏱️ 预计：<strong style="color:var(--primary-color);">${duration}分钟</strong></span>
-                            </div>
-                            <div style="font-size:12px;color:#5a6d7e;padding:8px;background:rgba(0,0,0,0.2);border-radius:6px;">
-                                <div style="margin-bottom:4px;">🚔 <strong>终点：</strong>${station.name}</div>
-                                <div style="color:#8a9ba8;">📍 ${station.address}</div>
-                            </div>
-                        `;
-                    } else {
-                        routeInfo.innerHTML = '⚠️ 路线规划失败：' + (data.message || '未知错误');
+                        // 调整地图视野以显示完整路线
+                        const bounds = new qq.maps.LatLngBounds();
+                        bounds.extend(new qq.maps.LatLng(fromCoord.lat, fromCoord.lng));
+                        bounds.extend(new qq.maps.LatLng(station.lat, station.lng));
+                        polyPoints.forEach(p => bounds.extend(p));
+                        routeMap.fitBounds(bounds);
                     }
-                } catch (mapError) {
-                    console.error('地图 API 错误:', mapError);
-                    routeInfo.innerHTML = '⚠️ 地图加载失败';
+                    
+                    routeInfo.innerHTML = `
+                        <div style="display:flex;justify-content:space-between;padding:10px;background:rgba(0,240,255,0.1);border-radius:8px;margin-bottom:8px;">
+                            <span>📏 距离：<strong style="color:var(--primary-color);">${distance}</strong></span>
+                            <span>⏱️ 预计：<strong style="color:var(--primary-color);">${duration}</strong></span>
+                        </div>
+                        <div style="font-size:12px;color:#5a6d7e;padding:8px;background:rgba(0,0,0,0.2);border-radius:6px;">
+                            <div style="margin-bottom:4px;">🚔 <strong>终点：</strong>${station.name}</div>
+                            <div style="color:#8a9ba8;">📍 ${station.address}</div>
+                        </div>
+                    `;
+                } else {
+                    routeInfo.innerHTML = '⚠️ 路线规划失败：' + (routeData.error || '未知错误');
                 }
             } catch (error) {
                 console.error('加载路线失败:', error);

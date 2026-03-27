@@ -329,12 +329,33 @@ router.post('/calculate-route', async (req, res) => {
     
     if (data.status === 0 && data.result && data.result.routes && data.result.routes.length > 0) {
       const route = data.result.routes[0];
+      
+      // 提取路线坐标点（polyline）
+      let polyline = '';
+      const steps = route.steps || [];
+      const allPoints = [];
+      
+      steps.forEach(step => {
+        if (step.polyline) {
+          const points = step.polyline.split(';');
+          points.forEach(point => {
+            const coords = point.split(',');
+            if (coords.length === 2) {
+              allPoints.push(point);
+            }
+          });
+        }
+      });
+      
+      polyline = allPoints.join(';');
+      
       res.json({
         success: true,
         distance: route.distance, // 米
         duration: route.duration, // 秒
         distanceText: (route.distance / 1000).toFixed(1) + '公里',
-        durationText: Math.round(route.duration / 60) + '分钟'
+        durationText: Math.round(route.duration / 60) + '分钟',
+        polyline: polyline // 路线坐标点，用于前端绘制
       });
     } else {
       console.error('腾讯地图 API 返回错误:', data);
