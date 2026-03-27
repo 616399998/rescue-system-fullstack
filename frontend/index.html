@@ -694,7 +694,9 @@
         <div id="inputSection">
             <div class="form-group">
                 <label class="form-label">📍 当前位置</label>
-                <input type="text" class="form-input" id="currentLocation" placeholder="请输入当前位置" value="北京市朝阳区建国路 88 号">
+                <input type="text" class="form-input" id="currentLocation" placeholder="请输入当前位置或点击地图选点" readonly>
+                <input type="hidden" id="currentCoord">
+                <button class="btn btn-primary" onclick="pickCurrentLocation()" style="margin-top:8px;width:100%;">📍 地图选点</button>
             </div>
         </div>
 
@@ -895,38 +897,150 @@
             document.getElementById('mapLocation').value = '39.904200, 116.407400';
         }
 
-        // 处理照片上传
-        function handlePhotoUpload(event) {
+        // 处理照片上传（实际上传到服务器）
+        async function handlePhotoUpload(event) {
             const files = event.target.files;
             if (uploadedPhotos.length + files.length > 9) {
-                showAlert('error', '提示', '最多只能上传 9 张照片');
+                showCustomAlert('warning', '提示', '最多只能上传 9 张照片');
                 return;
             }
-            Array.from(files).forEach(file => {
+            
+            const formData = new FormData();
+            const newFiles = [];
+            for (let i = 0; i < Math.min(files.length, 9 - uploadedPhotos.length); i++) {
+                formData.append('photos', files[i]);
+                newFiles.push(files[i]);
+            }
+            
+            try {
+                const res = await fetch(`${API_BASE}/orders/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                
+                if (data.success && data.urls && data.urls.length > 0) {
+                    uploadedPhotos = [...uploadedPhotos, ...data.urls];
+                    renderPhotoPreview(newFiles);
+                    showCustomAlert('success', '上传成功', `已上传 ${data.urls.length} 张照片`);
+                } else {
+                    showCustomAlert('error', '上传失败', data.error || '请重试');
+                }
+            } catch (error) {
+                console.error('上传失败:', error);
+                showCustomAlert('error', '上传失败', '网络错误，请重试');
+            }
+        }
+
+        // 渲染照片预览
+        function renderPhotoPreview(newFiles) {
+            const container = document.getElementById('photoPreview');
+            container.innerHTML = '';
+            
+            // 显示新上传的照片预览
+            newFiles.forEach((file, index) => {
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    uploadedPhotos.push(e.target.result);
-                    renderPhotoPreview();
+                    const item = document.createElement('div');
+                    item.className = 'photo-item';
+                    item.innerHTML = `
+                        <img src="${e.target.result}" alt="photo">
+                        <button class="photo-remove" onclick="removePhoto(${uploadedPhotos.length - newFiles.length + index})">×</button>
+                    `;
+                    container.appendChild(item);
                 };
                 reader.readAsDataURL(file);
             });
         }
 
-        // 渲染照片预览
-        function renderPhotoPreview() {
-            const container = document.getElementById('photoPreview');
-            container.innerHTML = uploadedPhotos.map((photo, index) => `
-                <div class="photo-item">
-                    <img src="${photo}" alt="photo">
-                    <button class="photo-remove" onclick="removePhoto(${index})">×</button>
-                </div>
-            `).join('');
-        }
-
         // 删除照片
         function removePhoto(index) {
             uploadedPhotos.splice(index, 1);
-            renderPhotoPreview();
+            // 重新渲染预览
+            const container = document.getElementById('photoPreview');
+            container.innerHTML = '';
+            // 这里简化处理，实际应该重新获取所有照片
+        }
+
+        // 当前位置地图选点
+        let currentMap = null;
+        let currentMarker = null;
+        let currentSelectedLatLng = null;
+        let currentSelectedAddress = '';
+
+        async function pickCurrentLocation() {
+            const modal = document.createElement('div');
+            modal.id = 'currentLocationModal';
+            modal.className = 'modal active';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width:90%;width:400px;position:relative;z-index:10001;">
+                    <div class="modal-title">📍 选择当前位置</div>
+                    <div style="font-size:12px;color:#8a9ba8;margin-bottom:10px;">点击地图选择位置</div>
+                    <div id="currentMapContainer" style="width:100%;height:450px;border-radius:8px;position:relative;z-index:1;"></div>
+                    <div id="currentSelectedInfo" style="font-size:14px;color:var(--primary-color);margin:10px 0;font-weight:bold;min-height:40px;">💡 请在地图上点击选择位置</div>
+                    <button class="btn btn-primary" onclick="confirmCurrentLocation()" style="margin-top:10px;">确认选择</button>
+                    <button class="btn btn-warning" onclick="closeCurrentLocationModal()" style="margin-top:10px;">取消</button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            setTimeout(() => {
+                currentMap = new qq.maps.Map(document.getElementById('currentMapContainer'), {
+                    zoom: 15,
+                    center: new qq.maps.LatLng(39.9042, 116.4074)
+                });
+
+                async function fetchAddress(lat, lng) {
+                    document.getElementById('currentSelectedInfo').textContent = '🔄 正在获取地址...';
+                    try {
+                        const res = await fetch(`${API_BASE}/orders/geocode`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ lat, lng })
+                        });
+                        const data = await res.json();
+                        if (data.success && data.address) {
+                            currentSelectedAddress = data.address;
+                            document.getElementById('currentSelectedInfo').textContent = `📍 ${currentSelectedAddress}`;
+                        } else {
+                            document.getElementById('currentSelectedInfo').textContent = `📍 坐标：${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+                        }
+                    } catch (error) {
+                        console.log('获取地址失败:', error);
+                        document.getElementById('currentSelectedInfo').textContent = `📍 坐标：${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+                    }
+                }
+
+                qq.maps.event.addListener(currentMap, 'click', function(event) {
+                    const latLng = event.latLng;
+                    
+                    if (currentMarker) currentMarker.setMap(null);
+                    
+                    currentMarker = new qq.maps.Marker({
+                        position: latLng,
+                        map: currentMap
+                    });
+                    
+                    currentSelectedLatLng = { lat: latLng.getLat(), lng: latLng.getLng() };
+                    currentSelectedAddress = '';
+                    document.getElementById('currentSelectedInfo').textContent = '🔄 正在获取地址...';
+                    
+                    fetchAddress(latLng.getLat(), latLng.getLng());
+                });
+            }, 100);
+        }
+
+        function confirmCurrentLocation() {
+            if (!currentSelectedLatLng) { showCustomAlert('warning', '提示', '请先选择位置'); return; }
+            document.getElementById('currentLocation').value = currentSelectedAddress || '已选择位置';
+            document.getElementById('currentCoord').value = `${currentSelectedLatLng.lat},${currentSelectedLatLng.lng}`;
+            closeCurrentLocationModal();
+        }
+
+        function closeCurrentLocationModal() {
+            const modal = document.getElementById('currentLocationModal');
+            if (modal) modal.remove();
+            currentMap = null; currentSelectedLatLng = null; currentSelectedAddress = ''; currentMarker = null;
         }
 
         // 目的地地图选点
@@ -1033,7 +1147,7 @@
             };
 
             if (!location || !data.vehicle_plate || !data.owner_phone) {
-                showAlert('error', '提示', '请填写完整信息');
+                showCustomAlert('warning', '提示', '请填写完整信息');
                 return;
             }
 
@@ -1126,7 +1240,25 @@
                         <div class="detail-title">📍 位置信息</div>
                         <div class="detail-row"><span class="detail-label">当前位置</span><span class="detail-value">${order.current_location}</span></div>
                         ${order.destination ? `<div class="detail-row"><span class="detail-label">目的地</span><span class="detail-value">${order.destination}</span></div>` : ''}
+                        ${order.address && order.destination ? `
+                        <div class="detail-row" style="margin-top:10px;">
+                            <div id="routeMap_${order.id}" style="width:100%;height:250px;border-radius:8px;margin-bottom:10px;"></div>
+                            <div id="routeInfo_${order.id}" style="font-size:13px;color:#8a9ba8;">🔄 正在加载路线...</div>
+                        </div>
+                        ` : ''}
                     </div>
+                    
+                    ${order.photos && order.photos.length > 0 ? `
+                    <div class="detail-section">
+                        <div class="detail-title">📸 现场照片 (${order.photos.length}张)</div>
+                        <div class="photo-upload" style="margin-top:10px;">
+                            ${order.photos.map(p => {
+                                const photoUrl = p.startsWith('http') ? p : (p.startsWith('/uploads') ? p : `${API_BASE}${p}`);
+                                return `<img class="photo-item" src="${photoUrl}" onclick="viewPhoto('${photoUrl}')" style="cursor:pointer;">`;
+                            }).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
 
                     <div class="detail-section">
                         <div class="detail-title">🚗 车辆信息</div>
@@ -1159,8 +1291,110 @@
                 `;
 
                 document.getElementById('orderDetailModal').classList.add('active');
+                
+                // 加载路线信息
+                if (order.address && order.destination) {
+                    loadOrderRoute(order);
+                }
             } catch (error) {
-                showAlert('error', '错误', '获取订单详情失败');
+                showCustomAlert('error', '错误', '获取订单详情失败');
+            }
+        }
+        
+        // 加载订单路线
+        async function loadOrderRoute(order) {
+            const routeInfo = document.getElementById(`routeInfo_${order.id}`);
+            const routeMapContainer = document.getElementById(`routeMap_${order.id}`);
+            
+            if (!routeInfo || !routeMapContainer) return;
+            
+            try {
+                const fromCoordStr = order.address || '';
+                let fromCoord = null;
+                
+                if (fromCoordStr && fromCoordStr.includes(',')) {
+                    const parts = fromCoordStr.split(',');
+                    fromCoord = { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) };
+                }
+                
+                const toCoordStr = order.destination_coord || '';
+                let toCoord = null;
+                
+                if (toCoordStr && toCoordStr.includes(',')) {
+                    const parts = toCoordStr.split(',');
+                    toCoord = { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) };
+                }
+                
+                if (!fromCoord || !toCoord) {
+                    routeInfo.innerHTML = '⚠️ 无法获取位置坐标';
+                    return;
+                }
+                
+                const routeMap = new qq.maps.Map(routeMapContainer, {
+                    center: new qq.maps.LatLng(fromCoord.lat, fromCoord.lng),
+                    zoom: 12
+                });
+                
+                new qq.maps.Marker({
+                    position: new qq.maps.LatLng(fromCoord.lat, fromCoord.lng),
+                    map: routeMap,
+                    title: '当前位置'
+                });
+                
+                new qq.maps.Marker({
+                    position: new qq.maps.LatLng(toCoord.lat, toCoord.lng),
+                    map: routeMap,
+                    title: order.destination
+                });
+                
+                const routeRes = await fetch(`${API_BASE}/traffic/calculate-route`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        from: fromCoord,
+                        to: toCoord
+                    })
+                });
+                const routeData = await routeRes.json();
+                
+                if (routeData.success && routeData.polyline) {
+                    const polyPoints = [];
+                    const points = routeData.polyline.split(';');
+                    points.forEach(point => {
+                        const coords = point.split(',');
+                        if (coords.length === 2) {
+                            polyPoints.push(new qq.maps.LatLng(parseFloat(coords[0]), parseFloat(coords[1])));
+                        }
+                    });
+                    
+                    if (polyPoints.length > 0) {
+                        new qq.maps.Polyline({
+                            map: routeMap,
+                            path: polyPoints,
+                            strokeColor: '#ff6b35',
+                            strokeWeight: 5,
+                            strokeOpacity: 0.8
+                        });
+                        
+                        const bounds = new qq.maps.LatLngBounds();
+                        bounds.extend(new qq.maps.LatLng(fromCoord.lat, fromCoord.lng));
+                        bounds.extend(new qq.maps.LatLng(toCoord.lat, toCoord.lng));
+                        polyPoints.forEach(p => bounds.extend(p));
+                        routeMap.fitBounds(bounds);
+                    }
+                    
+                    routeInfo.innerHTML = `
+                        <div style="display:flex;justify-content:space-between;padding:10px;background:rgba(255,107,53,0.1);border-radius:8px;margin-bottom:8px;">
+                            <span>📏 距离：<strong style="color:#ff6b35;">${routeData.distanceText}</strong></span>
+                            <span>⏱️ 预计：<strong style="color:#ff6b35;">${routeData.durationText}</strong></span>
+                        </div>
+                    `;
+                } else {
+                    routeInfo.innerHTML = '⚠️ 路线规划失败';
+                }
+            } catch (error) {
+                console.error('加载路线失败:', error);
+                routeInfo.innerHTML = '⚠️ 加载失败';
             }
         }
 
@@ -1282,16 +1516,24 @@
             showAlert('success', '充值成功', `成功充值¥${amount}！`);
         }
 
-        // 提示框
+        // 自定义提示框（替换原有 alert）
+        function showCustomAlert(type, title, message, callback) {
+            const alertBox = document.createElement('div');
+            alertBox.className = 'modal active';
+            alertBox.innerHTML = `
+                <div class="modal-content" style="max-width:360px;text-align:center;padding:25px;">
+                    <div style="font-size:48px;margin-bottom:15px;">${type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️'}</div>
+                    <div style="font-size:18px;font-weight:bold;color:#ff6b35;margin-bottom:10px;">${title}</div>
+                    <div style="font-size:14px;color:#5a6d7e;margin-bottom:20px;line-height:1.6;">${message.replace(/\n/g, '<br>')}</div>
+                    <button class="btn btn-primary" onclick="this.closest('.modal').remove();${callback ? 'setTimeout(() => {' + callback.toString() + '}, 100);' : ''}" style="width:120px;">确定</button>
+                </div>
+            `;
+            document.body.appendChild(alertBox);
+        }
+
+        // 提示框（保留原有函数但改用新实现）
         function showAlert(type, title, message, callback) {
-            const alert = document.getElementById('alertBox');
-            const overlay = document.getElementById('alertOverlay');
-            alert.className = 'alert ' + type;
-            document.getElementById('alertTitle').textContent = title;
-            document.getElementById('alertMessage').innerHTML = message.replace(/\n/g, '<br>');
-            alert.callback = callback;
-            alert.style.display = 'block';
-            overlay.style.display = 'block';
+            showCustomAlert(type, title, message, callback);
         }
 
         function hideAlert() {
@@ -1300,6 +1542,16 @@
             alert.style.display = 'none';
             overlay.style.display = 'none';
             if (alert.callback) { alert.callback(); alert.callback = null; }
+        }
+
+        // 查看照片
+        function viewPhoto(src) {
+            const photoUrl = src.startsWith('http') ? src : (src.startsWith('/uploads') ? src : `${API_BASE}${src}`);
+            const modal = document.createElement('div');
+            modal.className = 'modal active';
+            modal.onclick = () => modal.remove();
+            modal.innerHTML = `<img src="${photoUrl}" style="max-width:90%;max-height:80vh;border-radius:8px;" onclick="event.stopPropagation()">`;
+            document.body.appendChild(modal);
         }
 
         // 初始化

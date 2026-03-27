@@ -53,6 +53,7 @@ router.post('/', async (req, res) => {
       vehicle_brand,
       vehicle_color,
       current_location,
+      current_coord,
       destination,
       destination_coord,
       address,
@@ -73,24 +74,22 @@ router.post('/', async (req, res) => {
     const prices = { 'tow': 200, 'accident': 200, 'violation': 200, 'breakdown': 200 };
     const price = prices[service_type] || 200;
 
-    // destination_coord 优先，如果没有则使用 address
-    const destCoord = destination_coord || address || '';
-
     const result = await run(`
       INSERT INTO orders (
         order_no, user_id, service_type, vehicle_type, vehicle_plate,
         vehicle_brand, vehicle_color, current_location, destination,
-        address, problem_description, status, price,
+        address, destination_coord, problem_description, status, price,
         owner_name, owner_phone, movable, special_note, photos,
         driver_id, driver_name, driver_phone, driver_rating,
         rescue_vehicle_plate, rescue_vehicle_model, progress
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
     `, [
       orderNo, 1, service_type,
       vehicle_type || 'sedan', vehicle_plate || '',
       vehicle_brand || '', vehicle_color || '',
       current_location, destination || '',
-      destCoord, problem_description || '',
+      current_coord || '', destination_coord || '',
+      problem_description || '',
       price, owner_name || '', owner_phone, movable || 'yes', special_note || '',
       JSON.stringify(photos),
       null, null, null, null, null, null
@@ -207,7 +206,9 @@ router.get('/:id', async (req, res) => {
       vehicle_type: order.vehicle_type,
       vehicle_plate: order.vehicle_plate,
       current_location: order.current_location,
+      address: order.address,
       destination: order.destination,
+      destination_coord: order.destination_coord,
       problem_description: order.problem_description,
       owner_name: order.owner_name,
       owner_phone: order.owner_phone,
