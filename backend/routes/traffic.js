@@ -225,15 +225,21 @@ function decodePolyline(arr) {
   if (!arr || arr.length < 2) return '';
   
   const points = [];
+  // 起始坐标（已经是实际坐标）
   let lat = arr[0];
   let lng = arr[1];
   points.push(`${lat},${lng}`);
   
+  // 后续是偏移量，需要除以 1000000
   for (let i = 2; i < arr.length; i += 2) {
-    lat += arr[i];
-    lng += arr[i + 1];
-    if (arr[i] !== 0 || arr[i + 1] !== 0) {
-      points.push(`${lat},${lng}`);
+    const latOffset = (arr[i] || 0) / 1000000;
+    const lngOffset = (arr[i + 1] || 0) / 1000000;
+    
+    lat = lat + latOffset;
+    lng = lng + lngOffset;
+    
+    if (latOffset !== 0 || lngOffset !== 0) {
+      points.push(`${lat.toFixed(6)},${lng.toFixed(6)}`);
     }
   }
   
