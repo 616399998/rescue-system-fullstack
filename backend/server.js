@@ -31,6 +31,9 @@ app.use(express.urlencoded({ extended: true }));
 // 静态文件服务（前端）
 app.use(express.static(path.join(__dirname, '../frontend')));
 
+// 静态文件服务（上传文件）
+app.use('/uploads', express.static(path.join(__dirname, '../backend/uploads')));
+
 // API 路由
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
