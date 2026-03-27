@@ -142,7 +142,8 @@ router.get('/orders/:id', async (req, res) => {
         created_at: order.created_at,
         vehicle_plate: order.vehicle_plate,
         current_location: order.current_location,
-        address: order.address,
+        // 兼容不同渠道的坐标字段
+        address: order.address || order.found_address,
         destination: order.destination,
         destination_coord: order.destination_coord,
         problem_description: order.problem_description,

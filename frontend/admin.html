@@ -1208,9 +1208,11 @@
             
             // 清理旧地图
             if (orderTencentMap) {
-                orderTencentMap.destroy();
                 orderTencentMap = null;
                 orderMarker = null;
+                // 清空容器
+                const mapContainer = document.getElementById('orderMap');
+                if (mapContainer) mapContainer.innerHTML = '';
             }
 
             let lat = 39.9042, lng = 116.4074;
@@ -1242,8 +1244,8 @@
                 title: '起点：' + order.current_location
             });
 
-            // 如果有目的地坐标，显示路线
-            if (order.destination_coord && typeof order.destination_coord === 'string' && order.destination_coord.includes(',')) {
+            // 如果有目的地坐标，显示路线（交警端等没有目的地的订单不显示路线）
+            if (order.destination_coord && typeof order.destination_coord === 'string' && order.destination_coord.includes(',') && order.destination) {
                 const destCoords = order.destination_coord.split(',');
                 if (destCoords.length === 2) {
                     const toLat = parseFloat(destCoords[0]);
