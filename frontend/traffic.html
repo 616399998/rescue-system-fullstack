@@ -543,7 +543,9 @@
         
         // 查看照片
         function viewPhoto(src) {
-            document.getElementById('photoView').src = src;
+            // 确保使用正确的路径
+            const photoUrl = src.startsWith('http') ? src : (src.startsWith('/uploads') ? src : `${API_BASE}${src}`);
+            document.getElementById('photoView').src = photoUrl;
             document.getElementById('photoModal').classList.add('active');
         }
 
@@ -707,7 +709,8 @@
                             <div class="card-title">📸 现场照片 (${order.photos.length}张)</div>
                             <div class="photo-upload">
                                 ${order.photos.map(p => {
-                                    const photoUrl = p.startsWith('http') ? p : `${API_BASE}${p}`;
+                                    // uploads 路径不需要 API_BASE 前缀
+                                    const photoUrl = p.startsWith('http') ? p : (p.startsWith('/uploads') ? p : `${API_BASE}${p}`);
                                     return `<img class="photo-item" src="${photoUrl}" onclick="viewPhoto('${photoUrl}')"/>`;
                                 }).join('')}
                             </div>
