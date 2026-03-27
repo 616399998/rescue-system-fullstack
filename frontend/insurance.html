@@ -23,6 +23,11 @@
         .header h1 { font-size: 20px; font-weight: bold; background: linear-gradient(135deg, #00ff88, #00cc6a); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .header-subtitle { font-size: 12px; color: #5a6d7e; margin-top: 5px; }
         .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; background: rgba(10, 14, 26, 0.95); border-top: 1px solid rgba(0, 240, 255, 0.3); display: flex; justify-content: space-around; padding: 10px 0; z-index: 1000; }
+        
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); z-index: 10000; justify-content: center; align-items: center; }
+        .modal.active { display: flex; }
+        .modal-content { background: var(--card-bg); border: 1px solid rgba(0, 240, 255, 0.3); border-radius: 16px; padding: 20px; width: 90%; max-width: 400px; max-height: 80vh; overflow-y: auto; }
+        .modal-title { font-size: 18px; font-weight: bold; color: var(--primary-color); margin-bottom: 15px; text-align: center; }
         .nav-item { display: flex; flex-direction: column; align-items: center; color: #5a6d7e; cursor: pointer; }
         .nav-item.active { color: var(--primary-color); }
         .nav-icon { width: 24px; height: 24px; margin-bottom: 4px; fill: currentColor; }
@@ -134,16 +139,13 @@
                 </div>
                 <div class="form-group">
                     <label>事故地点（地址） *</label>
-                    <input type="text" id="accidentLocation" placeholder="请输入详细地址" />
-                </div>
-                <div class="form-group">
-                    <label>事故地点（坐标）</label>
-                    <input type="text" id="accidentAddress" placeholder="点击地图获取" readonly />
-                    <button class="btn btn-warning" onclick="selectLocation()" style="margin-top:5px;">📍 地图选点</button>
+                    <input type="text" id="accidentLocation" placeholder="请输入详细地址或点击地图选点" readonly>
+                    <input type="hidden" id="accidentAddress">
+                    <button class="btn btn-primary" onclick="selectLocation()" style="margin-top:8px;width:100%;">📍 地图选点</button>
                 </div>
                 <div class="form-group">
                     <label>拖车目的地</label>
-                    <input type="text" id="destination" placeholder="请输入拖车目的地" readonly>
+                    <input type="text" id="destination" placeholder="请输入拖车目的地或点击地图选点" readonly>
                     <input type="hidden" id="destinationCoord">
                     <button class="btn btn-primary" onclick="pickDestination()" style="margin-top:8px;width:100%;">📍 地图选点</button>
                 </div>
@@ -154,6 +156,14 @@
                 <div class="form-group">
                     <label>特殊说明</label>
                     <textarea id="specialNote" placeholder="其他需要说明的事项"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>现场照片/视频</label>
+                    <div style="font-size:12px;color:#5a6d7e;margin-bottom:8px;">
+                        💡 建议上传事故现场和车辆的 8 个面照片，最多 9 张
+                    </div>
+                    <input type="file" id="photoFiles" accept="image/*,video/*" multiple />
+                    <div class="photo-upload" id="photoPreview"></div>
                 </div>
                 <button class="btn btn-primary" onclick="submitRequest()">提交申请</button>
             </div>
@@ -178,11 +188,38 @@
         let currentOrder = null;
         let currentUser = null;
         let map = null;
+        let uploadedPhotos = [];
+
+        // 自定义提示框
+        function showCustomAlert(type, title, message, callback) {
+            const alertBox = document.createElement('div');
+            alertBox.id = 'customAlert';
+            alertBox.className = 'modal active';
+            alertBox.innerHTML = `
+                <div class="modal-content" style="max-width:360px;text-align:center;padding:25px;">
+                    <div style="font-size:48px;margin-bottom:15px;">${type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️'}</div>
+                    <div style="font-size:18px;font-weight:bold;color:#6366f1;margin-bottom:10px;">${title}</div>
+                    <div style="font-size:14px;color:#8a9ba8;margin-bottom:20px;line-height:1.6;">${message.replace(/\n/g, '<br>')}</div>
+                    <button class="btn btn-primary" onclick="this.closest('.modal').remove();${callback ? 'setTimeout(() => {' + callback.toString() + '}, 100);' : ''}" style="width:120px;">确定</button>
+                </div>
+            `;
+            document.body.appendChild(alertBox);
+        }
+
+        // 查看照片
+        function viewPhoto(src) {
+            const photoUrl = src.startsWith('http') ? src : (src.startsWith('/uploads') ? src : `${API_BASE}${src}`);
+            const modal = document.createElement('div');
+            modal.className = 'modal active';
+            modal.onclick = () => modal.remove();
+            modal.innerHTML = `<img src="${photoUrl}" style="max-width:90%;max-height:80vh;border-radius:8px;" onclick="event.stopPropagation()">`;
+            document.body.appendChild(modal);
+        }
 
         async function insuranceLogin() {
             const username = document.getElementById('loginUsername').value;
             const password = document.getElementById('loginPassword').value;
-            if (!username || !password) { alert('请输入账号和密码'); return; }
+            if (!username || !password) { showCustomAlert('warning', '提示', '请输入账号和密码'); return; }
             try {
                 const res = await fetch(`${API_BASE}/insurance/login`, {
                     method: 'POST',
@@ -196,10 +233,10 @@
                     localStorage.setItem('insuranceUser', JSON.stringify(data.user));
                     showOrderList();
                 } else {
-                    alert(data.error || '登录失败');
+                    showCustomAlert('error', '登录失败', data.error || '账号或密码错误');
                 }
             } catch (error) {
-                alert('登录失败，请重试');
+                showCustomAlert('error', '错误', '登录失败，请重试');
             }
         }
 
@@ -297,6 +334,24 @@
                             ${order.driver ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(0,240,255,0.2)"><div>司机：<strong>${order.driver.name}</strong></div><div>电话：<strong>${order.driver.phone}</strong></div></div>` : ''}
                         </div>
                     </div>
+                    
+                    <div class="card" id="routeCard" style="display:none;">
+                        <div class="card-title">🚗 拖车路线</div>
+                        <div id="routeMap" style="width:100%;height:300px;border-radius:8px;margin-bottom:10px;"></div>
+                        <div id="routeInfo" style="font-size:13px;color:#8a9ba8;line-height:1.8;">🔄 正在加载地图...</div>
+                    </div>
+                    
+                    ${order.photos && order.photos.length > 0 ? `
+                        <div class="card">
+                            <div class="card-title">📸 现场照片 (${order.photos.length}张)</div>
+                            <div class="photo-upload">
+                                ${order.photos.map(p => {
+                                    const photoUrl = p.startsWith('http') ? p : (p.startsWith('/uploads') ? p : `${API_BASE}${p}`);
+                                    return `<img class="photo-item" src="${photoUrl}" onclick="viewPhoto('${photoUrl}')"/>`;
+                                }).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
                 `;
                 document.getElementById('orderTimeline').innerHTML = order.timeline.map(t => `
                     <div class="timeline-item">
@@ -304,9 +359,13 @@
                         <div class="timeline-content">${t.content}</div>
                     </div>
                 `).join('');
+                
+                // 加载路线信息（从事故地点到目的地）
+                loadRouteInfo(order);
+                
                 switchPage('orderDetailPage');
             } catch (error) {
-                alert('加载订单详情失败');
+                showCustomAlert('error', '错误', '加载订单详情失败');
             }
         }
 
@@ -324,7 +383,7 @@
             const special_note = document.getElementById('specialNote').value;
 
             if (!vehicle_plate || !owner_name || !owner_phone || !accident_location) {
-                alert('请填写必填信息');
+                showCustomAlert('warning', '提示', '请填写必填信息');
                 return;
             }
 
@@ -336,27 +395,30 @@
                         vehicle_plate, owner_name, owner_phone, insurance_no, insurance_company,
                         is_garage, accident_location, accident_address, destination, 
                         destination_coord: document.getElementById('destinationCoord').value,
-                        description, special_note, photos: []
+                        description, special_note, photos: uploadedPhotos
                     })
                 });
                 const data = await res.json();
-                alert(data.message || '申请已提交');
-                if (data.orderId) {
-                    document.getElementById('vehiclePlate').value = '';
-                    document.getElementById('ownerName').value = '';
-                    document.getElementById('ownerPhone').value = '';
-                    document.getElementById('insuranceNo').value = '';
-                    document.getElementById('insuranceCompany').value = '';
-                    document.getElementById('accidentLocation').value = '';
-                    document.getElementById('accidentAddress').value = '';
-                    document.getElementById('destination').value = '';
-                    document.getElementById('description').value = '';
-                    document.getElementById('specialNote').value = '';
-                    document.getElementById('isGarage').checked = false;
-                    switchPage('orderListPage');
-                }
+                showCustomAlert('success', '提交成功', data.message || '申请已提交', () => {
+                    if (data.orderId) {
+                        document.getElementById('vehiclePlate').value = '';
+                        document.getElementById('ownerName').value = '';
+                        document.getElementById('ownerPhone').value = '';
+                        document.getElementById('insuranceNo').value = '';
+                        document.getElementById('insuranceCompany').value = '';
+                        document.getElementById('accidentLocation').value = '';
+                        document.getElementById('accidentAddress').value = '';
+                        document.getElementById('destination').value = '';
+                        document.getElementById('description').value = '';
+                        document.getElementById('specialNote').value = '';
+                        document.getElementById('isGarage').checked = false;
+                        uploadedPhotos = [];
+                        document.getElementById('photoPreview').innerHTML = '';
+                        switchPage('orderListPage');
+                    }
+                });
             } catch (error) {
-                alert('提交失败，请重试');
+                showCustomAlert('error', '错误', '提交失败，请重试');
             }
         }
 
@@ -464,7 +526,7 @@
         }
 
         function confirmLocation() {
-            if (!selectedLatLng) { alert('请先选择位置'); return; }
+            if (!selectedLatLng) { showCustomAlert('warning', '提示', '请先选择位置'); return; }
             document.getElementById('accidentAddress').value = `${selectedLatLng.lat},${selectedLatLng.lng}`;
             document.getElementById('accidentLocation').value = selectedAddress || '已选择位置';
             closeLocationModal();
@@ -545,7 +607,7 @@
         }
 
         function confirmDestination() {
-            if (!destSelectedLatLng) { alert('请先选择位置'); return; }
+            if (!destSelectedLatLng) { showCustomAlert('warning', '提示', '请先选择位置'); return; }
             document.getElementById('destination').value = destSelectedAddress || '已选择目的地';
             document.getElementById('destinationCoord').value = `${destSelectedLatLng.lat},${destSelectedLatLng.lng}`;
             closeDestLocationModal();
@@ -555,6 +617,160 @@
             const modal = document.getElementById('destLocationModal');
             if (modal) modal.remove();
             destMap = null; destSelectedLatLng = null; destSelectedAddress = ''; destMarker = null;
+        }
+
+        // 照片预览和上传
+        document.getElementById('photoFiles')?.addEventListener('change', async function(e) {
+            const files = e.target.files;
+            const preview = document.getElementById('photoPreview');
+            preview.innerHTML = '';
+            uploadedPhotos = [];
+            
+            if (files.length === 0) return;
+            
+            const formData = new FormData();
+            for (let i = 0; i < Math.min(files.length, 9); i++) {
+                formData.append('files', files[i]);
+            }
+            
+            try {
+                const res = await fetch(`${API_BASE}/insurance/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                
+                if (data.success && data.urls && data.urls.length > 0) {
+                    uploadedPhotos = data.urls;
+                    
+                    for (let i = 0; i < Math.min(files.length, 9); i++) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const img = document.createElement('img');
+                            img.className = 'photo-item';
+                            img.src = e.target.result;
+                            img.onclick = () => viewPhoto(e.target.result);
+                            preview.appendChild(img);
+                        };
+                        reader.readAsDataURL(files[i]);
+                    }
+                    
+                    showCustomAlert('success', '上传成功', `已上传 ${uploadedPhotos.length} 张照片`);
+                } else {
+                    showCustomAlert('error', '上传失败', data.error || '请重试');
+                }
+            } catch (error) {
+                console.error('上传失败:', error);
+                showCustomAlert('error', '上传失败', '网络错误，请重试');
+            }
+        });
+
+        // 加载路线信息（从事故地点到目的地）
+        let routeMap = null;
+        let routeMarkerFrom = null;
+        let routeMarkerTo = null;
+        let routePolyline = null;
+
+        async function loadRouteInfo(order) {
+            const routeCard = document.getElementById('routeCard');
+            const routeInfo = document.getElementById('routeInfo');
+            const routeMapContainer = document.getElementById('routeMap');
+            
+            routeCard.style.display = 'block';
+            
+            try {
+                // 解析事故地点坐标
+                const fromCoordStr = order.address || '';
+                let fromCoord = null;
+                
+                if (fromCoordStr && fromCoordStr.includes(',')) {
+                    const parts = fromCoordStr.split(',');
+                    fromCoord = { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) };
+                }
+                
+                // 解析目的地坐标
+                const toCoordStr = order.destination_coord || '';
+                let toCoord = null;
+                
+                if (toCoordStr && toCoordStr.includes(',')) {
+                    const parts = toCoordStr.split(',');
+                    toCoord = { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) };
+                }
+                
+                if (!fromCoord || !toCoord) {
+                    routeInfo.innerHTML = '⚠️ 无法获取位置坐标';
+                    return;
+                }
+                
+                routeMap = new qq.maps.Map(routeMapContainer, {
+                    center: new qq.maps.LatLng(fromCoord.lat, fromCoord.lng),
+                    zoom: 12
+                });
+                
+                routeMarkerFrom = new qq.maps.Marker({
+                    position: new qq.maps.LatLng(fromCoord.lat, fromCoord.lng),
+                    map: routeMap,
+                    title: '事故地点'
+                });
+                
+                routeMarkerTo = new qq.maps.Marker({
+                    position: new qq.maps.LatLng(toCoord.lat, toCoord.lng),
+                    map: routeMap,
+                    title: '目的地'
+                });
+                
+                const routeRes = await fetch(`${API_BASE}/traffic/calculate-route`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        from: fromCoord,
+                        to: toCoord
+                    })
+                });
+                const routeData = await routeRes.json();
+                
+                if (routeData.success && routeData.polyline) {
+                    const polyPoints = [];
+                    const points = routeData.polyline.split(';');
+                    points.forEach(point => {
+                        const coords = point.split(',');
+                        if (coords.length === 2) {
+                            polyPoints.push(new qq.maps.LatLng(parseFloat(coords[0]), parseFloat(coords[1])));
+                        }
+                    });
+                    
+                    if (polyPoints.length > 0) {
+                        routePolyline = new qq.maps.Polyline({
+                            map: routeMap,
+                            path: polyPoints,
+                            strokeColor: '#6366f1',
+                            strokeWeight: 5,
+                            strokeOpacity: 0.8
+                        });
+                        
+                        const bounds = new qq.maps.LatLngBounds();
+                        bounds.extend(new qq.maps.LatLng(fromCoord.lat, fromCoord.lng));
+                        bounds.extend(new qq.maps.LatLng(toCoord.lat, toCoord.lng));
+                        polyPoints.forEach(p => bounds.extend(p));
+                        routeMap.fitBounds(bounds);
+                    }
+                    
+                    routeInfo.innerHTML = `
+                        <div style="display:flex;justify-content:space-between;padding:10px;background:rgba(99,102,241,0.1);border-radius:8px;margin-bottom:8px;">
+                            <span>📏 距离：<strong style="color:#6366f1;">${routeData.distanceText}</strong></span>
+                            <span>⏱️ 预计：<strong style="color:#6366f1;">${routeData.durationText}</strong></span>
+                        </div>
+                        <div style="font-size:12px;color:#5a6d7e;padding:8px;background:rgba(0,0,0,0.2);border-radius:6px;">
+                            <div style="margin-bottom:4px;">🚗 终点：<strong>${order.destination || '目的地'}</strong></div>
+                        </div>
+                    `;
+                } else {
+                    routeInfo.innerHTML = '⚠️ 路线规划失败：' + (routeData.error || '未知错误');
+                }
+            } catch (error) {
+                console.error('加载路线失败:', error);
+                routeInfo.innerHTML = '⚠️ 加载失败';
+            }
         }
 
         window.onload = function() {
