@@ -220,6 +220,26 @@ router.post('/upload', upload.array('files', 9), (req, res) => {
   }
 });
 
+// 解码腾讯地图 polyline 数组格式
+function decodePolyline(arr) {
+  if (!arr || arr.length < 2) return '';
+  
+  const points = [];
+  let lat = arr[0];
+  let lng = arr[1];
+  points.push(`${lat},${lng}`);
+  
+  for (let i = 2; i < arr.length; i += 2) {
+    lat += arr[i];
+    lng += arr[i + 1];
+    if (arr[i] !== 0 || arr[i + 1] !== 0) {
+      points.push(`${lat},${lng}`);
+    }
+  }
+  
+  return points.join(';');
+}
+
 // 坐标转换 + 逆地理编码（调用腾讯地图 Web Service API）
 router.post('/geocode', async (req, res) => {
   try {
@@ -332,22 +352,22 @@ router.post('/calculate-route', async (req, res) => {
       
       // 提取路线坐标点（polyline）
       let polyline = '';
-      const steps = route.steps || [];
-      const allPoints = [];
       
-      steps.forEach(step => {
-        if (step.polyline) {
-          const points = step.polyline.split(';');
-          points.forEach(point => {
-            const coords = point.split(',');
-            if (coords.length === 2) {
-              allPoints.push(point);
-            }
-          });
+      // 腾讯地图返回的 polyline 可能是数组格式或字符串格式
+      if (route.polyline) {
+        if (Array.isArray(route.polyline)) {
+          // 数组格式：[lat, lng, offset1, offset2, ...]，需要解码
+          polyline = decodePolyline(route.polyline);
+        } else {
+          // 字符串格式："lat,lng;lat,lng;..."
+          polyline = route.polyline;
         }
-      });
+      }
       
-      polyline = allPoints.join(';');
+      // 如果没有 polyline，使用起点和终点
+      if (!polyline) {
+        polyline = `${from.lat},${from.lng};${to.lat},${to.lng}`;
+      }
       
       res.json({
         success: true,
