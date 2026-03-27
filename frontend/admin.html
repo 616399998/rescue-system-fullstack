@@ -450,6 +450,7 @@
                         <thead>
                             <tr>
                                 <th>订单号</th>
+                                <th>渠道</th>
                                 <th>用户</th>
                                 <th>当前位置</th>
                                 <th>目的地</th>
@@ -738,11 +739,12 @@
 
                 const tbody = document.getElementById('pendingOrdersTable');
                 if (pendingOrders.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#5a6d7e;padding:40px;">暂无待派单订单</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#5a6d7e;padding:40px;">暂无待派单订单</td></tr>';
                 } else {
                     tbody.innerHTML = pendingOrders.map(order => `
                         <tr>
                             <td style="font-family:monospace;">${order.order_no}</td>
+                            <td>${getChannelName(order.channel)}</td>
                             <td>用户${order.user_id || '-'}</td>
                             <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${order.current_location || ''}">${order.current_location || '未知'}</td>
                             <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${order.destination || ''}">${order.destination || '无'}</td>
