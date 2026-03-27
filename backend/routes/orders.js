@@ -47,18 +47,19 @@ const ADMIN_USER = {
 router.post('/', async (req, res) => {
   try {
     const {
-      service_type, // accident:事故拖车，violation:违法拖车，breakdown:故障救援
+      service_type,
       vehicle_type,
       vehicle_plate,
       vehicle_brand,
       vehicle_color,
       current_location,
       destination,
+      destination_coord,
       address,
       problem_description,
       owner_name,
       owner_phone,
-      movable, // yes/no
+      movable,
       special_note,
       photos = []
     } = req.body;
@@ -71,6 +72,9 @@ router.post('/', async (req, res) => {
 
     const prices = { 'tow': 200, 'accident': 200, 'violation': 200, 'breakdown': 200 };
     const price = prices[service_type] || 200;
+
+    // destination_coord 优先，如果没有则使用 address
+    const destCoord = destination_coord || address || '';
 
     const result = await run(`
       INSERT INTO orders (
@@ -86,7 +90,7 @@ router.post('/', async (req, res) => {
       vehicle_type || 'sedan', vehicle_plate || '',
       vehicle_brand || '', vehicle_color || '',
       current_location, destination || '',
-      address || '', problem_description || '',
+      destCoord, problem_description || '',
       price, owner_name || '', owner_phone, movable || 'yes', special_note || '',
       JSON.stringify(photos),
       null, null, null, null, null, null
@@ -308,6 +312,58 @@ router.post('/upload', upload.array('photos', 9), (req, res) => {
   } catch (error) {
     console.error('上传照片错误:', error);
     res.status(500).json({ error: '上传失败' });
+  }
+});
+
+// 坐标转换 + 逆地理编码（调用腾讯地图 Web Service API）
+router.post('/geocode', async (req, res) => {
+  try {
+    const { lat, lng } = req.body;
+    
+    if (!lat || !lng) {
+      return res.status(400).json({ error: '缺少经纬度参数' });
+    }
+
+    const axios = require('axios');
+    const key = '67MBZ-EF6RT-THAX4-VEGBL-7AYMJ-LGBXX';
+    
+    const headers = {
+      'Referer': 'https://akesurescue.com',
+      'User-Agent': 'Mozilla/5.0'
+    };
+    
+    // 坐标转换（GPS 坐标转腾讯坐标）
+    const coordUrl = `https://apis.map.qq.com/ws/coord/v1/translate?locations=${lat},${lng}&type=1&key=${key}`;
+    const coordResponse = await axios.get(coordUrl, { headers });
+    const coordData = coordResponse.data;
+    
+    let finalLat = lat;
+    let finalLng = lng;
+    
+    if (coordData.status === 0 && coordData.locations && coordData.locations.length > 0) {
+      finalLat = coordData.locations[0].lat;
+      finalLng = coordData.locations[0].lng;
+    }
+    
+    // 逆地理编码
+    const geocodeUrl = `https://apis.map.qq.com/ws/geocoder/v1/?location=${finalLat},${finalLng}&key=${key}`;
+    const geocodeResponse = await axios.get(geocodeUrl, { headers });
+    const geocodeData = geocodeResponse.data;
+    
+    if (geocodeData.status === 0 && geocodeData.result) {
+      const address = geocodeData.result.address || geocodeData.result.formatted_addresses?.recommend || '';
+      res.json({ 
+        success: true, 
+        address,
+        fullResult: geocodeData.result,
+        coordConverted: coordData.status === 0
+      });
+    } else {
+      res.json({ success: false, error: geocodeData.message || '逆地理编码失败' });
+    }
+  } catch (error) {
+    console.error('地理编码错误:', error.message);
+    res.status(500).json({ error: '地理编码失败' });
   }
 });
 

@@ -700,7 +700,9 @@
 
         <div class="form-group">
             <label class="form-label">🎯 拖车目的地</label>
-            <input type="text" class="form-input" id="destination" placeholder="请输入拖车目的地">
+            <input type="text" class="form-input" id="destination" placeholder="请输入拖车目的地" readonly>
+            <input type="hidden" id="destinationCoord">
+            <button class="btn btn-primary" onclick="pickDestination()" style="margin-top:8px;width:100%;">📍 地图选点</button>
         </div>
 
         <div class="form-group">
@@ -927,6 +929,87 @@
             renderPhotoPreview();
         }
 
+        // 目的地地图选点
+        let destMap = null;
+        let destMarker = null;
+        let destSelectedLatLng = null;
+        let destSelectedAddress = '';
+
+        async function pickDestination() {
+            const modal = document.createElement('div');
+            modal.id = 'destLocationModal';
+            modal.className = 'modal active';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width:90%;width:400px;position:relative;z-index:10001;">
+                    <div class="modal-title">📍 选择目的地</div>
+                    <div style="font-size:12px;color:#8a9ba8;margin-bottom:10px;">点击地图选择目的地</div>
+                    <div id="destMapContainer" style="width:100%;height:450px;border-radius:8px;position:relative;z-index:1;"></div>
+                    <div id="destSelectedInfo" style="font-size:14px;color:var(--primary-color);margin:10px 0;font-weight:bold;min-height:40px;">💡 请在地图上点击选择位置</div>
+                    <button class="btn btn-primary" onclick="confirmDestination()" style="margin-top:10px;">确认选择</button>
+                    <button class="btn btn-warning" onclick="closeDestLocationModal()" style="margin-top:10px;">取消</button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            setTimeout(() => {
+                destMap = new qq.maps.Map(document.getElementById('destMapContainer'), {
+                    zoom: 15,
+                    center: new qq.maps.LatLng(39.9042, 116.4074)
+                });
+
+                async function fetchAddress(lat, lng) {
+                    document.getElementById('destSelectedInfo').textContent = '🔄 正在获取地址...';
+                    try {
+                        const res = await fetch('/api/orders/geocode', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ lat, lng })
+                        });
+                        const data = await res.json();
+                        if (data.success && data.address) {
+                            destSelectedAddress = data.address;
+                            document.getElementById('destSelectedInfo').textContent = `📍 ${destSelectedAddress}`;
+                        } else {
+                            document.getElementById('destSelectedInfo').textContent = `📍 坐标：${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+                        }
+                    } catch (error) {
+                        console.log('获取地址失败:', error);
+                        document.getElementById('destSelectedInfo').textContent = `📍 坐标：${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+                    }
+                }
+
+                qq.maps.event.addListener(destMap, 'click', function(event) {
+                    const latLng = event.latLng;
+                    
+                    if (destMarker) destMarker.setMap(null);
+                    
+                    destMarker = new qq.maps.Marker({
+                        position: latLng,
+                        map: destMap
+                    });
+                    
+                    destSelectedLatLng = { lat: latLng.getLat(), lng: latLng.getLng() };
+                    destSelectedAddress = '';
+                    document.getElementById('destSelectedInfo').textContent = '🔄 正在获取地址...';
+                    
+                    fetchAddress(latLng.getLat(), latLng.getLng());
+                });
+            }, 100);
+        }
+
+        function confirmDestination() {
+            if (!destSelectedLatLng) { alert('请先选择位置'); return; }
+            document.getElementById('destination').value = destSelectedAddress || '已选择目的地';
+            document.getElementById('destinationCoord').value = `${destSelectedLatLng.lat},${destSelectedLatLng.lng}`;
+            closeDestLocationModal();
+        }
+
+        function closeDestLocationModal() {
+            const modal = document.getElementById('destLocationModal');
+            if (modal) modal.remove();
+            destMap = null; destSelectedLatLng = null; destSelectedAddress = ''; destMarker = null;
+        }
+
         // 提交救援申请
         async function submitRescue() {
             let location;
@@ -940,6 +1023,7 @@
                 service_type: document.getElementById('rescueType').value,
                 current_location: location,
                 destination: document.getElementById('destination').value,
+                destination_coord: document.getElementById('destinationCoord').value,
                 vehicle_plate: document.getElementById('vehiclePlate').value,
                 owner_name: document.getElementById('ownerName').value,
                 owner_phone: document.getElementById('ownerPhone').value,
