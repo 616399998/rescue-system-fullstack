@@ -1191,8 +1191,16 @@
                         ${order.destination ? `<div class="detail-row"><span class="detail-label">目的地</span><span class="detail-value">${order.destination}</span></div>` : ''}
                         ${order.address && order.destination ? `
                         <div class="detail-row" style="margin-top:15px;">
-                            <div id="routeMap_${order.id}" style="width:100%;height:250px;border-radius:8px;margin-bottom:10px;"></div>
-                            <div id="routeInfo_${order.id}" style="font-size:13px;color:#8a9ba8;">🔄 正在加载路线...</div>
+                            <div id="routeMap_${order.id}" style="width:100%;height:250px;border-radius:8px;margin-bottom:15px;"></div>
+                            <div id="routeInfo_${order.id}" style="font-size:13px;color:#8a9ba8;line-height:1.8;">
+                                <div style="background:rgba(255,107,53,0.1);border-radius:8px;padding:12px;margin-bottom:8px;">
+                                    <div style="margin-bottom:6px;font-weight:bold;color:#ff6b35;">🗺️ 路线信息</div>
+                                    <div style="display:flex;justify-content:space-between;">
+                                        <span>📏 距离：<strong id="routeDistance_${order.id}" style="color:#ff6b35;">加载中...</strong></span>
+                                        <span>⏱️ 预计：<strong id="routeDuration_${order.id}" style="color:#ff6b35;">加载中...</strong></span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         ` : ''}
                     </div>
@@ -1200,10 +1208,10 @@
                     ${order.photos && order.photos.length > 0 ? `
                     <div class="detail-section">
                         <div class="detail-title">📸 现场照片 (${order.photos.length}张)</div>
-                        <div class="photo-upload" style="margin-top:10px;">
+                        <div class="photo-upload" style="margin-top:10px;gap:8px;">
                             ${order.photos.map(p => {
                                 const photoUrl = p.startsWith('http') ? p : (p.startsWith('/uploads') ? p : `${API_BASE}${p}`);
-                                return `<img class="photo-item" src="${photoUrl}" onclick="viewPhoto('${photoUrl}')" style="cursor:pointer;">`;
+                                return `<div class="photo-item" style="width:80px;height:80px;flex-shrink:0;overflow:hidden;border-radius:6px;border:2px solid rgba(255,107,53,0.2);cursor:pointer;"><img src="${photoUrl}" onclick="viewPhoto('${photoUrl}')" style="width:100%;height:100%;object-fit:cover;"></div>`;
                             }).join('')}
                         </div>
                     </div>
@@ -1332,12 +1340,10 @@
                         routeMap.fitBounds(bounds);
                     }
                     
-                    routeInfo.innerHTML = `
-                        <div style="display:flex;justify-content:space-between;padding:10px;background:rgba(255,107,53,0.1);border-radius:8px;margin-bottom:8px;">
-                            <span>📏 距离：<strong style="color:#ff6b35;">${routeData.distanceText}</strong></span>
-                            <span>⏱️ 预计：<strong style="color:#ff6b35;">${routeData.durationText}</strong></span>
-                        </div>
-                    `;
+                    const distanceEl = document.getElementById(`routeDistance_${order.id}`);
+                    const durationEl = document.getElementById(`routeDuration_${order.id}`);
+                    if (distanceEl) distanceEl.textContent = routeData.distanceText;
+                    if (durationEl) durationEl.textContent = routeData.durationText;
                 } else {
                     routeInfo.innerHTML = '⚠️ 路线规划失败';
                 }
