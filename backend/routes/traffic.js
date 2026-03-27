@@ -278,6 +278,67 @@ router.post('/geocode', async (req, res) => {
   }
 });
 
+// 获取交警队地址（默认地址，可在后台配置）
+router.get('/police-station', async (req, res) => {
+  try {
+    // 默认交警队地址
+    const defaultStation = {
+      name: '北京市交警支队',
+      address: '北京市朝阳区北四环东路 8 号',
+      lat: 39.9845,
+      lng: 116.4074
+    };
+    
+    // 尝试从数据库获取配置
+    const config = await get('SELECT * FROM system_config WHERE config_key = ?', ['police_station']);
+    
+    if (config && config.config_value) {
+      const station = JSON.parse(config.config_value);
+      res.json({ success: true, station });
+    } else {
+      res.json({ success: true, station: defaultStation });
+    }
+  } catch (error) {
+    console.error('获取交警队地址错误:', error);
+    res.json({ success: true, station: { name: '北京市交警支队', address: '北京市朝阳区北四环东路 8 号' } });
+  }
+});
+
+// 计算路线距离
+router.post('/calculate-route', async (req, res) => {
+  try {
+    const { from, to } = req.body;
+    
+    if (!from || !to) {
+      return res.status(400).json({ error: '缺少起点或终点参数' });
+    }
+
+    const axios = require('axios');
+    const key = '67MBZ-EF6RT-THAX4-VEGBL-7AYMJ-LGBXX';
+    
+    // 腾讯地图路线规划 API
+    const routeUrl = `https://apis.map.qq.com/ws/direction/v1/driving/?from=${from.lat},${from.lng}&to=${to.lat},${to.lng}&key=${key}`;
+    const response = await axios.get(routeUrl);
+    const data = response.data;
+    
+    if (data.status === 0 && data.result && data.result.routes && data.result.routes.length > 0) {
+      const route = data.result.routes[0];
+      res.json({
+        success: true,
+        distance: route.distance, // 米
+        duration: route.duration, // 秒
+        distanceText: (route.distance / 1000).toFixed(1) + '公里',
+        durationText: Math.round(route.duration / 60) + '分钟'
+      });
+    } else {
+      res.json({ success: false, error: '路线计算失败' });
+    }
+  } catch (error) {
+    console.error('计算路线错误:', error.message);
+    res.status(500).json({ error: '计算路线失败' });
+  }
+});
+
 // 初始化模拟数据
 router.post('/init-mock', async (req, res) => {
   try {

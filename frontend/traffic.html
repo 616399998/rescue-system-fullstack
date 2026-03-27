@@ -247,6 +247,81 @@
             top: 4px;
             width: 10px;
             height: 10px;
+        }
+        
+        /* 自定义提示框 */
+        .custom-alert {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+        }
+        .custom-alert.active { display: flex; }
+        .custom-alert-content {
+            background: linear-gradient(135deg, rgba(16, 28, 48, 0.98), rgba(10, 14, 26, 0.98));
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 16px;
+            padding: 25px;
+            width: 90%;
+            max-width: 360px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 240, 255, 0.15);
+            animation: alertSlideIn 0.3s ease-out;
+        }
+        @keyframes alertSlideIn {
+            from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .custom-alert-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        .custom-alert-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+        .custom-alert-message {
+            font-size: 14px;
+            color: #8a9ba8;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        .custom-alert-btn {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: #000;
+            border: none;
+            padding: 10px 30px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .custom-alert-btn:active { transform: scale(0.95); }
+        
+        /* 照片预览样式 */
+        .photo-upload {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .photo-item {
+            width: 100%;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            cursor: pointer;
+        }
             border-radius: 50%;
             background: var(--primary-color);
         }
@@ -370,12 +445,9 @@
                 </div>
                 <div class="form-group">
                     <label>发现地点（地址） *</label>
-                    <input type="text" id="foundLocation" placeholder="请输入详细地址" />
-                </div>
-                <div class="form-group">
-                    <label>发现地点（坐标）</label>
-                    <input type="text" id="foundAddress" placeholder="点击地图获取或手动输入" readonly />
-                    <button class="btn btn-warning" onclick="selectLocation()" style="margin-top:5px;">📍 地图选点</button>
+                    <input type="text" id="foundLocation" placeholder="请输入详细地址或点击地图选点" readonly>
+                    <input type="hidden" id="foundAddress">
+                    <button class="btn btn-primary" onclick="selectLocation()" style="margin-top:8px;width:100%;">📍 地图选点</button>
                 </div>
                 <div class="form-group">
                     <label>需求描述</label>
@@ -417,6 +489,21 @@
                 <div id="modalBody"></div>
             </div>
         </div>
+        
+        <!-- 自定义提示框 -->
+        <div id="customAlert" class="custom-alert">
+            <div class="custom-alert-content">
+                <div id="alertIcon" class="custom-alert-icon">✅</div>
+                <div id="alertTitle" class="custom-alert-title">提示</div>
+                <div id="alertMessage" class="custom-alert-message"></div>
+                <button class="custom-alert-btn" onclick="hideCustomAlert()">确定</button>
+            </div>
+        </div>
+        
+        <!-- 照片查看弹窗 -->
+        <div id="photoModal" class="modal" onclick="this.classList.remove('active')">
+            <img id="photoView" src="" style="max-width:90%;max-height:80vh;border-radius:8px;" onclick="event.stopPropagation()">
+        </div>
     </div>
 
     <script>
@@ -426,13 +513,44 @@
         let uploadedPhotos = [];
         let map = null;
 
+        // 自定义提示框
+        function showCustomAlert(type, title, message, callback) {
+            const alertBox = document.getElementById('customAlert');
+            const icon = document.getElementById('alertIcon');
+            document.getElementById('alertTitle').textContent = title;
+            document.getElementById('alertMessage').innerHTML = message.replace(/\n/g, '<br>');
+            
+            if (type === 'success') icon.textContent = '✅';
+            else if (type === 'error') icon.textContent = '❌';
+            else if (type === 'warning') icon.textContent = '⚠️';
+            else icon.textContent = 'ℹ️';
+            
+            alertBox.callback = callback;
+            alertBox.classList.add('active');
+        }
+        
+        function hideCustomAlert() {
+            const alertBox = document.getElementById('customAlert');
+            alertBox.classList.remove('active');
+            if (alertBox.callback) {
+                alertBox.callback();
+                alertBox.callback = null;
+            }
+        }
+        
+        // 查看照片
+        function viewPhoto(src) {
+            document.getElementById('photoView').src = src;
+            document.getElementById('photoModal').classList.add('active');
+        }
+
         // 交管端登录
         async function trafficLogin() {
             const username = document.getElementById('loginUsername').value;
             const password = document.getElementById('loginPassword').value;
             
             if (!username || !password) {
-                alert('请输入账号和密码');
+                showCustomAlert('warning', '提示', '请输入账号和密码');
                 return;
             }
 
@@ -450,10 +568,10 @@
                     localStorage.setItem('trafficUser', JSON.stringify(data.user));
                     showOrderList();
                 } else {
-                    alert(data.error || '登录失败');
+                    showCustomAlert('error', '登录失败', data.error || '账号或密码错误');
                 }
             } catch (error) {
-                alert('登录失败，请重试');
+                showCustomAlert('error', '错误', '登录失败，请重试');
             }
         }
 
@@ -608,7 +726,7 @@
             const special_note = document.getElementById('specialNote').value;
 
             if (!vehicle_plate || !owner_name || !owner_phone || !found_location) {
-                alert('请填写必填信息');
+                showCustomAlert('warning', '提示', '请填写必填信息');
                 return;
             }
 
@@ -631,23 +749,24 @@
                 });
                 const data = await res.json();
                 
-                alert(data.message || '申请已提交');
-                if (data.orderId) {
-                    // 清空表单
-                    document.getElementById('vehiclePlate').value = '';
-                    document.getElementById('ownerName').value = '';
-                    document.getElementById('ownerPhone').value = '';
-                    document.getElementById('foundLocation').value = '';
-                    document.getElementById('foundAddress').value = '';
-                    document.getElementById('description').value = '';
-                    document.getElementById('specialNote').value = '';
-                    uploadedPhotos = [];
-                    document.getElementById('photoPreview').innerHTML = '';
-                    
-                    switchPage('orderListPage');
-                }
+                showCustomAlert('success', '提交成功', data.message || '申请已提交', () => {
+                    if (data.orderId) {
+                        // 清空表单
+                        document.getElementById('vehiclePlate').value = '';
+                        document.getElementById('ownerName').value = '';
+                        document.getElementById('ownerPhone').value = '';
+                        document.getElementById('foundLocation').value = '';
+                        document.getElementById('foundAddress').value = '';
+                        document.getElementById('description').value = '';
+                        document.getElementById('specialNote').value = '';
+                        uploadedPhotos = [];
+                        document.getElementById('photoPreview').innerHTML = '';
+                        
+                        switchPage('orderListPage');
+                    }
+                });
             } catch (error) {
-                alert('提交失败，请重试');
+                showCustomAlert('error', '错误', '提交失败，请重试');
             }
         }
 
@@ -661,12 +780,11 @@
             modal.id = 'locationModal';
             modal.className = 'modal active';
             modal.innerHTML = `
-                <div class="modal-content" style="max-width:90%;width:400px;">
+                <div class="modal-content" style="max-width:90%;width:400px;position:relative;z-index:10001;">
                     <div class="modal-title">📍 地图选点</div>
-                    <div style="font-size:12px;color:#8a9ba8;margin-bottom:10px;">点击地图选择位置，或自动获取当前位置</div>
-                    <div id="mapContainer" style="width:100%;height:450px;border-radius:8px;"></div>
+                    <div style="font-size:12px;color:#8a9ba8;margin-bottom:10px;">点击地图选择位置</div>
+                    <div id="mapContainer" style="width:100%;height:450px;border-radius:8px;position:relative;z-index:1;"></div>
                     <div id="selectedInfo" style="font-size:14px;color:var(--primary-color);margin:10px 0;font-weight:bold;min-height:40px;">🔄 正在定位...</div>
-                    <div style="font-size:12px;color:#5a6d7e;margin:5px 0;">📍 坐标：<span id="coordInfo">-</span></div>
                     <button class="btn btn-primary" onclick="confirmLocation()" style="margin-top:10px;">确认选择</button>
                     <button class="btn btn-warning" onclick="closeLocationModal()" style="margin-top:10px;">取消</button>
                 </div>
@@ -719,7 +837,6 @@
                             
                             selectedLatLng = { lat, lng };
                             document.getElementById('selectedInfo').textContent = '🔄 正在获取地址...';
-                            document.getElementById('coordInfo').textContent = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
                             
                             // 调用 Web Service API 获取地址
                             fetchAddress(lat, lng);
@@ -747,7 +864,6 @@
                     selectedLatLng = { lat: latLng.getLat(), lng: latLng.getLng() };
                     selectedAddress = '';
                     document.getElementById('selectedInfo').textContent = '🔄 正在获取地址...';
-                    document.getElementById('coordInfo').textContent = `${latLng.getLat().toFixed(6)}, ${latLng.getLng().toFixed(6)}`;
                     
                     // 调用 Web Service API 获取地址
                     fetchAddress(latLng.getLat(), latLng.getLng());
@@ -757,12 +873,13 @@
 
         function confirmLocation() {
             if (!selectedLatLng) {
-                alert('请先选择位置');
+                showCustomAlert('warning', '提示', '请先选择位置');
                 return;
             }
             
+            // 后台保存坐标，前端只显示地址
             document.getElementById('foundAddress').value = `${selectedLatLng.lat},${selectedLatLng.lng}`;
-            document.getElementById('foundLocation').value = selectedAddress || `地图选点 (${selectedLatLng.lat.toFixed(4)}, ${selectedLatLng.lng.toFixed(4)})`;
+            document.getElementById('foundLocation').value = selectedAddress || '已选择位置';
             
             closeLocationModal();
         }
@@ -776,25 +893,41 @@
             marker = null;
         }
 
-        // 照片预览
-        document.getElementById('photoFiles')?.addEventListener('change', function(e) {
+        // 照片预览和上传
+        document.getElementById('photoFiles')?.addEventListener('change', async function(e) {
             const files = e.target.files;
             const preview = document.getElementById('photoPreview');
             preview.innerHTML = '';
+            uploadedPhotos = [];
             
-            Array.from(files).forEach(file => {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const img = document.createElement('img');
-                    img.className = 'photo-item';
-                    img.src = e.target.result;
-                    preview.appendChild(img);
-                };
-                reader.readAsDataURL(file);
-            });
-            
-            // 实际上传需要调用 API
-            uploadedPhotos = ['/uploads/placeholder.jpg']; // 占位符
+            for (const file of files) {
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                try {
+                    const res = await fetch(`${API_BASE}/traffic/upload`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await res.json();
+                    
+                    if (data.success && data.url) {
+                        uploadedPhotos.push(data.url);
+                        
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const img = document.createElement('img');
+                            img.className = 'photo-item';
+                            img.src = e.target.result;
+                            img.onclick = () => viewPhoto(e.target.result);
+                            preview.appendChild(img);
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                } catch (error) {
+                    console.error('上传失败:', error);
+                }
+            }
         });
 
         // 初始化
