@@ -809,13 +809,13 @@
                         <div class="driver-item" onclick="selectDriver(${driver.id}, this)">
                             <div class="driver-info">
                                 <h4>${driver.name}</h4>
-                                <p>🚗 ${driver.vehicle_model} (${driver.vehicle_plate})</p>
-                                <p>📍 ${driver.location}</p>
+                                <p>📱 ${driver.phone}</p>
+                                <p>⭐ ${driver.rating} | 📦 ${driver.total_orders}单</p>
                             </div>
                             <div class="driver-status">
-                                <div class="driver-rating">⭐ ${driver.rating}</div>
-                                <div style="font-size:11px;color:#5a6d7e;">今日：${driver.today_orders}单</div>
-                                <div class="status-badge status-idle" style="margin-top:5px;">空闲</div>
+                                <div class="status-badge ${driver.status === '空闲' ? 'status-idle' : 'status-busy'}" style="margin-top:5px;">
+                                    ${driver.status === '空闲' ? '✅ 空闲' : '🚗 服务中'}
+                                </div>
                             </div>
                         </div>
                     `).join('');
