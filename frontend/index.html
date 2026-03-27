@@ -689,38 +689,13 @@
         </div>
 
         <div class="form-group">
-            <label class="form-label">选择定位方式</label>
-            <div class="location-picker">
-                <button class="location-btn active" onclick="setLocationType('current', this)">
-                    📍 当前位置
-                </button>
-                <button class="location-btn" onclick="setLocationType('map', this)">
-                    🗺️ 地图选点
-                </button>
-                <button class="location-btn" onclick="setLocationType('manual', this)">
-                    ✏️ 手动输入
-                </button>
-            </div>
-        </div>
-
-        <div id="mapSection" style="display:none;">
-            <div class="map-container" id="locationMap"></div>
-            <div class="form-group">
-                <label class="form-label">已选位置</label>
-                <input type="text" class="form-input" id="mapLocation" placeholder="点击地图选择位置" readonly>
-            </div>
-        </div>
-
-        <div id="inputSection">
-            <div class="form-group">
-                <label class="form-label">📍 当前位置</label>
-                <input type="text" class="form-input" id="currentLocation" placeholder="点击地图选点" readonly>
-                <input type="hidden" id="currentCoord">
-                <button class="map-select-btn" onclick="pickCurrentLocation()">
-                    <span style="font-size:16px;margin-right:6px;">📍</span>
-                    <span>地图选点</span>
-                </button>
-            </div>
+            <label class="form-label">📍 事故地点</label>
+            <input type="text" class="form-input" id="currentLocation" placeholder="点击地图选点" readonly>
+            <input type="hidden" id="currentCoord">
+            <button class="map-select-btn" onclick="pickCurrentLocation()">
+                <span style="font-size:16px;margin-right:6px;">📍</span>
+                <span>地图选点</span>
+            </button>
         </div>
 
         <div class="form-group">
@@ -864,60 +839,6 @@
         // 关闭弹窗
         function closeModal(id) {
             document.getElementById(id).classList.remove('active');
-            if (map) { map.remove(); map = null; }
-        }
-
-        // 设置定位方式
-        function setLocationType(type, btn) {
-            locationType = type;
-            document.querySelectorAll('.location-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-
-            const mapSection = document.getElementById('mapSection');
-            const inputSection = document.getElementById('inputSection');
-
-            if (type === 'map') {
-                mapSection.style.display = 'block';
-                inputSection.style.display = 'none';
-                initMap();
-            } else {
-                mapSection.style.display = 'none';
-                inputSection.style.display = 'block';
-                if (map) { map.remove(); map = null; }
-            }
-        }
-
-        // 初始化地图（腾讯地图）
-        function initMap() {
-            if (map) return;
-            
-            // 创建腾讯地图
-            map = new qq.maps.Map(document.getElementById('locationMap'), {
-                center: new qq.maps.LatLng(39.9042, 116.4074),
-                zoom: 13,
-                disableDefaultControls: false
-            });
-            
-            // 创建可拖拽的标记
-            marker = new qq.maps.Marker({
-                position: new qq.maps.LatLng(39.9042, 116.4074),
-                map: map,
-                draggable: true
-            });
-            
-            // 标记拖拽结束事件
-            qq.maps.event.addListener(marker, 'positionChanged', function() {
-                const latlng = marker.getPosition();
-                document.getElementById('mapLocation').value = `${latlng.getLat().toFixed(6)}, ${latlng.getLng().toFixed(6)}`;
-            });
-            
-            // 地图点击事件
-            qq.maps.event.addListener(map, 'click', function(e) {
-                marker.setPosition(e.latLng);
-                document.getElementById('mapLocation').value = `${e.latLng.getLat().toFixed(6)}, ${e.latLng.getLng().toFixed(6)}`;
-            });
-            
-            document.getElementById('mapLocation').value = '39.904200, 116.407400';
         }
 
         // 处理照片上传
@@ -1118,16 +1039,10 @@
 
         // 提交救援申请
         async function submitRescue() {
-            let location;
-            if (locationType === 'map') {
-                location = document.getElementById('mapLocation').value;
-            } else {
-                location = document.getElementById('currentLocation').value;
-            }
-
             const data = {
                 service_type: document.getElementById('rescueType').value,
-                current_location: location,
+                current_location: document.getElementById('currentLocation').value,
+                current_coord: document.getElementById('currentCoord').value,
                 destination: document.getElementById('destination').value,
                 destination_coord: document.getElementById('destinationCoord').value,
                 vehicle_plate: document.getElementById('vehiclePlate').value,
