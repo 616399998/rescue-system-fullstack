@@ -278,6 +278,32 @@ router.post('/geocode', async (req, res) => {
   }
 });
 
+// 获取执法局地址（默认地址，可在后台配置）
+router.get('/enforcement-station', async (req, res) => {
+  try {
+    // 默认执法局地址
+    const defaultStation = {
+      name: '北京市综合执法局',
+      address: '北京市东城区建国门内大街 26 号',
+      lat: 39.9087,
+      lng: 116.4295
+    };
+    
+    // 尝试从数据库获取配置
+    const config = await get('SELECT * FROM system_config WHERE config_key = ?', ['enforcement_station']);
+    
+    if (config && config.config_value) {
+      const station = JSON.parse(config.config_value);
+      res.json({ success: true, station });
+    } else {
+      res.json({ success: true, station: defaultStation });
+    }
+  } catch (error) {
+    console.error('获取执法局地址错误:', error);
+    res.json({ success: true, station: { name: '北京市综合执法局', address: '北京市东城区建国门内大街 26 号' } });
+  }
+});
+
 // 初始化模拟数据
 router.post('/init-mock', async (req, res) => {
   try {

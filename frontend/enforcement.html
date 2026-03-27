@@ -570,7 +570,8 @@
             routeCard.style.display = 'block';
             
             try {
-                const stationRes = await fetch(`${API_BASE}/traffic/police-station`);
+                // 获取执法局地址
+                const stationRes = await fetch(`${API_BASE}/enforcement/enforcement-station`);
                 const stationData = await stationRes.json();
                 const station = stationData.station;
                 
