@@ -131,12 +131,9 @@
                 </div>
                 <div class="form-group">
                     <label>发现地点（地址） *</label>
-                    <input type="text" id="foundLocation" placeholder="请输入详细地址" />
-                </div>
-                <div class="form-group">
-                    <label>发现地点（坐标）</label>
-                    <input type="text" id="foundAddress" placeholder="点击地图获取" readonly />
-                    <button class="btn btn-warning" onclick="selectLocation()" style="margin-top:5px;">📍 地图选点</button>
+                    <input type="text" id="foundLocation" placeholder="请输入详细地址或点击地图选点" readonly>
+                    <input type="hidden" id="foundAddress">
+                    <button class="btn btn-primary" onclick="selectLocation()" style="margin-top:8px;width:100%;">📍 地图选点</button>
                 </div>
                 <div class="form-group">
                     <label>需求描述</label>
@@ -145,6 +142,14 @@
                 <div class="form-group">
                     <label>特殊说明</label>
                     <textarea id="specialNote" placeholder="其他需要说明的事项"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>现场照片/视频</label>
+                    <div style="font-size:12px;color:#5a6d7e;margin-bottom:8px;">
+                        💡 建议上传被拖车辆的 8 个面照片（前、后、左、右、45 度角等），最多 9 张
+                    </div>
+                    <input type="file" id="photoFiles" accept="image/*,video/*" multiple />
+                    <div class="photo-upload" id="photoPreview"></div>
                 </div>
                 <button class="btn btn-primary" onclick="submitRequest()">提交申请</button>
             </div>
@@ -169,11 +174,38 @@
         let currentOrder = null;
         let currentUser = null;
         let map = null;
+        let uploadedPhotos = [];
+
+        // 自定义提示框
+        function showCustomAlert(type, title, message, callback) {
+            const alertBox = document.createElement('div');
+            alertBox.id = 'customAlert';
+            alertBox.className = 'modal active';
+            alertBox.innerHTML = `
+                <div class="modal-content" style="max-width:360px;text-align:center;padding:25px;">
+                    <div style="font-size:48px;margin-bottom:15px;">${type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️'}</div>
+                    <div style="font-size:18px;font-weight:bold;color:var(--primary-color);margin-bottom:10px;">${title}</div>
+                    <div style="font-size:14px;color:#8a9ba8;margin-bottom:20px;line-height:1.6;">${message.replace(/\n/g, '<br>')}</div>
+                    <button class="btn btn-primary" onclick="this.closest('.modal').remove();${callback ? 'setTimeout(() => {' + callback.toString() + '}, 100);' : ''}" style="width:120px;">确定</button>
+                </div>
+            `;
+            document.body.appendChild(alertBox);
+        }
+
+        // 查看照片
+        function viewPhoto(src) {
+            const photoUrl = src.startsWith('http') ? src : (src.startsWith('/uploads') ? src : `${API_BASE}${src}`);
+            const modal = document.createElement('div');
+            modal.className = 'modal active';
+            modal.onclick = () => modal.remove();
+            modal.innerHTML = `<img src="${photoUrl}" style="max-width:90%;max-height:80vh;border-radius:8px;" onclick="event.stopPropagation()">`;
+            document.body.appendChild(modal);
+        }
 
         async function enforcementLogin() {
             const username = document.getElementById('loginUsername').value;
             const password = document.getElementById('loginPassword').value;
-            if (!username || !password) { alert('请输入账号和密码'); return; }
+            if (!username || !password) { showCustomAlert('warning', '提示', '请输入账号和密码'); return; }
             try {
                 const res = await fetch(`${API_BASE}/enforcement/login`, {
                     method: 'POST',
@@ -187,10 +219,10 @@
                     localStorage.setItem('enforcementUser', JSON.stringify(data.user));
                     showOrderList();
                 } else {
-                    alert(data.error || '登录失败');
+                    showCustomAlert('error', '登录失败', data.error || '账号或密码错误');
                 }
             } catch (error) {
-                alert('登录失败，请重试');
+                showCustomAlert('error', '错误', '登录失败，请重试');
             }
         }
 
@@ -285,6 +317,24 @@
                             ${order.driver ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(0,240,255,0.2)"><div>司机：<strong>${order.driver.name}</strong></div><div>电话：<strong>${order.driver.phone}</strong></div></div>` : ''}
                         </div>
                     </div>
+                    
+                    <div class="card" id="routeCard" style="display:none;">
+                        <div class="card-title">🚔 拖车路线</div>
+                        <div id="routeMap" style="width:100%;height:300px;border-radius:8px;margin-bottom:10px;"></div>
+                        <div id="routeInfo" style="font-size:13px;color:#8a9ba8;line-height:1.8;">🔄 正在加载地图...</div>
+                    </div>
+                    
+                    ${order.photos && order.photos.length > 0 ? `
+                        <div class="card">
+                            <div class="card-title">📸 现场照片 (${order.photos.length}张)</div>
+                            <div class="photo-upload">
+                                ${order.photos.map(p => {
+                                    const photoUrl = p.startsWith('http') ? p : (p.startsWith('/uploads') ? p : `${API_BASE}${p}`);
+                                    return `<img class="photo-item" src="${photoUrl}" onclick="viewPhoto('${photoUrl}')"/>`;
+                                }).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
                 `;
                 document.getElementById('orderTimeline').innerHTML = order.timeline.map(t => `
                     <div class="timeline-item">
@@ -292,9 +342,13 @@
                         <div class="timeline-content">${t.content}</div>
                     </div>
                 `).join('');
+                
+                // 加载路线信息
+                loadRouteInfo(order);
+                
                 switchPage('orderDetailPage');
             } catch (error) {
-                alert('加载订单详情失败');
+                showCustomAlert('error', '错误', '加载订单详情失败');
             }
         }
 
@@ -310,7 +364,7 @@
             const special_note = document.getElementById('specialNote').value;
 
             if (!vehicle_plate || !owner_name || !owner_phone || !found_location) {
-                alert('请填写必填信息');
+                showCustomAlert('warning', '提示', '请填写必填信息');
                 return;
             }
 
@@ -318,22 +372,25 @@
                 const res = await fetch(`${API_BASE}/enforcement/tow-request`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ vehicle_plate, owner_name, owner_phone, violation_type, found_time, found_location, found_address, description, special_note, photos: [] })
+                    body: JSON.stringify({ vehicle_plate, owner_name, owner_phone, violation_type, found_time, found_location, found_address, description, special_note, photos: uploadedPhotos })
                 });
                 const data = await res.json();
-                alert(data.message || '申请已提交');
-                if (data.orderId) {
-                    document.getElementById('vehiclePlate').value = '';
-                    document.getElementById('ownerName').value = '';
-                    document.getElementById('ownerPhone').value = '';
-                    document.getElementById('foundLocation').value = '';
-                    document.getElementById('foundAddress').value = '';
-                    document.getElementById('description').value = '';
-                    document.getElementById('specialNote').value = '';
-                    switchPage('orderListPage');
-                }
+                showCustomAlert('success', '提交成功', data.message || '申请已提交', () => {
+                    if (data.orderId) {
+                        document.getElementById('vehiclePlate').value = '';
+                        document.getElementById('ownerName').value = '';
+                        document.getElementById('ownerPhone').value = '';
+                        document.getElementById('foundLocation').value = '';
+                        document.getElementById('foundAddress').value = '';
+                        document.getElementById('description').value = '';
+                        document.getElementById('specialNote').value = '';
+                        uploadedPhotos = [];
+                        document.getElementById('photoPreview').innerHTML = '';
+                        switchPage('orderListPage');
+                    }
+                });
             } catch (error) {
-                alert('提交失败，请重试');
+                showCustomAlert('error', '错误', '提交失败，请重试');
             }
         }
 
@@ -451,6 +508,155 @@
             const modal = document.getElementById('locationModal');
             if (modal) modal.remove();
             map = null; selectedLatLng = null; selectedAddress = ''; marker = null;
+        }
+
+        // 照片预览和上传
+        document.getElementById('photoFiles')?.addEventListener('change', async function(e) {
+            const files = e.target.files;
+            const preview = document.getElementById('photoPreview');
+            preview.innerHTML = '';
+            uploadedPhotos = [];
+            
+            if (files.length === 0) return;
+            
+            const formData = new FormData();
+            for (let i = 0; i < Math.min(files.length, 9); i++) {
+                formData.append('files', files[i]);
+            }
+            
+            try {
+                const res = await fetch(`${API_BASE}/enforcement/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                
+                if (data.success && data.urls && data.urls.length > 0) {
+                    uploadedPhotos = data.urls;
+                    
+                    for (let i = 0; i < Math.min(files.length, 9); i++) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const img = document.createElement('img');
+                            img.className = 'photo-item';
+                            img.src = e.target.result;
+                            img.onclick = () => viewPhoto(e.target.result);
+                            preview.appendChild(img);
+                        };
+                        reader.readAsDataURL(files[i]);
+                    }
+                    
+                    showCustomAlert('success', '上传成功', `已上传 ${uploadedPhotos.length} 张照片`);
+                } else {
+                    showCustomAlert('error', '上传失败', data.error || '请重试');
+                }
+            } catch (error) {
+                console.error('上传失败:', error);
+                showCustomAlert('error', '上传失败', '网络错误，请重试');
+            }
+        });
+
+        // 加载路线信息
+        let routeMap = null;
+        let routeMarkerFrom = null;
+        let routeMarkerTo = null;
+        let routePolyline = null;
+
+        async function loadRouteInfo(order) {
+            const routeCard = document.getElementById('routeCard');
+            const routeInfo = document.getElementById('routeInfo');
+            const routeMapContainer = document.getElementById('routeMap');
+            
+            routeCard.style.display = 'block';
+            
+            try {
+                const stationRes = await fetch(`${API_BASE}/traffic/police-station`);
+                const stationData = await stationRes.json();
+                const station = stationData.station;
+                
+                const coordStr = order.found_address || '';
+                let fromCoord = null;
+                
+                if (coordStr && coordStr.includes(',')) {
+                    const parts = coordStr.split(',');
+                    fromCoord = { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) };
+                }
+                
+                if (!fromCoord) {
+                    routeInfo.innerHTML = '⚠️ 无法获取位置坐标';
+                    return;
+                }
+                
+                routeMap = new qq.maps.Map(routeMapContainer, {
+                    center: new qq.maps.LatLng(fromCoord.lat, fromCoord.lng),
+                    zoom: 12
+                });
+                
+                routeMarkerFrom = new qq.maps.Marker({
+                    position: new qq.maps.LatLng(fromCoord.lat, fromCoord.lng),
+                    map: routeMap,
+                    title: '发现地点'
+                });
+                
+                routeMarkerTo = new qq.maps.Marker({
+                    position: new qq.maps.LatLng(station.lat, station.lng),
+                    map: routeMap,
+                    title: station.name
+                });
+                
+                const routeRes = await fetch(`${API_BASE}/traffic/calculate-route`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        from: fromCoord,
+                        to: { lat: station.lat, lng: station.lng }
+                    })
+                });
+                const routeData = await routeRes.json();
+                
+                if (routeData.success && routeData.polyline) {
+                    const polyPoints = [];
+                    const points = routeData.polyline.split(';');
+                    points.forEach(point => {
+                        const coords = point.split(',');
+                        if (coords.length === 2) {
+                            polyPoints.push(new qq.maps.LatLng(parseFloat(coords[0]), parseFloat(coords[1])));
+                        }
+                    });
+                    
+                    if (polyPoints.length > 0) {
+                        routePolyline = new qq.maps.Polyline({
+                            map: routeMap,
+                            path: polyPoints,
+                            strokeColor: '#00f0ff',
+                            strokeWeight: 5,
+                            strokeOpacity: 0.8
+                        });
+                        
+                        const bounds = new qq.maps.LatLngBounds();
+                        bounds.extend(new qq.maps.LatLng(fromCoord.lat, fromCoord.lng));
+                        bounds.extend(new qq.maps.LatLng(station.lat, station.lng));
+                        polyPoints.forEach(p => bounds.extend(p));
+                        routeMap.fitBounds(bounds);
+                    }
+                    
+                    routeInfo.innerHTML = `
+                        <div style="display:flex;justify-content:space-between;padding:10px;background:rgba(0,240,255,0.1);border-radius:8px;margin-bottom:8px;">
+                            <span>📏 距离：<strong style="color:var(--primary-color);">${routeData.distanceText}</strong></span>
+                            <span>⏱️ 预计：<strong style="color:var(--primary-color);">${routeData.durationText}</strong></span>
+                        </div>
+                        <div style="font-size:12px;color:#5a6d7e;padding:8px;background:rgba(0,0,0,0.2);border-radius:6px;">
+                            <div style="margin-bottom:4px;">🚔 <strong>终点：</strong>${station.name}</div>
+                            <div style="color:#8a9ba8;">📍 ${station.address}</div>
+                        </div>
+                    `;
+                } else {
+                    routeInfo.innerHTML = '⚠️ 路线规划失败：' + (routeData.error || '未知错误');
+                }
+            } catch (error) {
+                console.error('加载路线失败:', error);
+                routeInfo.innerHTML = '⚠️ 加载失败';
+            }
         }
 
         window.onload = function() {
