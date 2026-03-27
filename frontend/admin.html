@@ -493,7 +493,7 @@
                         <thead>
                             <tr>
                                 <th>订单号</th>
-                                <th>用户</th>
+                                <th>渠道</th>
                                 <th>当前位置</th>
                                 <th>目的地</th>
                                 <th>车辆信息</th>
@@ -782,7 +782,7 @@
                     ordersList.innerHTML = allOrders.map(order => `
                         <div class="driver-item" onclick="selectDispatchOrder(${order.id}, this)">
                             <div class="driver-info">
-                                <h4>${order.order_no}</h4>
+                                <h4>${order.order_no} <span style="font-size:11px;color:#5a6d7e;margin-left:8px;">${getChannelName(order.channel)}</span></h4>
                                 <p>📍 ${order.current_location}</p>
                                 <p>🎯 ${order.destination || '无目的地'}</p>
                             </div>
@@ -901,6 +901,18 @@
             }
         }
 
+        // 获取渠道名称
+        function getChannelName(channel) {
+            const channels = {
+                'personal': '👤 个人',
+                'traffic': '🚔 交管',
+                'enforcement': '👮 执法',
+                'insurance': '🏢 保险',
+                'driver': '🚗 司机'
+            };
+            return channels[channel] || '📝 其他';
+        }
+
         // 筛选订单
         function filterOrders(status, el) {
             currentFilter = status;
@@ -925,7 +937,7 @@
                 tbody.innerHTML = allOrders.map(order => `
                     <tr>
                         <td style="font-family:monospace;">${order.order_no}</td>
-                        <td>用户${order.user_id || '-'}</td>
+                        <td>${getChannelName(order.channel)}</td>
                         <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${order.current_location || ''}">${order.current_location || '未知'}</td>
                         <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${order.destination || ''}">${order.destination || '无'}</td>
                         <td>${order.vehicle_plate || '-'}</td>
