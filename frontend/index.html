@@ -844,38 +844,65 @@
             document.getElementById(id).classList.remove('active');
         }
 
-        // 处理照片上传
-        function handlePhotoUpload(event) {
+        // 处理照片上传（实际上传到服务器）
+        async function handlePhotoUpload(event) {
             const files = event.target.files;
             if (uploadedPhotos.length + files.length > 9) {
                 showAlert('error', '提示', '最多只能上传 9 张照片');
                 return;
             }
-            Array.from(files).forEach(file => {
+            
+            const formData = new FormData();
+            const newFiles = [];
+            for (let i = 0; i < Math.min(files.length, 9 - uploadedPhotos.length); i++) {
+                formData.append('photos', files[i]);
+                newFiles.push(files[i]);
+            }
+            
+            try {
+                const res = await fetch(`${API_BASE}/api/orders/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                
+                if (data.success && data.urls && data.urls.length > 0) {
+                    uploadedPhotos = [...uploadedPhotos, ...data.urls];
+                    renderPhotoPreview(newFiles);
+                    showAlert('success', '上传成功', `已上传 ${data.urls.length} 张照片`);
+                } else {
+                    showAlert('error', '上传失败', data.error || '请重试');
+                }
+            } catch (error) {
+                console.error('上传失败:', error);
+                showAlert('error', '上传失败', '网络错误，请重试');
+            }
+        }
+
+        // 渲染照片预览
+        function renderPhotoPreview(newFiles) {
+            const container = document.getElementById('photoPreview');
+            container.innerHTML = '';
+            
+            newFiles.forEach((file, index) => {
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    uploadedPhotos.push(e.target.result);
-                    renderPhotoPreview();
+                    const item = document.createElement('div');
+                    item.className = 'photo-item';
+                    item.innerHTML = `
+                        <img src="${e.target.result}" alt="photo">
+                        <button class="photo-remove" onclick="removePhoto(${uploadedPhotos.length - newFiles.length + index})">×</button>
+                    `;
+                    container.appendChild(item);
                 };
                 reader.readAsDataURL(file);
             });
         }
 
-        // 渲染照片预览
-        function renderPhotoPreview() {
-            const container = document.getElementById('photoPreview');
-            container.innerHTML = uploadedPhotos.map((photo, index) => `
-                <div class="photo-item">
-                    <img src="${photo}" alt="photo">
-                    <button class="photo-remove" onclick="removePhoto(${index})">×</button>
-                </div>
-            `).join('');
-        }
-
         // 删除照片
         function removePhoto(index) {
             uploadedPhotos.splice(index, 1);
-            renderPhotoPreview();
+            renderPhotoPreview([]);
         }
 
         // 当前位置地图选点
@@ -1068,7 +1095,7 @@
                 photos: uploadedPhotos
             };
 
-            if (!location || !data.vehicle_plate || !data.owner_phone) {
+            if (!data.current_location || !data.vehicle_plate || !data.owner_phone) {
                 showAlert('error', '提示', '请填写完整信息');
                 return;
             }
