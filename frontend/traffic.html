@@ -459,6 +459,9 @@
                 </div>
                 <div class="form-group">
                     <label>现场照片/视频</label>
+                    <div style="font-size:12px;color:#5a6d7e;margin-bottom:8px;">
+                        💡 建议上传被拖车辆的 8 个面照片（前、后、左、右、45 度角等），最多 9 张
+                    </div>
                     <input type="file" id="photoFiles" accept="image/*,video/*" multiple />
                     <div class="photo-upload" id="photoPreview"></div>
                 </div>
@@ -701,9 +704,12 @@
                     
                     ${order.photos && order.photos.length > 0 ? `
                         <div class="card">
-                            <div class="card-title">📸 现场照片</div>
+                            <div class="card-title">📸 现场照片 (${order.photos.length}张)</div>
                             <div class="photo-upload">
-                                ${order.photos.map(p => `<img class="photo-item" src="${p}" onclick="viewPhoto('${p}')"/>`).join('')}
+                                ${order.photos.map(p => {
+                                    const photoUrl = p.startsWith('http') ? p : `${API_BASE}${p}`;
+                                    return `<img class="photo-item" src="${photoUrl}" onclick="viewPhoto('${photoUrl}')"/>`;
+                                }).join('')}
                             </div>
                         </div>
                     ` : ''}
@@ -1027,20 +1033,26 @@
             preview.innerHTML = '';
             uploadedPhotos = [];
             
-            for (const file of files) {
-                const formData = new FormData();
-                formData.append('file', file);
+            if (files.length === 0) return;
+            
+            const formData = new FormData();
+            // 支持多张图片上传（最多 9 张）
+            for (let i = 0; i < Math.min(files.length, 9); i++) {
+                formData.append('files', files[i]);
+            }
+            
+            try {
+                const res = await fetch(`${API_BASE}/traffic/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
                 
-                try {
-                    const res = await fetch(`${API_BASE}/traffic/upload`, {
-                        method: 'POST',
-                        body: formData
-                    });
-                    const data = await res.json();
+                if (data.success && data.urls && data.urls.length > 0) {
+                    uploadedPhotos = data.urls;
                     
-                    if (data.success && data.url) {
-                        uploadedPhotos.push(data.url);
-                        
+                    // 显示预览
+                    for (let i = 0; i < Math.min(files.length, 9); i++) {
                         const reader = new FileReader();
                         reader.onload = function(e) {
                             const img = document.createElement('img');
@@ -1049,11 +1061,16 @@
                             img.onclick = () => viewPhoto(e.target.result);
                             preview.appendChild(img);
                         };
-                        reader.readAsDataURL(file);
+                        reader.readAsDataURL(files[i]);
                     }
-                } catch (error) {
-                    console.error('上传失败:', error);
+                    
+                    showCustomAlert('success', '上传成功', `已上传 ${uploadedPhotos.length} 张照片`);
+                } else {
+                    showCustomAlert('error', '上传失败', data.error || '请重试');
                 }
+            } catch (error) {
+                console.error('上传失败:', error);
+                showCustomAlert('error', '上传失败', '网络错误，请重试');
             }
         });
 
