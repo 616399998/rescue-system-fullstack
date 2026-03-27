@@ -690,6 +690,14 @@
                             ` : ''}
                         </div>
                     </div>
+                    
+                    <div class="card" id="routeCard" style="display:none;">
+                        <div class="card-title">🚔 拖车路线</div>
+                        <div id="routeInfo" style="font-size:13px;color:#8a9ba8;line-height:1.8;">
+                            🔄 正在计算路线...
+                        </div>
+                    </div>
+                    
                     ${order.photos && order.photos.length > 0 ? `
                         <div class="card">
                             <div class="card-title">📸 现场照片</div>
@@ -707,9 +715,70 @@
                     </div>
                 `).join('');
 
+                // 加载路线信息
+                loadRouteInfo(order);
+
                 switchPage('orderDetailPage');
             } catch (error) {
-                alert('加载订单详情失败');
+                showCustomAlert('error', '错误', '加载订单详情失败');
+            }
+        }
+        
+        // 加载路线信息
+        async function loadRouteInfo(order) {
+            const routeCard = document.getElementById('routeCard');
+            const routeInfo = document.getElementById('routeInfo');
+            
+            try {
+                // 获取交警队地址
+                const stationRes = await fetch(`${API_BASE}/traffic/police-station`);
+                const stationData = await stationRes.json();
+                const station = stationData.station;
+                
+                // 解析发现地点坐标（从 found_address 字段）
+                const coordStr = order.found_address || '';
+                let fromCoord = null;
+                
+                if (coordStr && coordStr.includes(',')) {
+                    const parts = coordStr.split(',');
+                    fromCoord = { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) };
+                }
+                
+                if (!fromCoord) {
+                    routeCard.style.display = 'block';
+                    routeInfo.innerHTML = '⚠️ 无法获取位置坐标';
+                    return;
+                }
+                
+                // 计算路线
+                const routeRes = await fetch(`${API_BASE}/traffic/calculate-route`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        from: fromCoord,
+                        to: { lat: station.lat, lng: station.lng }
+                    })
+                });
+                const routeData = await routeRes.json();
+                
+                routeCard.style.display = 'block';
+                
+                if (routeData.success) {
+                    routeInfo.innerHTML = `
+                        <div style="margin-bottom:8px;">📍 从 <strong>发现地点</strong> 到 <strong>${station.name}</strong></div>
+                        <div style="display:flex;justify-content:space-between;padding:10px;background:rgba(0,240,255,0.1);border-radius:8px;">
+                            <span>📏 距离：<strong style="color:var(--primary-color);">${routeData.distanceText}</strong></span>
+                            <span>⏱️ 预计：<strong style="color:var(--primary-color);">${routeData.durationText}</strong></span>
+                        </div>
+                        <div style="margin-top:8px;font-size:12px;color:#5a6d7e;">🚗 终点：${station.address}</div>
+                    `;
+                } else {
+                    routeInfo.innerHTML = '⚠️ 路线计算失败';
+                }
+            } catch (error) {
+                console.error('加载路线失败:', error);
+                routeCard.style.display = 'block';
+                routeInfo.innerHTML = '⚠️ 加载失败';
             }
         }
 
