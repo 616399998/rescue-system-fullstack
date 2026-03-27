@@ -28,6 +28,9 @@
         .modal.active { display: flex; }
         .modal-content { background: var(--card-bg); border: 1px solid rgba(0, 240, 255, 0.3); border-radius: 16px; padding: 20px; width: 90%; max-width: 400px; max-height: 80vh; overflow-y: auto; }
         .modal-title { font-size: 18px; font-weight: bold; color: var(--primary-color); margin-bottom: 15px; text-align: center; }
+        
+        .photo-upload { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+        .photo-item { width: 80px; height: 80px; border-radius: 8px; object-fit: cover; border: 1px solid rgba(99, 102, 241, 0.3); cursor: pointer; }
         .nav-item { display: flex; flex-direction: column; align-items: center; color: #5a6d7e; cursor: pointer; }
         .nav-item.active { color: var(--primary-color); }
         .nav-icon { width: 24px; height: 24px; margin-bottom: 4px; fill: currentColor; }
@@ -401,6 +404,7 @@
                 const data = await res.json();
                 showCustomAlert('success', '提交成功', data.message || '申请已提交', () => {
                     if (data.orderId) {
+                        // 清空表单
                         document.getElementById('vehiclePlate').value = '';
                         document.getElementById('ownerName').value = '';
                         document.getElementById('ownerPhone').value = '';
@@ -414,7 +418,9 @@
                         document.getElementById('isGarage').checked = false;
                         uploadedPhotos = [];
                         document.getElementById('photoPreview').innerHTML = '';
-                        switchPage('orderListPage');
+                        
+                        // 跳转到订单详情页
+                        loadOrderDetail(data.orderId);
                     }
                 });
             } catch (error) {
@@ -679,8 +685,8 @@
             routeCard.style.display = 'block';
             
             try {
-                // 解析事故地点坐标
-                const fromCoordStr = order.address || '';
+                // 解析事故地点坐标（从 found_address 字段）
+                const fromCoordStr = order.found_address || order.address || '';
                 let fromCoord = null;
                 
                 if (fromCoordStr && fromCoordStr.includes(',')) {
@@ -688,7 +694,7 @@
                     fromCoord = { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) };
                 }
                 
-                // 解析目的地坐标
+                // 解析目的地坐标（从 destination_coord 字段）
                 const toCoordStr = order.destination_coord || '';
                 let toCoord = null;
                 

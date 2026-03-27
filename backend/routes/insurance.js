@@ -93,27 +93,24 @@ router.post('/tow-request', async (req, res) => {
 
     const orderNo = 'BX' + new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14) + Math.random().toString(36).slice(2, 4).toUpperCase();
 
-    // destination_coord 优先
-    const destCoord = destination_coord || accident_address || '';
-
     const result = await run(`
       INSERT INTO orders (
         order_no, user_id, service_type, channel,
         vehicle_plate, owner_name, owner_phone,
-        is_garage, current_location, destination, address,
+        is_garage, current_location, destination, address, destination_coord,
         insurance_no, insurance_company,
         problem_description, special_note, photos,
         status, price
       ) VALUES (?, ?, 'accident', 'insurance',
         ?, ?, ?,
-        ?, ?, ?, ?,
+        ?, ?, ?, ?, ?,
         ?, ?,
         ?, ?, ?,
         'pending', 200)
     `, [
       orderNo, 1,
       vehicle_plate, owner_name, owner_phone,
-      is_garage ? 1 : 0, accident_location, destination || '', destCoord,
+      is_garage ? 1 : 0, accident_location, destination || '', accident_address || '', destination_coord || '',
       insurance_no || '', insurance_company || '',
       description || '', special_note || '', JSON.stringify(photos),
     ]);
