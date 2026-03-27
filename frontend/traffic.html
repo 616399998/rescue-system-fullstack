@@ -693,8 +693,9 @@
                     
                     <div class="card" id="routeCard" style="display:none;">
                         <div class="card-title">🚔 拖车路线</div>
+                        <div id="routeMap" style="width:100%;height:300px;border-radius:8px;margin-bottom:10px;"></div>
                         <div id="routeInfo" style="font-size:13px;color:#8a9ba8;line-height:1.8;">
-                            🔄 正在计算路线...
+                            🔄 正在加载地图...
                         </div>
                     </div>
                     
@@ -725,9 +726,17 @@
         }
         
         // 加载路线信息
+        let routeMap = null;
+        let routeMarkerFrom = null;
+        let routeMarkerTo = null;
+        let routePolyline = null;
+        
         async function loadRouteInfo(order) {
             const routeCard = document.getElementById('routeCard');
             const routeInfo = document.getElementById('routeInfo');
+            const routeMapContainer = document.getElementById('routeMap');
+            
+            routeCard.style.display = 'block';
             
             try {
                 // 获取交警队地址
@@ -745,68 +754,97 @@
                 }
                 
                 if (!fromCoord) {
-                    routeCard.style.display = 'block';
                     routeInfo.innerHTML = '⚠️ 无法获取位置坐标';
                     return;
                 }
                 
-                // 计算路线
-                const routeRes = await fetch(`${API_BASE}/traffic/calculate-route`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        from: fromCoord,
-                        to: { lat: station.lat, lng: station.lng }
-                    })
+                // 初始化地图
+                routeMap = new qq.maps.Map(routeMapContainer, {
+                    center: new qq.maps.LatLng(fromCoord.lat, fromCoord.lng),
+                    zoom: 12
                 });
-                const routeData = await routeRes.json();
                 
-                routeCard.style.display = 'block';
+                // 起点标记
+                routeMarkerFrom = new qq.maps.Marker({
+                    position: new qq.maps.LatLng(fromCoord.lat, fromCoord.lng),
+                    map: routeMap,
+                    title: '发现地点'
+                });
                 
-                if (routeData.success) {
-                    routeInfo.innerHTML = `
-                        <div style="margin-bottom:10px;">
-                            <svg viewBox="0 0 300 120" style="width:100%;height:120px;background:linear-gradient(135deg, rgba(0,240,255,0.05), rgba(0,102,255,0.05));border-radius:8px;">
-                                <!-- 路线背景 -->
-                                <line x1="40" y1="60" x2="260" y2="60" stroke="rgba(0,240,255,0.3)" stroke-width="3" stroke-dasharray="5,5"/>
-                                
-                                <!-- 起点标记 -->
-                                <circle cx="40" cy="60" r="8" fill="var(--primary-color)" opacity="0.8"/>
-                                <circle cx="40" cy="60" r="4" fill="#0a0e1a"/>
-                                
-                                <!-- 终点标记 -->
-                                <circle cx="260" cy="60" r="8" fill="var(--accent-color)" opacity="0.8"/>
-                                <circle cx="260" cy="60" r="4" fill="#0a0e1a"/>
-                                
-                                <!-- 起点文字 -->
-                                <text x="40" y="45" text-anchor="middle" fill="var(--primary-color)" font-size="10" font-weight="bold">📍 发现地点</text>
-                                
-                                <!-- 终点文字 -->
-                                <text x="260" y="45" text-anchor="middle" fill="var(--accent-color)" font-size="10" font-weight="bold">🚔 交警队</text>
-                                
-                                <!-- 距离标识 -->
-                                <text x="150" y="55" text-anchor="middle" fill="var(--text-color)" font-size="12" font-weight="bold">${routeData.distanceText}</text>
-                                <text x="150" y="75" text-anchor="middle" fill="#5a6d7e" font-size="10">${routeData.durationText}</text>
-                                
-                                <!-- 方向箭头 -->
-                                <polygon points="240,55 250,60 240,65" fill="var(--primary-color)" opacity="0.6"/>
-                            </svg>
-                        </div>
-                        <div style="display:flex;justify-content:space-between;padding:10px;background:rgba(0,240,255,0.1);border-radius:8px;margin-bottom:8px;">
-                            <span>📏 距离：<strong style="color:var(--primary-color);">${routeData.distanceText}</strong></span>
-                            <span>⏱️ 预计：<strong style="color:var(--primary-color);">${routeData.durationText}</strong></span>
-                        </div>
-                        <div style="font-size:12px;color:#5a6d7e;padding:8px;background:rgba(0,0,0,0.2);border-radius:6px;">
-                            <div style="margin-bottom:4px;">🚔 <strong>终点：</strong>${station.name}</div>
-                            <div style="color:#8a9ba8;">📍 ${station.address}</div>
-                        </div>
-                    `;
-                } else {
-                    routeInfo.innerHTML = '⚠️ 路线计算失败';
+                // 终点标记
+                routeMarkerTo = new qq.maps.Marker({
+                    position: new qq.maps.LatLng(station.lat, station.lng),
+                    map: routeMap,
+                    title: station.name
+                });
+                
+                // 调用腾讯地图路线规划 API 获取路线坐标
+                const key = '67MBZ-EF6RT-THAX4-VEGBL-7AYMJ-LGBXX';
+                const routeUrl = `https://apis.map.qq.com/ws/direction/v1/driving/?from=${fromCoord.lat},${fromCoord.lng}&to=${station.lat},${station.lng}&key=${key}`;
+                
+                try {
+                    const response = await fetch(routeUrl);
+                    const data = await response.json();
+                    
+                    if (data.status === 0 && data.result && data.result.routes && data.result.routes.length > 0) {
+                        const route = data.result.routes[0];
+                        const distance = (route.distance / 1000).toFixed(1);
+                        const duration = Math.round(route.duration / 60);
+                        
+                        // 解析路线坐标点
+                        const polyPoints = [];
+                        const steps = route.steps || [];
+                        
+                        steps.forEach(step => {
+                            if (step.polyline) {
+                                const points = step.polyline.split(';');
+                                points.forEach(point => {
+                                    const coords = point.split(',');
+                                    if (coords.length === 2) {
+                                        polyPoints.push(new qq.maps.LatLng(parseFloat(coords[0]), parseFloat(coords[1])));
+                                    }
+                                });
+                            }
+                        });
+                        
+                        // 绘制路线
+                        if (polyPoints.length > 0) {
+                            routePolyline = new qq.maps.Polyline({
+                                map: routeMap,
+                                path: polyPoints,
+                                strokeColor: '#00f0ff',
+                                strokeWeight: 5,
+                                strokeOpacity: 0.8,
+                                strokeStyle: qq.maps.StrokeStyle.SOLID
+                            });
+                            
+                            // 调整地图视野以显示完整路线
+                            const bounds = new qq.maps.LatLngBounds();
+                            bounds.extend(new qq.maps.LatLng(fromCoord.lat, fromCoord.lng));
+                            bounds.extend(new qq.maps.LatLng(station.lat, station.lng));
+                            polyPoints.forEach(p => bounds.extend(p));
+                            routeMap.fitBounds(bounds);
+                        }
+                        
+                        routeInfo.innerHTML = `
+                            <div style="display:flex;justify-content:space-between;padding:10px;background:rgba(0,240,255,0.1);border-radius:8px;margin-bottom:8px;">
+                                <span>📏 距离：<strong style="color:var(--primary-color);">${distance}公里</strong></span>
+                                <span>⏱️ 预计：<strong style="color:var(--primary-color);">${duration}分钟</strong></span>
+                            </div>
+                            <div style="font-size:12px;color:#5a6d7e;padding:8px;background:rgba(0,0,0,0.2);border-radius:6px;">
+                                <div style="margin-bottom:4px;">🚔 <strong>终点：</strong>${station.name}</div>
+                                <div style="color:#8a9ba8;">📍 ${station.address}</div>
+                            </div>
+                        `;
+                    } else {
+                        routeInfo.innerHTML = '⚠️ 路线规划失败：' + (data.message || '未知错误');
+                    }
+                } catch (mapError) {
+                    console.error('地图 API 错误:', mapError);
+                    routeInfo.innerHTML = '⚠️ 地图加载失败';
                 }
             } catch (error) {
                 console.error('加载路线失败:', error);
-                routeCard.style.display = 'block';
                 routeInfo.innerHTML = '⚠️ 加载失败';
             }
         }
