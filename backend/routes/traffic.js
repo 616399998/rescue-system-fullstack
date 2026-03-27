@@ -316,9 +316,15 @@ router.post('/calculate-route', async (req, res) => {
     const axios = require('axios');
     const key = '67MBZ-EF6RT-THAX4-VEGBL-7AYMJ-LGBXX';
     
+    // 添加 Referer 头以通过域名白名单验证
+    const headers = {
+      'Referer': 'https://akesurescue.com',
+      'User-Agent': 'Mozilla/5.0'
+    };
+    
     // 腾讯地图路线规划 API
     const routeUrl = `https://apis.map.qq.com/ws/direction/v1/driving/?from=${from.lat},${from.lng}&to=${to.lat},${to.lng}&key=${key}`;
-    const response = await axios.get(routeUrl);
+    const response = await axios.get(routeUrl, { headers });
     const data = response.data;
     
     if (data.status === 0 && data.result && data.result.routes && data.result.routes.length > 0) {
@@ -331,11 +337,12 @@ router.post('/calculate-route', async (req, res) => {
         durationText: Math.round(route.duration / 60) + '分钟'
       });
     } else {
-      res.json({ success: false, error: '路线计算失败' });
+      console.error('腾讯地图 API 返回错误:', data);
+      res.json({ success: false, error: data.message || '路线计算失败' });
     }
   } catch (error) {
-    console.error('计算路线错误:', error.message);
-    res.status(500).json({ error: '计算路线失败' });
+    console.error('计算路线错误:', error.message, error.response?.data);
+    res.status(500).json({ error: '计算路线失败：' + error.message });
   }
 });
 
