@@ -12,6 +12,7 @@ const driverRoutes = require('./routes/drivers');
 const trafficRoutes = require('./routes/traffic');
 const enforcementRoutes = require('./routes/enforcement');
 const insuranceRoutes = require('./routes/insurance');
+const webhookRoutes = require('./routes/webhook');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -77,6 +78,7 @@ app.use('/api/drivers', driverRoutes);
 app.use('/api/traffic', trafficRoutes);
 app.use('/api/enforcement', enforcementRoutes);
 app.use('/api/insurance', insuranceRoutes);
+app.use('/api/webhook', webhookRoutes);
 
 // 健康检查
 app.get('/api/health', (req, res) => {
