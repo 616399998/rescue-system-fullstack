@@ -4,7 +4,36 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>拖车司机端 - 智慧救援</title>
-    <script type="text/javascript" src="https://map.qq.com/api/js?v=2.exp&key=67MBZ-EF6RT-THAX4-VEGBL-7AYMJ-LGBXX"></script>
+    <!-- 腾讯地图 API - 延迟加载，避免阻塞页面 -->
+    <script>
+        // 标记地图 API 加载状态
+        window.tencentMapLoaded = false;
+        window.tencentMapLoadPromise = null;
+        
+        function loadTencentMap() {
+            if (window.tencentMapLoaded) return Promise.resolve();
+            if (window.tencentMapLoadPromise) return window.tencentMapLoadPromise;
+            
+            window.tencentMapLoadPromise = new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.type = 'text/javascript';
+                script.src = 'https://map.qq.com/api/js?v=2.exp&key=67MBZ-EF6RT-THAX4-VEGBL-7AYMJ-LGBXX';
+                script.onload = () => {
+                    window.tencentMapLoaded = true;
+                    console.log('腾讯地图 API 加载成功');
+                    resolve();
+                };
+                script.onerror = (e) => {
+                    console.warn('腾讯地图 API 加载失败，但页面仍可正常使用', e);
+                    window.tencentMapLoaded = false;
+                    resolve(); // 即使失败也 resolve，不影响页面使用
+                };
+                document.head.appendChild(script);
+            });
+            
+            return window.tencentMapLoadPromise;
+        }
+    </script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
@@ -883,6 +912,16 @@
             const mapContainer = document.getElementById('routeMap');
             const routeInfo = document.getElementById('routeInfo');
             
+            // 先加载腾讯地图 API
+            await loadTencentMap();
+            
+            // 如果地图 API 加载失败，显示提示但允许继续使用
+            if (!window.tencentMapLoaded || typeof qq === 'undefined') {
+                mapContainer.innerHTML = '<div style="padding:20px;text-align:center;color:#8a9ba8;">🗺️ 地图加载失败，但您仍可正常使用接单功能<br/><small>请检查网络连接或稍后重试</small></div>';
+                document.getElementById('routeInfo').classList.add('hidden');
+                return;
+            }
+            
             // 清除旧地图
             if (routeMap) {
                 routeMap.destroy();
@@ -899,45 +938,49 @@
                 const fromLat = position.coords.latitude;
                 const fromLng = position.coords.longitude;
                 
-                // 这里需要从地址获取目的地的坐标，暂时使用模拟坐标
-                // 实际应该调用腾讯地图的地理编码 API
-                const toLat = 39.9042; // 北京
-                const toLng = 116.4074;
-                
-                // 创建地图
-                routeMap = new qq.maps.Map(mapContainer, {
-                    zoom: 12,
-                    center: new qq.maps.LatLng(fromLat, fromLng)
-                });
-                
-                // 添加司机位置标记
-                driverMarker = new qq.maps.Marker({
-                    position: new qq.maps.LatLng(fromLat, fromLng),
-                    map: routeMap,
-                    title: '我的位置'
-                });
-                
-                // 添加目的地标记（使用地址）
-                const geocoder = new qq.maps.Geocoder();
-                geocoder.getLocation(task.current_location, function(result) {
-                    if (result && result.detail && result.detail.length > 0) {
-                        const destPos = result.detail[0].latLng;
-                        destinationMarker = new qq.maps.Marker({
-                            position: destPos,
-                            map: routeMap,
-                            title: task.current_location
-                        });
-                        
-                        // 调整视野显示所有标记
-                        const bounds = new qq.maps.LatLngBounds();
-                        bounds.extend(driverMarker.getPosition());
-                        bounds.extend(destinationMarker.getPosition());
-                        routeMap.fitBounds(bounds);
-                        
-                        // 绘制路线
-                        drawRoute(fromLat, fromLng, destPos.getLat(), destPos.getLng());
-                    }
-                });
+                try {
+                    // 创建地图
+                    routeMap = new qq.maps.Map(mapContainer, {
+                        zoom: 12,
+                        center: new qq.maps.LatLng(fromLat, fromLng)
+                    });
+                    
+                    // 添加司机位置标记
+                    driverMarker = new qq.maps.Marker({
+                        position: new qq.maps.LatLng(fromLat, fromLng),
+                        map: routeMap,
+                        title: '我的位置'
+                    });
+                    
+                    // 添加目的地标记（使用地址）
+                    const geocoder = new qq.maps.Geocoder();
+                    geocoder.getLocation(task.current_location, function(result) {
+                        if (result && result.detail && result.detail.length > 0) {
+                            const destPos = result.detail[0].latLng;
+                            destinationMarker = new qq.maps.Marker({
+                                position: destPos,
+                                map: routeMap,
+                                title: task.current_location
+                            });
+                            
+                            // 调整视野显示所有标记
+                            const bounds = new qq.maps.LatLngBounds();
+                            bounds.extend(driverMarker.getPosition());
+                            bounds.extend(destinationMarker.getPosition());
+                            routeMap.fitBounds(bounds);
+                            
+                            // 绘制路线
+                            drawRoute(fromLat, fromLng, destPos.getLat(), destPos.getLng());
+                        } else {
+                            // 地理编码失败，只显示起点
+                            routeMap.setCenter(new qq.maps.LatLng(fromLat, fromLng));
+                            routeMap.setZoom(10);
+                        }
+                    });
+                } catch (error) {
+                    console.error('地图初始化失败:', error);
+                    mapContainer.innerHTML = '<div style="padding:20px;text-align:center;color:#8a9ba8;">🗺️ 地图初始化失败，但您仍可正常使用接单功能</div>';
+                }
             }, (error) => {
                 console.error('定位失败:', error);
                 mapContainer.innerHTML = '<div style="padding:20px;text-align:center;color:#8a9ba8;">❌ 定位失败，请检查权限设置</div>';
