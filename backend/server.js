@@ -42,6 +42,15 @@ initDatabase().then(() => {
     }
   });
   
+  // 更新现有司机的接单状态为开启
+  db.run(`UPDATE drivers SET accepting_orders = 1, accepting_orders_updated_at = CURRENT_TIMESTAMP WHERE accepting_orders IS NULL`, (err) => {
+    if (err) {
+      console.error('更新接单状态失败:', err);
+    } else {
+      console.log('✅ 已更新现有司机的接单状态');
+    }
+  });
+  
   db.close();
 }).catch(err => {
   console.error('❌ 数据库初始化失败:', err);

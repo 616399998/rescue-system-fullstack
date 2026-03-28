@@ -706,12 +706,18 @@
                 const res = await fetch(`${API_BASE}/drivers/profile/${currentDriver.id}`);
                 const data = await res.json();
                 
+                console.log('司机信息:', data.driver);
+                
                 const isAccepting = data.driver.accepting_orders === 1;
                 document.getElementById('acceptingToggle').checked = isAccepting;
                 document.getElementById('acceptingStatusText').textContent = isAccepting ? '✅ 接单中' : '❌ 已暂停接单';
                 document.getElementById('acceptingStatusText').style.color = isAccepting ? 'var(--success-color)' : '#8a9ba8';
             } catch (error) {
                 console.error('加载接单状态失败:', error);
+                // 失败时默认显示开启状态
+                document.getElementById('acceptingToggle').checked = true;
+                document.getElementById('acceptingStatusText').textContent = '✅ 接单中';
+                document.getElementById('acceptingStatusText').style.color = 'var(--success-color)';
             }
         }
 
@@ -781,9 +787,13 @@
                 const res = await fetch(`${API_BASE}/drivers/tasks?driver_id=${currentDriver.id}`);
                 const data = await res.json();
                 
+                console.log('任务列表:', data);
+                
                 const taskList = document.getElementById('taskList');
-                if (data.tasks.length === 0) {
+                if (!data.tasks || data.tasks.length === 0) {
                     taskList.innerHTML = '<div class="card" style="text-align:center;color:#5a6d7e;">暂无任务</div>';
+                    document.getElementById('todayOrders').textContent = '0';
+                    document.getElementById('todayIncome').textContent = '¥0';
                     return;
                 }
 
@@ -818,6 +828,7 @@
                 document.getElementById('todayIncome').textContent = '¥' + todayIncome;
             } catch (error) {
                 console.error('加载任务失败:', error);
+                document.getElementById('taskList').innerHTML = '<div class="card" style="text-align:center;color:#ff6b35;">加载失败，请刷新重试</div>';
             }
         }
 
@@ -931,12 +942,16 @@
             // 获取司机当前位置
             if (!navigator.geolocation) {
                 mapContainer.innerHTML = '<div style="padding:20px;text-align:center;color:#8a9ba8;">❌ 您的浏览器不支持定位</div>';
+                document.getElementById('routeInfo').classList.add('hidden');
                 return;
             }
             
             navigator.geolocation.getCurrentPosition(async (position) => {
                 const fromLat = position.coords.latitude;
                 const fromLng = position.coords.longitude;
+                
+                console.log('当前位置:', fromLat, fromLng);
+                console.log('任务位置:', task.current_location);
                 
                 try {
                     // 创建地图
@@ -955,6 +970,8 @@
                     // 添加目的地标记（使用地址）
                     const geocoder = new qq.maps.Geocoder();
                     geocoder.getLocation(task.current_location, function(result) {
+                        console.log('地理编码结果:', result);
+                        
                         if (result && result.detail && result.detail.length > 0) {
                             const destPos = result.detail[0].latLng;
                             destinationMarker = new qq.maps.Marker({
@@ -972,21 +989,25 @@
                             // 绘制路线
                             drawRoute(fromLat, fromLng, destPos.getLat(), destPos.getLng());
                         } else {
+                            console.warn('地理编码失败，只显示起点');
                             // 地理编码失败，只显示起点
                             routeMap.setCenter(new qq.maps.LatLng(fromLat, fromLng));
                             routeMap.setZoom(10);
+                            document.getElementById('routeInfo').classList.add('hidden');
                         }
                     });
                 } catch (error) {
                     console.error('地图初始化失败:', error);
                     mapContainer.innerHTML = '<div style="padding:20px;text-align:center;color:#8a9ba8;">🗺️ 地图初始化失败，但您仍可正常使用接单功能</div>';
+                    document.getElementById('routeInfo').classList.add('hidden');
                 }
             }, (error) => {
                 console.error('定位失败:', error);
                 mapContainer.innerHTML = '<div style="padding:20px;text-align:center;color:#8a9ba8;">❌ 定位失败，请检查权限设置</div>';
+                document.getElementById('routeInfo').classList.add('hidden');
             }, {
                 enableHighAccuracy: true,
-                timeout: 10000,
+                timeout: 15000,
                 maximumAge: 0
             });
         }
