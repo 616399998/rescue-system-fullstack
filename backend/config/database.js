@@ -127,6 +127,8 @@ function initDatabase() {
           latitude REAL,
           longitude REAL,
           last_location_update DATETIME,
+          accepting_orders INTEGER DEFAULT 1,
+          accepting_orders_updated_at DATETIME,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )`,
         // 车辆表（新增）

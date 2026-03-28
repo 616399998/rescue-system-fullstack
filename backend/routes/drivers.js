@@ -446,6 +446,54 @@ router.put('/profile/:id/location', async (req, res) => {
   }
 });
 
+// 切换接单状态（新增）
+router.put('/profile/:id/toggle-accepting', async (req, res) => {
+  try {
+    const { accepting_orders } = req.body; // true/false
+
+    await run('UPDATE drivers SET accepting_orders = ?, accepting_orders_updated_at = ? WHERE id = ?', 
+      [accepting_orders ? 1 : 0, new Date().toISOString(), req.params.id]);
+
+    const statusText = accepting_orders ? '已开启接单' : '已关闭接单';
+    res.json({ success: true, message: statusText, accepting_orders: accepting_orders });
+  } catch (error) {
+    console.error('切换接单状态错误:', error);
+    res.status(500).json({ error: '操作失败' });
+  }
+});
+
+// 获取路线规划（腾讯地图 API 代理）
+router.post('/route', async (req, res) => {
+  try {
+    const { from_lat, from_lng, to_lat, to_lng } = req.body;
+
+    if (!from_lat || !from_lng || !to_lat || !to_lng) {
+      return res.status(400).json({ error: '缺少起点或终点坐标' });
+    }
+
+    // 调用腾讯地图方向 API
+    const tencentKey = '67MBZ-EF6RT-THAX4-VEGBL-7AYMJ-LGBXX';
+    const url = `https://apis.map.qq.com/ws/direction/v1/driving/?from=${from_lat},${from_lng}&to=${to_lat},${to_lng}&key=${tencentKey}`;
+
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data.status === 0) {
+      res.json({
+        success: true,
+        route: data.result.routes[0],
+        distance: data.result.routes[0].distance,
+        duration: data.result.routes[0].duration
+      });
+    } else {
+      res.status(500).json({ error: data.message || '路线规划失败' });
+    }
+  } catch (error) {
+    console.error('路线规划错误:', error);
+    res.status(500).json({ error: '路线规划失败' });
+  }
+});
+
 // 上传照片（支持水印）
 router.post('/upload', upload.array('photos', 9), (req, res) => {
   try {

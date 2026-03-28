@@ -19,6 +19,30 @@ const PORT = process.env.PORT || 3000;
 // 初始化数据库（异步）
 initDatabase().then(() => {
   console.log('✅ 数据库初始化完成');
+  
+  // 运行迁移：添加接单状态字段
+  const sqlite3 = require('sqlite3').verbose();
+  const dbPath = path.join(__dirname, 'config/rescue.db');
+  const db = new sqlite3.Database(dbPath);
+  
+  // 检查字段是否存在，不存在则添加
+  db.run(`ALTER TABLE drivers ADD COLUMN accepting_orders INTEGER DEFAULT 1`, (err) => {
+    if (err && !err.message.includes('duplicate column')) {
+      console.error('添加接单状态字段失败:', err);
+    } else if (!err) {
+      console.log('✅ 已添加接单状态字段');
+    }
+  });
+  
+  db.run(`ALTER TABLE drivers ADD COLUMN accepting_orders_updated_at DATETIME`, (err) => {
+    if (err && !err.message.includes('duplicate column')) {
+      console.error('添加接单状态更新时间字段失败:', err);
+    } else if (!err) {
+      console.log('✅ 已添加接单状态更新时间字段');
+    }
+  });
+  
+  db.close();
 }).catch(err => {
   console.error('❌ 数据库初始化失败:', err);
 });

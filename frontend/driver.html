@@ -295,6 +295,80 @@
             50% { opacity: 0.5; }
         }
         .hidden { display: none; }
+        
+        /* 接单状态开关样式 */
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+            display: inline-block;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 100, 100, 0.3);
+            transition: 0.3s;
+            border-radius: 26px;
+            border: 1px solid rgba(255, 100, 100, 0.5);
+        }
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 2px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+        input:checked + .toggle-slider {
+            background-color: rgba(0, 255, 136, 0.3);
+            border-color: rgba(0, 255, 136, 0.5);
+        }
+        input:checked + .toggle-slider:before {
+            transform: translateX(22px);
+        }
+        
+        /* 地图容器 */
+        .map-container {
+            width: 100%;
+            height: 300px;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 15px;
+            border: 1px solid rgba(0, 240, 255, 0.2);
+        }
+        .route-info {
+            background: rgba(0, 240, 255, 0.1);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-around;
+        }
+        .route-stat {
+            text-align: center;
+        }
+        .route-stat-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+        .route-stat-label {
+            font-size: 11px;
+            color: #8a9ba8;
+            margin-top: 4px;
+        }
     </style>
 </head>
 <body>
@@ -364,6 +438,21 @@
                 <span style="font-size: 13px;">📍 位置实时更新中</span>
                 <div class="location-dot"></div>
             </div>
+            
+            <!-- 接单状态开关 -->
+            <div class="card" style="margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-size: 14px; font-weight: bold; color: var(--primary-color);">📡 接单状态</div>
+                        <div id="acceptingStatusText" style="font-size: 12px; color: #8a9ba8; margin-top: 4px;">加载中...</div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="acceptingToggle" onchange="toggleAcceptingOrders()" />
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+            
             <div class="card">
                 <div class="stats-grid">
                     <div class="stat-card">
@@ -384,6 +473,24 @@
             <div class="header">
                 <h1>任务详情</h1>
             </div>
+            
+            <!-- 地图路线显示 -->
+            <div class="card" style="margin-bottom: 15px;">
+                <div class="card-title">🗺️ 导航路线</div>
+                <div id="routeInfo" class="route-info hidden">
+                    <div class="route-stat">
+                        <div class="route-stat-value" id="routeDistance">-</div>
+                        <div class="route-stat-label">距离</div>
+                    </div>
+                    <div class="route-stat">
+                        <div class="route-stat-value" id="routeDuration">-</div>
+                        <div class="route-stat-label">预计时间</div>
+                    </div>
+                </div>
+                <div id="routeMap" class="map-container"></div>
+                <button class="btn btn-primary" onclick="startNavigation()" style="margin-top: 10px;">🧭 开始导航</button>
+            </div>
+            
             <div id="taskDetail"></div>
             <div class="card">
                 <div class="card-title">📋 任务时间线</div>
@@ -479,6 +586,10 @@
         let currentDriver = null;
         let currentTask = null;
         let locationTimer = null;
+        let routeMap = null;
+        let driverMarker = null;
+        let destinationMarker = null;
+        let routeLine = null;
 
         // 页面切换
         function switchPage(pageId) {
@@ -521,6 +632,7 @@
                     document.getElementById('bottomNav').classList.remove('hidden');
                     switchPage('taskListPage');
                     startLocationUpdate();
+                    loadAcceptingStatus();
                 } else {
                     alert(data.error || '登录失败');
                 }
@@ -555,6 +667,78 @@
             } catch (error) {
                 alert('注册失败，请重试');
             }
+        }
+
+        // 加载接单状态
+        async function loadAcceptingStatus() {
+            if (!currentDriver) return;
+            
+            try {
+                const res = await fetch(`${API_BASE}/drivers/profile/${currentDriver.id}`);
+                const data = await res.json();
+                
+                const isAccepting = data.driver.accepting_orders === 1;
+                document.getElementById('acceptingToggle').checked = isAccepting;
+                document.getElementById('acceptingStatusText').textContent = isAccepting ? '✅ 接单中' : '❌ 已暂停接单';
+                document.getElementById('acceptingStatusText').style.color = isAccepting ? 'var(--success-color)' : '#8a9ba8';
+            } catch (error) {
+                console.error('加载接单状态失败:', error);
+            }
+        }
+
+        // 切换接单状态
+        async function toggleAcceptingOrders() {
+            if (!currentDriver) return;
+            
+            const isAccepting = document.getElementById('acceptingToggle').checked;
+            
+            try {
+                const res = await fetch(`${API_BASE}/drivers/profile/${currentDriver.id}/toggle-accepting`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ accepting_orders: isAccepting })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    document.getElementById('acceptingStatusText').textContent = isAccepting ? '✅ 接单中' : '❌ 已暂停接单';
+                    document.getElementById('acceptingStatusText').style.color = isAccepting ? 'var(--success-color)' : '#8a9ba8';
+                    
+                    // 如果开启接单，提示司机
+                    if (isAccepting) {
+                        showToast('✅ 已开启接单，新订单将推送给您');
+                    } else {
+                        showToast('⏸️ 已关闭接单');
+                    }
+                } else {
+                    document.getElementById('acceptingToggle').checked = !isAccepting;
+                    alert(data.error || '操作失败');
+                }
+            } catch (error) {
+                document.getElementById('acceptingToggle').checked = !isAccepting;
+                alert('切换状态失败，请重试');
+            }
+        }
+
+        // 简单提示框
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(0, 0, 0, 0.9);
+                color: white;
+                padding: 12px 24px;
+                border-radius: 24px;
+                font-size: 14px;
+                z-index: 3000;
+                border: 1px solid var(--primary-color);
+            `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2000);
         }
 
         // 加载任务列表
@@ -664,13 +848,15 @@
                 } else if (task.status === 'processing' && task.progress === 10) {
                     actions = `
                         <div class="card">
-                            <button class="btn btn-primary" onclick="arriveSite(${task.id})">📍 到达现场</button>
+                            <button class="btn btn-primary" onclick="startNavigateToSite(${task.id})">🧭 导航去现场</button>
+                            <button class="btn btn-primary" onclick="arriveSite(${task.id})" style="margin-top: 10px;">📍 到达现场</button>
                         </div>
                     `;
                 } else if (task.status === 'processing' && task.progress === 50) {
                     actions = `
                         <div class="card">
-                            <button class="btn btn-primary" onclick="arriveDest(${task.id})">🎯 到达目的地</button>
+                            <button class="btn btn-primary" onclick="startNavigateToDest(${task.id})">🧭 导航去目的地</button>
+                            <button class="btn btn-primary" onclick="arriveDest(${task.id})" style="margin-top: 10px;">🎯 到达目的地</button>
                         </div>
                     `;
                 } else if (task.status === 'processing' && task.progress === 80) {
@@ -682,10 +868,161 @@
                 }
 
                 document.getElementById('taskActions').innerHTML = actions;
+                
+                // 加载地图路线
+                await loadRouteMap(task);
+                
                 switchPage('taskDetailPage');
             } catch (error) {
                 alert('加载任务详情失败');
             }
+        }
+
+        // 加载路线地图
+        async function loadRouteMap(task) {
+            const mapContainer = document.getElementById('routeMap');
+            const routeInfo = document.getElementById('routeInfo');
+            
+            // 清除旧地图
+            if (routeMap) {
+                routeMap.destroy();
+                routeMap = null;
+            }
+            
+            // 获取司机当前位置
+            if (!navigator.geolocation) {
+                mapContainer.innerHTML = '<div style="padding:20px;text-align:center;color:#8a9ba8;">❌ 您的浏览器不支持定位</div>';
+                return;
+            }
+            
+            navigator.geolocation.getCurrentPosition(async (position) => {
+                const fromLat = position.coords.latitude;
+                const fromLng = position.coords.longitude;
+                
+                // 这里需要从地址获取目的地的坐标，暂时使用模拟坐标
+                // 实际应该调用腾讯地图的地理编码 API
+                const toLat = 39.9042; // 北京
+                const toLng = 116.4074;
+                
+                // 创建地图
+                routeMap = new qq.maps.Map(mapContainer, {
+                    zoom: 12,
+                    center: new qq.maps.LatLng(fromLat, fromLng)
+                });
+                
+                // 添加司机位置标记
+                driverMarker = new qq.maps.Marker({
+                    position: new qq.maps.LatLng(fromLat, fromLng),
+                    map: routeMap,
+                    title: '我的位置'
+                });
+                
+                // 添加目的地标记（使用地址）
+                const geocoder = new qq.maps.Geocoder();
+                geocoder.getLocation(task.current_location, function(result) {
+                    if (result && result.detail && result.detail.length > 0) {
+                        const destPos = result.detail[0].latLng;
+                        destinationMarker = new qq.maps.Marker({
+                            position: destPos,
+                            map: routeMap,
+                            title: task.current_location
+                        });
+                        
+                        // 调整视野显示所有标记
+                        const bounds = new qq.maps.LatLngBounds();
+                        bounds.extend(driverMarker.getPosition());
+                        bounds.extend(destinationMarker.getPosition());
+                        routeMap.fitBounds(bounds);
+                        
+                        // 绘制路线
+                        drawRoute(fromLat, fromLng, destPos.getLat(), destPos.getLng());
+                    }
+                });
+            }, (error) => {
+                console.error('定位失败:', error);
+                mapContainer.innerHTML = '<div style="padding:20px;text-align:center;color:#8a9ba8;">❌ 定位失败，请检查权限设置</div>';
+            }, {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            });
+        }
+
+        // 绘制路线
+        async function drawRoute(fromLat, fromLng, toLat, toLng) {
+            try {
+                const res = await fetch(`${API_BASE}/drivers/route`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        from_lat: fromLat,
+                        from_lng: fromLng,
+                        to_lat: toLat,
+                        to_lng: toLng
+                    })
+                });
+                const data = await res.json();
+                
+                if (data.success && data.route) {
+                    // 显示路线信息
+                    document.getElementById('routeInfo').classList.remove('hidden');
+                    document.getElementById('routeDistance').textContent = (data.distance / 1000).toFixed(1) + 'km';
+                    document.getElementById('routeDuration').textContent = Math.round(data.duration / 60) + '分钟';
+                    
+                    // 解析路线坐标
+                    const path = [];
+                    if (data.route.steps) {
+                        data.route.steps.forEach(step => {
+                            if (step.polyline) {
+                                const points = step.polyline.split(';');
+                                points.forEach(point => {
+                                    const [lng, lat] = point.split(',');
+                                    path.push(new qq.maps.LatLng(parseFloat(lat), parseFloat(lng)));
+                                });
+                            }
+                        });
+                    }
+                    
+                    // 绘制路线
+                    if (path.length > 0) {
+                        routeLine = new qq.maps.Polyline({
+                            map: routeMap,
+                            path: path,
+                            strokeColor: '#00f0ff',
+                            strokeWeight: 5,
+                            strokeOpacity: 0.8
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('加载路线失败:', error);
+            }
+        }
+
+        // 开始导航
+        function startNavigation() {
+            if (!currentTask) return;
+            
+            // 打开腾讯地图 APP 或网页版导航
+            const dest = encodeURIComponent(currentTask.current_location);
+            const url = `https://apis.map.qq.com/uri/v1/routeplan?type=drive&to=${dest}`;
+            window.open(url, '_blank');
+        }
+
+        // 导航去现场
+        function startNavigateToSite(taskId) {
+            loadTaskDetail(taskId);
+            setTimeout(() => {
+                startNavigation();
+            }, 500);
+        }
+
+        // 导航去目的地
+        function startNavigateToDest(taskId) {
+            loadTaskDetail(taskId);
+            setTimeout(() => {
+                startNavigation();
+            }, 500);
         }
 
         // 确认/拒绝任务
@@ -873,6 +1210,7 @@
                 document.getElementById('bottomNav').classList.remove('hidden');
                 switchPage('taskListPage');
                 startLocationUpdate();
+                loadAcceptingStatus();
             }
         };
     </script>
