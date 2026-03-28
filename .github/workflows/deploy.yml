@@ -1,0 +1,27 @@
+name: Auto Deploy
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Deploy to server
+      uses: appleboy/ssh-action@master
+      with:
+        host: 47.108.173.131
+        username: root
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          cd /home/admin/.openclaw/workspace/rescue-system-fullstack
+          git pull origin main
+          pkill -9 -f "node.*server.js" || true
+          sleep 2
+          cd backend
+          nohup node server.js > /tmp/rescue.log 2>&1 &
+          sleep 3
+          curl -s http://localhost:3000/api/health
