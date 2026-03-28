@@ -641,7 +641,7 @@
             const password = document.getElementById('loginPassword').value;
             
             if (!phone || !password) {
-                alert('请输入手机号和密码');
+                showToast('❌ 请输入手机号和密码');
                 return;
             }
 
@@ -662,11 +662,12 @@
                     switchPage('taskListPage');
                     startLocationUpdate();
                     loadAcceptingStatus();
+                    showToast('✅ 登录成功');
                 } else {
-                    alert(data.error || '登录失败');
+                    showToast('❌ ' + (data.error || '登录失败'));
                 }
             } catch (error) {
-                alert('登录失败，请重试');
+                showToast('❌ 登录失败，请重试');
             }
         }
 
@@ -679,7 +680,7 @@
             const qualification_no = document.getElementById('regQualification').value;
             
             if (!name || !phone || !password) {
-                alert('请填写必填信息');
+                showToast('❌ 请填写必填信息');
                 return;
             }
 
@@ -691,10 +692,10 @@
                 });
                 const data = await res.json();
                 
-                alert(data.message || '注册成功');
+                showToast(data.success ? '✅ ' + (data.message || '注册成功') : '❌ ' + (data.message || '注册失败'));
                 if (data.success) showLogin();
             } catch (error) {
-                alert('注册失败，请重试');
+                showToast('❌ 注册失败，请重试');
             }
         }
 
@@ -728,12 +729,16 @@
             const isAccepting = document.getElementById('acceptingToggle').checked;
             
             try {
+                console.log('切换接单状态:', isAccepting);
+                
                 const res = await fetch(`${API_BASE}/drivers/profile/${currentDriver.id}/toggle-accepting`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ accepting_orders: isAccepting })
                 });
                 const data = await res.json();
+                
+                console.log('接单状态响应:', data);
                 
                 if (data.success) {
                     document.getElementById('acceptingStatusText').textContent = isAccepting ? '✅ 接单中' : '❌ 已暂停接单';
@@ -746,12 +751,14 @@
                         showToast('⏸️ 已关闭接单');
                     }
                 } else {
+                    console.error('切换失败:', data.error);
                     document.getElementById('acceptingToggle').checked = !isAccepting;
-                    alert(data.error || '操作失败');
+                    showToast('❌ ' + (data.error || '操作失败'));
                 }
             } catch (error) {
+                console.error('切换状态异常:', error);
                 document.getElementById('acceptingToggle').checked = !isAccepting;
-                alert('切换状态失败，请重试');
+                showToast('❌ 切换状态失败，请重试');
             }
         }
 
@@ -770,10 +777,11 @@
                 font-size: 14px;
                 z-index: 3000;
                 border: 1px solid var(--primary-color);
+                box-shadow: 0 4px 12px rgba(0, 240, 255, 0.3);
             `;
             toast.textContent = message;
             document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 2000);
+            setTimeout(() => toast.remove(), 3000);
         }
 
         // 加载任务列表
@@ -1099,10 +1107,13 @@
                 });
                 const data = await res.json();
                 
-                alert(data.message);
-                if (data.success) loadTaskDetail(taskId);
+                showToast(accepted ? '✅ ' + data.message : '❌ ' + data.message);
+                if (data.success) {
+                    loadTaskDetail(taskId);
+                    loadTasks();
+                }
             } catch (error) {
-                alert('操作失败');
+                showToast('❌ 操作失败');
             }
         }
 
@@ -1133,10 +1144,10 @@
                     body: JSON.stringify({})
                 });
                 const data = await res.json();
-                alert(data.message);
+                showToast('✅ ' + data.message);
                 loadTaskDetail(taskId);
             } catch (error) {
-                alert('操作失败');
+                showToast('❌ 操作失败');
             }
         }
 
@@ -1152,10 +1163,10 @@
                     body: JSON.stringify({ sign_user: signUser })
                 });
                 const data = await res.json();
-                alert(data.message);
+                showToast('✅ ' + data.message);
                 loadTaskDetail(taskId);
             } catch (error) {
-                alert('操作失败');
+                showToast('❌ 操作失败');
             }
         }
 
@@ -1179,10 +1190,10 @@
                     body: JSON.stringify({ towFee, mileageFee, extraFee, totalFee })
                 });
                 const data = await res.json();
-                alert(data.message);
+                showToast('✅ ' + data.message);
                 loadTasks();
             } catch (error) {
-                alert('操作失败');
+                showToast('❌ 操作失败');
             }
         }
 
