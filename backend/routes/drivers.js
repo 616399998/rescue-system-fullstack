@@ -286,14 +286,16 @@ router.put('/tasks/:id/start', async (req, res) => {
 router.put('/tasks/:id/arrive-site', async (req, res) => {
   try {
     const orderId = req.params.id;
-    const { photos } = req.body;
+    const { photos, site_note } = req.body;
 
     const order = await get('SELECT * FROM orders WHERE id = ?', [orderId]);
     if (!order) {
       return res.status(404).json({ error: '任务不存在' });
     }
 
-    await run('UPDATE orders SET progress = ?, arrived_at_site = ? WHERE id = ?', [50, new Date().toISOString(), orderId]);
+    // 更新进度为 50（到达现场）
+    await run('UPDATE orders SET progress = ?, arrived_at_site = ?, site_photos = ?, site_note = ? WHERE id = ?', 
+      [50, new Date().toISOString(), JSON.stringify(photos || []), site_note || '', orderId]);
 
     let photoDesc = '';
     if (photos && photos.length > 0) {
@@ -305,9 +307,69 @@ router.put('/tasks/:id/arrive-site', async (req, res) => {
       [orderId, 'processing', `司机已到达现场${photoDesc}`]
     );
 
-    res.json({ success: true, message: '已到达现场' });
+    res.json({ success: true, message: '已到达现场，请开始作业' });
   } catch (error) {
     console.error('到达现场错误:', error);
+    res.status(500).json({ error: '操作失败' });
+  }
+});
+
+// 开始作业（新增）
+router.put('/tasks/:id/start-work', async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const { work_type, work_note } = req.body;
+
+    const order = await get('SELECT * FROM orders WHERE id = ?', [orderId]);
+    if (!order) {
+      return res.status(404).json({ error: '任务不存在' });
+    }
+
+    // 更新进度为 60（作业中）
+    await run('UPDATE orders SET progress = ?, work_type = ?, work_note = ? WHERE id = ?', 
+      [60, work_type || 'tow', work_note || '', orderId]);
+
+    const workTypeText = {
+      'tow': '拖车作业',
+      'repair': '现场维修',
+      'fuel': '紧急送油',
+      'battery': '电瓶搭电'
+    }[work_type] || '作业';
+
+    await run(
+      'INSERT INTO order_timeline (order_id, status, description) VALUES (?, ?, ?)',
+      [orderId, 'processing', `司机已开始${workTypeText}`]
+    );
+
+    res.json({ success: true, message: '已开始作业' });
+  } catch (error) {
+    console.error('开始作业错误:', error);
+    res.status(500).json({ error: '操作失败' });
+  }
+});
+
+// 完成作业（新增）
+router.put('/tasks/:id/finish-work', async (req, res) => {
+  try {
+    const orderId = req.params.id;
+
+    const order = await get('SELECT * FROM orders WHERE id = ?', [orderId]);
+    if (!order) {
+      return res.status(404).json({ error: '任务不存在' });
+    }
+
+    // 更新进度为 70（作业完成）
+    await run('UPDATE orders SET progress = ?, work_finished_at = ? WHERE id = ?', 
+      [70, new Date().toISOString(), orderId]);
+
+    await run(
+      'INSERT INTO order_timeline (order_id, status, description) VALUES (?, ?, ?)',
+      [orderId, 'processing', '作业完成，准备前往目的地']
+    );
+
+    res.json({ success: true, message: '作业已完成' });
+  } catch (error) {
+    console.error('完成作业错误:', error);
     res.status(500).json({ error: '操作失败' });
   }
 });

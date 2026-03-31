@@ -567,6 +567,46 @@
             </div>
         </div>
 
+        <!-- 到达现场上传照片弹窗 -->
+        <div id="arriveSiteModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-title">📍 到达现场</div>
+                <div class="form-group">
+                    <label>上传现场照片</label>
+                    <input type="file" id="sitePhotos" accept="image/*" multiple capture="camera" />
+                    <small style="color:#8a9ba8;font-size:11px;">可拍摄车辆、现场环境等照片</small>
+                </div>
+                <div class="form-group">
+                    <label>现场备注</label>
+                    <textarea id="siteNote" placeholder="请输入现场情况说明（可选）"></textarea>
+                </div>
+                <button class="btn btn-success" onclick="submitArriveSite()">✅ 确认到达</button>
+                <button class="btn btn-warning" onclick="closeArriveSiteModal()" style="margin-top: 10px;">取消</button>
+            </div>
+        </div>
+
+        <!-- 开始作业弹窗 -->
+        <div id="startWorkModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-title">🔧 开始作业</div>
+                <div class="form-group">
+                    <label>作业类型</label>
+                    <select id="workType">
+                        <option value="tow">拖车作业</option>
+                        <option value="repair">现场维修</option>
+                        <option value="fuel">紧急送油</option>
+                        <option value="battery">电瓶搭电</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>作业说明</label>
+                    <textarea id="workNote" placeholder="请描述作业内容"></textarea>
+                </div>
+                <button class="btn btn-success" onclick="submitStartWork()">✅ 开始作业</button>
+                <button class="btn btn-warning" onclick="closeStartWorkModal()" style="margin-top: 10px;">取消</button>
+            </div>
+        </div>
+
         <!-- 费用上报弹窗 -->
         <div id="expenseModal" class="modal">
             <div class="modal-content">
@@ -867,7 +907,7 @@
                     </div>
                 `).join('');
 
-                // 操作按钮 - 简化流程
+                // 操作按钮 - 完整拖车流程
                 let actions = '';
                 
                 if (task.status === 'pending') {
@@ -885,7 +925,6 @@
                         <div class="card">
                             <div class="card-title">📋 任务操作</div>
                             <button class="btn btn-primary" onclick="startTask(${task.id})">🚗 开始出发</button>
-                            <button class="btn btn-danger" onclick="showRejectModal(${task.id})" style="margin-top: 10px;">❌ 拒绝任务</button>
                         </div>
                     `;
                 } else if (task.status === 'processing' && task.progress === 10) {
@@ -894,11 +933,28 @@
                         <div class="card">
                             <div class="card-title">📋 任务操作</div>
                             <button class="btn btn-primary" onclick="startNavigateToSite(${task.id})">🧭 导航去现场</button>
-                            <button class="btn btn-success" onclick="arriveSite(${task.id})" style="margin-top: 10px;">📍 到达现场</button>
+                            <button class="btn btn-success" onclick="showArriveSiteModal(${task.id})" style="margin-top: 10px;">📍 到达现场</button>
                         </div>
                     `;
                 } else if (task.status === 'processing' && task.progress === 50) {
-                    // 已到达现场，前往目的地
+                    // 已到达现场，开始作业
+                    actions = `
+                        <div class="card">
+                            <div class="card-title">📋 任务操作</div>
+                            <button class="btn btn-success" onclick="showStartWorkModal(${task.id})">🔧 开始作业</button>
+                        </div>
+                    `;
+                } else if (task.status === 'processing' && task.progress === 60) {
+                    // 作业中，完成作业
+                    actions = `
+                        <div class="card">
+                            <div class="card-title">📋 任务操作</div>
+                            <button class="btn btn-primary" onclick="startNavigateToDest(${task.id})">🧭 导航去目的地</button>
+                            <button class="btn btn-success" onclick="finishWork(${task.id})" style="margin-top: 10px;">✅ 作业完成</button>
+                        </div>
+                    `;
+                } else if (task.status === 'processing' && task.progress === 70) {
+                    // 作业完成，前往目的地
                     actions = `
                         <div class="card">
                             <div class="card-title">📋 任务操作</div>
@@ -906,7 +962,7 @@
                             <button class="btn btn-success" onclick="arriveDest(${task.id})" style="margin-top: 10px;">🎯 到达目的地</button>
                         </div>
                     `;
-                } else if (task.status === 'processing' && task.progress === 80) {
+                } else if (task.status === 'processing' && task.progress >= 80) {
                     // 已到达目的地，完成任务
                     actions = `
                         <div class="card">
@@ -1256,6 +1312,113 @@
             await confirmTask(currentTaskId, false);
             closeRejectModal();
             loadTasks();
+        }
+
+        // 显示到达现场弹窗
+        function showArriveSiteModal(taskId) {
+            currentTaskId = taskId;
+            document.getElementById('arriveSiteModal').classList.add('active');
+        }
+
+        function closeArriveSiteModal() {
+            document.getElementById('arriveSiteModal').classList.remove('active');
+            document.getElementById('sitePhotos').value = '';
+            document.getElementById('siteNote').value = '';
+        }
+
+        async function submitArriveSite() {
+            const photosInput = document.getElementById('sitePhotos');
+            const note = document.getElementById('siteNote').value;
+            
+            // 上传照片
+            let photos = [];
+            if (photosInput.files && photosInput.files.length > 0) {
+                const formData = new FormData();
+                for (let i = 0; i < photosInput.files.length; i++) {
+                    formData.append('photos', photosInput.files[i]);
+                }
+                
+                try {
+                    const uploadRes = await fetch(`${API_BASE}/drivers/upload`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const uploadData = await uploadRes.json();
+                    if (uploadData.success) {
+                        photos = uploadData.urls;
+                    }
+                } catch (error) {
+                    console.error('上传照片失败:', error);
+                }
+            }
+            
+            // 提交到达现场
+            try {
+                const res = await fetch(`${API_BASE}/drivers/tasks/${currentTaskId}/arrive-site`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ photos, site_note: note })
+                });
+                const data = await res.json();
+                
+                showToast('✅ ' + data.message);
+                closeArriveSiteModal();
+                loadTaskDetail(currentTaskId);
+                loadTasks();
+            } catch (error) {
+                showToast('❌ 操作失败');
+            }
+        }
+
+        // 显示开始作业弹窗
+        function showStartWorkModal(taskId) {
+            currentTaskId = taskId;
+            document.getElementById('startWorkModal').classList.add('active');
+        }
+
+        function closeStartWorkModal() {
+            document.getElementById('startWorkModal').classList.remove('active');
+            document.getElementById('workType').value = 'tow';
+            document.getElementById('workNote').value = '';
+        }
+
+        async function submitStartWork() {
+            const workType = document.getElementById('workType').value;
+            const workNote = document.getElementById('workNote').value;
+            
+            try {
+                const res = await fetch(`${API_BASE}/drivers/tasks/${currentTaskId}/start-work`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ work_type: workType, work_note: workNote })
+                });
+                const data = await res.json();
+                
+                showToast('✅ ' + data.message);
+                closeStartWorkModal();
+                loadTaskDetail(currentTaskId);
+                loadTasks();
+            } catch (error) {
+                showToast('❌ 操作失败');
+            }
+        }
+
+        // 完成作业
+        async function finishWork(taskId) {
+            try {
+                const res = await fetch(`${API_BASE}/drivers/tasks/${taskId}/finish-work`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                const data = await res.json();
+                
+                showToast('✅ ' + data.message);
+                loadTaskDetail(taskId);
+                loadTasks();
+            } catch (error) {
+                showToast('❌ 操作失败');
+            }
         }
 
         // 到达现场
