@@ -240,7 +240,10 @@ router.put('/tasks/:id/confirm', async (req, res) => {
 
       res.json({ success: true, message: '已拒绝任务' });
     } else {
-      // 确认任务
+      // 确认任务 - 更新订单状态和进度
+      await run('UPDATE orders SET status = ?, progress = ? WHERE id = ?', 
+        ['processing', 0, orderId]);
+      
       await run(
         'INSERT INTO order_timeline (order_id, status, description) VALUES (?, ?, ?)',
         [orderId, 'processing', '司机已确认任务，准备出发']
