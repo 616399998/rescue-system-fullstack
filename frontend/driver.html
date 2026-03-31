@@ -942,68 +942,32 @@
                 routeLine = null;
             }
             
-            // 确定起点和终点坐标
-            let startLat, startLng, endLat, endLng;
+            // 确定救援地点坐标（终点）
+            let rescueLat, rescueLng;
             
-            // 起点：优先使用订单的 current_coord（救援地点），其次使用司机位置
             if (task.current_coord) {
                 const coords = task.current_coord.split(',');
-                startLat = parseFloat(coords[0]);
-                startLng = parseFloat(coords[1]);
-                console.log('使用订单起点坐标:', startLat, startLng);
-            } else if (navigator.geolocation) {
-                try {
-                    const position = await new Promise((resolve, reject) => {
-                        navigator.geolocation.getCurrentPosition(resolve, reject, {
-                            enableHighAccuracy: false,
-                            timeout: 8000,
-                            maximumAge: 300000
-                        });
-                    });
-                    startLat = position.coords.latitude;
-                    startLng = position.coords.longitude;
-                    console.log('使用 GPS 起点坐标:', startLat, startLng);
-                } catch (e) {
-                    console.error('定位失败:', e);
-                    startLat = 39.9042;
-                    startLng = 116.4074;
-                }
+                rescueLat = parseFloat(coords[0]);
+                rescueLng = parseFloat(coords[1]);
+                console.log('使用订单救援地点坐标:', rescueLat, rescueLng);
             } else {
-                startLat = 39.9042;
-                startLng = 116.4074;
+                // 没有坐标，用地理编码
+                console.log('使用地理编码获取救援地点坐标');
+                const geocoded = await geocodeAddress(task.current_location);
+                rescueLat = geocoded.lat;
+                rescueLng = geocoded.lng;
             }
             
-            // 终点：优先使用 destination_coord，其次使用 current_coord
-            if (task.destination_coord) {
-                const coords = task.destination_coord.split(',');
-                endLat = parseFloat(coords[0]);
-                endLng = parseFloat(coords[1]);
-                console.log('使用订单终点坐标:', endLat, endLng);
-            } else if (task.current_coord) {
-                // 如果没有 destination_coord，用 current_coord 作为终点
-                const coords = task.current_coord.split(',');
-                endLat = parseFloat(coords[0]);
-                endLng = parseFloat(coords[1]);
-                console.log('使用订单起点坐标作为终点:', endLat, endLng);
-            } else {
-                // 都没有，用地理编码
-                console.log('使用地理编码获取终点坐标');
-                await geocodeAddress(task.current_location, function(geoLat, geoLng) {
-                    endLat = geoLat;
-                    endLng = geoLng;
-                });
-            }
-            
-            // 初始化地图
-            await initMap(startLat, startLng, endLat, endLng, task);
+            // 初始化地图（只显示救援地点，不依赖司机定位）
+            await initMap(rescueLat, rescueLng, task);
         }
         
-        // 地理编码辅助函数
-        async function geocodeAddress(address, callback) {
+        // 地理编码辅助函数（返回 Promise）
+        async function geocodeAddress(address) {
             return new Promise((resolve) => {
                 if (typeof qq === 'undefined' || typeof qq.maps.Geocoder === 'undefined') {
-                    console.warn('地理编码不可用');
-                    resolve(callback(39.9042, 116.4074));
+                    console.warn('地理编码不可用，返回默认坐标');
+                    resolve({ lat: 39.9042, lng: 116.4074 });
                     return;
                 }
                 
@@ -1013,55 +977,44 @@
                     if (result && result.detail && result.detail.length > 0) {
                         const lat = result.detail[0].latLng.getLat();
                         const lng = result.detail[0].latLng.getLng();
-                        resolve(callback(lat, lng));
+                        resolve({ lat, lng });
                     } else {
-                        resolve(callback(39.9042, 116.4074));
+                        console.warn('地理编码无结果，返回默认坐标');
+                        resolve({ lat: 39.9042, lng: 116.4074 });
                     }
                 });
             });
         }
         
-        // 初始化地图
-        async function initMap(startLat, startLng, endLat, endLng, task) {
+        // 初始化地图（只显示救援地点）
+        async function initMap(rescueLat, rescueLng, task) {
             const mapContainer = document.getElementById('routeMap');
             const routeInfo = document.getElementById('routeInfo');
             
             try {
-                console.log('创建地图，起点:', startLat, startLng, '终点:', endLat, endLng);
+                console.log('创建地图，救援地点:', rescueLat, rescueLng);
                 
-                // 创建地图
+                // 创建地图，中心点为救援地点
                 routeMap = new qq.maps.Map(mapContainer, {
-                    zoom: 14,
-                    center: new qq.maps.LatLng(startLat, startLng)
+                    zoom: 15,
+                    center: new qq.maps.LatLng(rescueLat, rescueLng)
                 });
                 
-                // 添加起点标记（司机位置）
-                driverMarker = new qq.maps.Marker({
-                    position: new qq.maps.LatLng(startLat, startLng),
-                    map: routeMap,
-                    title: '起点'
-                });
-                
-                // 添加终点标记（救援地点）
+                // 添加救援地点标记
                 destinationMarker = new qq.maps.Marker({
-                    position: new qq.maps.LatLng(endLat, endLng),
+                    position: new qq.maps.LatLng(rescueLat, rescueLng),
                     map: routeMap,
                     title: task.current_location
                 });
                 
-                // 调整视野显示所有标记
-                const bounds = new qq.maps.LatLngBounds();
-                bounds.extend(driverMarker.getPosition());
-                bounds.extend(destinationMarker.getPosition());
-                routeMap.fitBounds(bounds);
+                // 隐藏路线信息（因为没有司机位置，无法计算路线）
+                routeInfo.classList.add('hidden');
                 
-                // 绘制路线
-                await drawRoute(startLat, startLng, endLat, endLng);
+                console.log('✅ 地图初始化成功');
                 
             } catch (error) {
                 console.error('地图初始化失败:', error);
                 renderMapFallback(task);
-                if (routeInfo) routeInfo.classList.add('hidden');
             }
         }
         
@@ -1108,141 +1061,8 @@
             // window.open(`https://www.amap.com/search?query=${encodedFrom}`, '_blank');
         }
         
-        // 绘制路线
-        async function drawRoute(fromLat, fromLng, toLat, toLng) {
-            const routeInfo = document.getElementById('routeInfo');
-            
-            try {
-                console.log('请求路线规划:', fromLat, fromLng, '→', toLat, toLng);
-                
-                const res = await fetch(`${API_BASE}/drivers/route`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        from_lat: fromLat,
-                        from_lng: fromLng,
-                        to_lat: toLat,
-                        to_lng: toLng
-                    })
-                });
-                const data = await res.json();
-                
-                console.log('路线规划响应:', data);
-                
-                if (data.success && data.route && data.distance > 0) {
-                    // 显示路线信息
-                    routeInfo.classList.remove('hidden');
-                    document.getElementById('routeDistance').textContent = (data.distance / 1000).toFixed(1) + 'km';
-                    document.getElementById('routeDuration').textContent = Math.round(data.duration / 60) + '分钟';
-                    
-                    // 解析路线坐标并绘制
-                    const path = [];
-                    
-                    // 腾讯地图方向 API 返回的路线格式
-                    if (data.route.steps && Array.isArray(data.route.steps)) {
-                        data.route.steps.forEach(step => {
-                            if (step.polyline) {
-                                try {
-                                    const points = step.polyline.split(';');
-                                    points.forEach(point => {
-                                        const parts = point.split(',');
-                                        if (parts.length === 2) {
-                                            const lng = parseFloat(parts[0]);
-                                            const lat = parseFloat(parts[1]);
-                                            if (!isNaN(lat) && !isNaN(lng)) {
-                                                path.push(new qq.maps.LatLng(lat, lng));
-                                            }
-                                        }
-                                    });
-                                } catch (e) {
-                                    console.warn('解析路线点失败:', e);
-                                }
-                            }
-                        });
-                    }
-                    
-                    console.log('路线点数:', path.length);
-                    
-                    // 绘制路线
-                    if (path.length >= 2) {
-                        routeLine = new qq.maps.Polyline({
-                            map: routeMap,
-                            path: path,
-                            strokeColor: '#00f0ff',
-                            strokeWeight: 5,
-                            strokeOpacity: 0.8
-                        });
-                        console.log('✅ 路线绘制成功');
-                    } else {
-                        console.warn('路线点不足，使用直线连接');
-                        // 如果路线点不足，用直线连接起点和终点
-                        routeLine = new qq.maps.Polyline({
-                            map: routeMap,
-                            path: [
-                                new qq.maps.LatLng(fromLat, fromLng),
-                                new qq.maps.LatLng(toLat, toLng)
-                            ],
-                            strokeColor: '#00f0ff',
-                            strokeWeight: 5,
-                            strokeOpacity: 0.8
-                        });
-                    }
-                } else {
-                    console.warn('路线规划无数据，使用直线连接');
-                    // 没有路线数据，用直线连接
-                    routeLine = new qq.maps.Polyline({
-                        map: routeMap,
-                        path: [
-                            new qq.maps.LatLng(fromLat, fromLng),
-                            new qq.maps.LatLng(toLat, toLng)
-                        ],
-                        strokeColor: '#00f0ff',
-                        strokeWeight: 5,
-                        strokeOpacity: 0.8
-                    });
-                    
-                    // 估算距离和时间
-                    const distance = calculateDistance(fromLat, fromLng, toLat, toLng);
-                    routeInfo.classList.remove('hidden');
-                    document.getElementById('routeDistance').textContent = (distance / 1000).toFixed(1) + 'km';
-                    document.getElementById('routeDuration').textContent = Math.round(distance / 500) + '分钟';
-                }
-            } catch (error) {
-                console.error('加载路线失败:', error);
-                // 失败时用直线连接
-                try {
-                    const distance = calculateDistance(fromLat, fromLng, toLat, toLng);
-                    routeInfo.classList.remove('hidden');
-                    document.getElementById('routeDistance').textContent = (distance / 1000).toFixed(1) + 'km';
-                    document.getElementById('routeDuration').textContent = Math.round(distance / 500) + '分钟';
-                    
-                    routeLine = new qq.maps.Polyline({
-                        map: routeMap,
-                        path: [
-                            new qq.maps.LatLng(fromLat, fromLng),
-                            new qq.maps.LatLng(toLat, toLng)
-                        ],
-                        strokeColor: '#00f0ff',
-                        strokeWeight: 5,
-                        strokeOpacity: 0.8
-                    });
-                } catch (e) {
-                    console.error('绘制直线也失败:', e);
-                }
-            }
-        }
-        
-        // 计算两点间直线距离（Haversine 公式）
-        function calculateDistance(lat1, lng1, lat2, lng2) {
-            const R = 6371000; // 地球半径（米）
-            const dLat = (lat2 - lat1) * Math.PI / 180;
-            const dLng = (lng2 - lng1) * Math.PI / 180;
-            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                      Math.sin(dLng / 2) * Math.sin(dLng / 2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            return R * c;
-        }
+        // 注：路线规划功能已移除，因为无法获取司机实时位置
+        // 地图仅显示救援地点，点击"开始导航"按钮可唤起外部导航 APP
 
         // 开始导航
         function startNavigation() {
