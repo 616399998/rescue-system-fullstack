@@ -5,6 +5,25 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
+// 腾讯地图 Key
+const TENCENT_MAP_KEY = '67MBZ-EF6RT-THAX4-VEGBL-7AYMJ-LGBXX';
+
+// 地理编码辅助函数
+async function geocodeAddress(address) {
+  try {
+    const url = `https://apis.map.qq.com/ws/geocoder/v1/?address=${encodeURIComponent(address)}&key=${TENCENT_MAP_KEY}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    
+    if (data.status === 0 && data.result && data.result.location) {
+      return { lat: data.result.location.lat, lng: data.result.location.lng };
+    }
+  } catch (error) {
+    console.error('地理编码失败:', error);
+  }
+  return { lat: 39.9042, lng: 116.4074 };
+}
+
 // 交管端管理员账号
 const TRAFFIC_USERS = [
   { username: 'traffic001', password: '123456', name: '交管局 - 张警官', department: '交通管理局' },
@@ -90,24 +109,31 @@ router.post('/tow-request', async (req, res) => {
 
     const orderNo = 'JT' + new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14) + Math.random().toString(36).slice(2, 4).toUpperCase();
 
+    // 自动地理编码获取坐标
+    let currentCoord = found_address || '';
+    if (!currentCoord) {
+      const coord = await geocodeAddress(found_location);
+      currentCoord = `${coord.lat},${coord.lng}`;
+    }
+
     const result = await run(`
       INSERT INTO orders (
         order_no, user_id, service_type, channel,
         vehicle_plate, owner_name, owner_phone,
         violation_type, found_time, found_location, found_address,
         problem_description, special_note, photos,
-        current_location, status, price
+        current_location, current_coord, status, price
       ) VALUES (?, ?, 'violation', 'traffic',
         ?, ?, ?,
         ?, ?, ?, ?,
         ?, ?, ?,
-        ?, 'pending', 200)
+        ?, ?, 'pending', 200)
     `, [
       orderNo, 1,
       vehicle_plate, owner_name, owner_phone,
       violation_type || '', found_time || new Date().toISOString(), found_location, found_address || '',
       description || '', special_note || '', JSON.stringify(photos),
-      found_location
+      found_location, currentCoord
     ]);
 
     await run(

@@ -43,6 +43,29 @@ const ADMIN_USER = {
 
 // ==================== 公共接口 ====================
 
+// 腾讯地图 Key
+const TENCENT_MAP_KEY = '67MBZ-EF6RT-THAX4-VEGBL-7AYMJ-LGBXX';
+
+// 地理编码辅助函数
+async function geocodeAddress(address) {
+  try {
+    const url = `https://apis.map.qq.com/ws/geocoder/v1/?address=${encodeURIComponent(address)}&key=${TENCENT_MAP_KEY}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    
+    if (data.status === 0 && data.result && data.result.location) {
+      return {
+        lat: data.result.location.lat,
+        lng: data.result.location.lng
+      };
+    }
+  } catch (error) {
+    console.error('地理编码失败:', error);
+  }
+  // 返回北京默认坐标
+  return { lat: 39.9042, lng: 116.4074 };
+}
+
 // 创建订单（个人端、交管端、执法端、保险端）
 router.post('/', async (req, res) => {
   try {
@@ -74,21 +97,37 @@ router.post('/', async (req, res) => {
     const prices = { 'tow': 200, 'accident': 200, 'violation': 200, 'breakdown': 200 };
     const price = prices[service_type] || 200;
 
+    // 如果前端没有传坐标，后端自动地理编码
+    let finalCurrentCoord = current_coord || '';
+    let finalDestCoord = destination_coord || '';
+    
+    if (!finalCurrentCoord && current_location) {
+      console.log('自动地理编码获取起点坐标:', current_location);
+      const coord = await geocodeAddress(current_location);
+      finalCurrentCoord = `${coord.lat},${coord.lng}`;
+    }
+    
+    if (!finalDestCoord && destination) {
+      console.log('自动地理编码获取终点坐标:', destination);
+      const coord = await geocodeAddress(destination);
+      finalDestCoord = `${coord.lat},${coord.lng}`;
+    }
+
     const result = await run(`
       INSERT INTO orders (
         order_no, user_id, service_type, vehicle_type, vehicle_plate,
         vehicle_brand, vehicle_color, current_location, destination,
-        address, destination_coord, problem_description, status, price,
+        address, current_coord, destination_coord, problem_description, status, price,
         owner_name, owner_phone, movable, special_note, photos,
         driver_id, driver_name, driver_phone, driver_rating,
         rescue_vehicle_plate, rescue_vehicle_model, progress
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
     `, [
       orderNo, 1, service_type,
       vehicle_type || 'sedan', vehicle_plate || '',
       vehicle_brand || '', vehicle_color || '',
       current_location, destination || '',
-      current_coord || '', destination_coord || '',
+      address || '', finalCurrentCoord, finalDestCoord,
       problem_description || '',
       price, owner_name || '', owner_phone, movable || 'yes', special_note || '',
       JSON.stringify(photos),
