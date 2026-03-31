@@ -942,24 +942,42 @@
                 routeLine = null;
             }
             
-            // 确定救援地点坐标（终点）
-            let rescueLat, rescueLng;
+            // 确定起点（救援地点）和终点（目的地）坐标
+            let startLat, startLng, endLat, endLng;
             
+            // 起点：救援地点
             if (task.current_coord) {
                 const coords = task.current_coord.split(',');
-                rescueLat = parseFloat(coords[0]);
-                rescueLng = parseFloat(coords[1]);
-                console.log('使用订单救援地点坐标:', rescueLat, rescueLng);
+                startLat = parseFloat(coords[0]);
+                startLng = parseFloat(coords[1]);
+                console.log('使用救援地点坐标（起点）:', startLat, startLng);
             } else {
-                // 没有坐标，用地理编码
                 console.log('使用地理编码获取救援地点坐标');
                 const geocoded = await geocodeAddress(task.current_location);
-                rescueLat = geocoded.lat;
-                rescueLng = geocoded.lng;
+                startLat = geocoded.lat;
+                startLng = geocoded.lng;
             }
             
-            // 初始化地图（只显示救援地点，不依赖司机定位）
-            await initMap(rescueLat, rescueLng, task);
+            // 终点：目的地
+            if (task.destination_coord) {
+                const coords = task.destination_coord.split(',');
+                endLat = parseFloat(coords[0]);
+                endLng = parseFloat(coords[1]);
+                console.log('使用目的地坐标（终点）:', endLat, endLng);
+            } else if (task.destination) {
+                console.log('使用地理编码获取目的地坐标');
+                const geocoded = await geocodeAddress(task.destination);
+                endLat = geocoded.lat;
+                endLng = geocoded.lng;
+            } else {
+                // 没有目的地，用起点附近
+                endLat = startLat + 0.01;
+                endLng = startLng + 0.01;
+                console.log('无目的地，使用默认终点:', endLat, endLng);
+            }
+            
+            // 初始化地图并绘制路线
+            await initMapWithRoute(startLat, startLng, endLat, endLng, task);
         }
         
         // 地理编码辅助函数（返回 Promise）
@@ -986,36 +1004,93 @@
             });
         }
         
-        // 初始化地图（只显示救援地点）
-        async function initMap(rescueLat, rescueLng, task) {
+        // 初始化地图并绘制路线
+        async function initMapWithRoute(startLat, startLng, endLat, endLng, task) {
             const mapContainer = document.getElementById('routeMap');
             const routeInfo = document.getElementById('routeInfo');
             
             try {
-                console.log('创建地图，救援地点:', rescueLat, rescueLng);
+                console.log('创建地图，起点:', startLat, startLng, '终点:', endLat, endLng);
                 
-                // 创建地图，中心点为救援地点
+                // 创建地图
                 routeMap = new qq.maps.Map(mapContainer, {
-                    zoom: 15,
-                    center: new qq.maps.LatLng(rescueLat, rescueLng)
+                    zoom: 13,
+                    center: new qq.maps.LatLng(startLat, startLng)
                 });
                 
-                // 添加救援地点标记
-                destinationMarker = new qq.maps.Marker({
-                    position: new qq.maps.LatLng(rescueLat, rescueLng),
+                // 添加起点标记（救援地点）
+                driverMarker = new qq.maps.Marker({
+                    position: new qq.maps.LatLng(startLat, startLng),
                     map: routeMap,
-                    title: task.current_location
+                    title: '救援地点：' + task.current_location
                 });
                 
-                // 隐藏路线信息（因为没有司机位置，无法计算路线）
-                routeInfo.classList.add('hidden');
+                // 添加终点标记（目的地）
+                destinationMarker = new qq.maps.Marker({
+                    position: new qq.maps.LatLng(endLat, endLng),
+                    map: routeMap,
+                    title: '目的地：' + (task.destination || '未知')
+                });
+                
+                // 调整视野显示所有标记
+                const bounds = new qq.maps.LatLngBounds();
+                bounds.extend(driverMarker.getPosition());
+                bounds.extend(destinationMarker.getPosition());
+                routeMap.fitBounds(bounds);
+                
+                // 绘制路线
+                await drawSimpleRoute(startLat, startLng, endLat, endLng, routeInfo);
                 
                 console.log('✅ 地图初始化成功');
                 
             } catch (error) {
                 console.error('地图初始化失败:', error);
                 renderMapFallback(task);
+                if (routeInfo) routeInfo.classList.add('hidden');
             }
+        }
+        
+        // 绘制简单路线（直线）
+        function drawSimpleRoute(startLat, startLng, endLat, endLng, routeInfo) {
+            try {
+                // 计算距离
+                const distance = calculateDistance(startLat, startLng, endLat, endLng);
+                
+                // 显示路线信息
+                routeInfo.classList.remove('hidden');
+                document.getElementById('routeDistance').textContent = (distance / 1000).toFixed(1) + 'km';
+                document.getElementById('routeDuration').textContent = Math.round(distance / 500) + '分钟';
+                
+                // 绘制直线
+                routeLine = new qq.maps.Polyline({
+                    map: routeMap,
+                    path: [
+                        new qq.maps.LatLng(startLat, startLng),
+                        new qq.maps.LatLng(endLat, endLng)
+                    ],
+                    strokeColor: '#00f0ff',
+                    strokeWeight: 5,
+                    strokeOpacity: 0.8
+                });
+                
+                console.log('✅ 路线绘制成功，距离:', (distance / 1000).toFixed(1), 'km');
+                
+            } catch (error) {
+                console.error('绘制路线失败:', error);
+                routeInfo.classList.add('hidden');
+            }
+        }
+        
+        // 计算两点间直线距离（Haversine 公式）
+        function calculateDistance(lat1, lng1, lat2, lng2) {
+            const R = 6371000; // 地球半径（米）
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLng = (lng2 - lng1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
         }
         
         // 降级模式：地图加载失败时显示
