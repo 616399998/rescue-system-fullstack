@@ -52,6 +52,23 @@ initDatabase().then(() => {
     }
   });
   
+  // 添加坐标字段到 orders 表
+  db.run(`ALTER TABLE orders ADD COLUMN current_coord TEXT`, (err) => {
+    if (err && !err.message.includes('duplicate column')) {
+      console.error('添加 current_coord 字段失败:', err);
+    } else if (!err) {
+      console.log('✅ 已添加 current_coord 字段');
+    }
+  });
+  
+  db.run(`ALTER TABLE orders ADD COLUMN destination_coord TEXT`, (err) => {
+    if (err && !err.message.includes('duplicate column')) {
+      console.error('添加 destination_coord 字段失败:', err);
+    } else if (!err) {
+      console.log('✅ 已添加 destination_coord 字段');
+    }
+  });
+  
   db.close();
 }).catch(err => {
   console.error('❌ 数据库初始化失败:', err);

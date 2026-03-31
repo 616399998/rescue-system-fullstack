@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>快速地图测试</title>
+    <style>
+        body { font-family: Arial; padding: 20px; background: #1a1a2e; color: #fff; }
+        .status { padding: 15px; margin: 10px 0; border-radius: 8px; }
+        .ok { background: #00ff8822; border: 1px solid #00ff88; }
+        .err { background: #ff6b6b22; border: 1px solid #ff6b6b; }
+        .warn { background: #ffa50022; border: 1px solid #ffa500; }
+        pre { background: #000; padding: 10px; border-radius: 5px; overflow-x: auto; }
+    </style>
+    
+    <!-- 方式 1: 直接加载 -->
+    <script src="https://map.qq.com/api/js?v=2.exp&key=67MBZ-EF6RT-THAX4-VEGBL-7AYMJ-LGBXX"></script>
+</head>
+<body>
+    <h1>🗺️ 地图加载快速测试</h1>
+    
+    <div id="result"></div>
+    
+    <script>
+        const result = document.getElementById('result');
+        
+        function addStatus(msg, type) {
+            const div = document.createElement('div');
+            div.className = 'status ' + type;
+            div.innerHTML = msg;
+            result.appendChild(div);
+        }
+        
+        // 检查
+        setTimeout(() => {
+            console.log('qq:', typeof qq);
+            console.log('qq.maps:', typeof qq?.maps);
+            console.log('qq.maps.LatLng:', typeof qq?.maps?.LatLng);
+            
+            if (typeof qq !== 'undefined') {
+                addStatus('✅ <strong>qq 对象存在</strong>', 'ok');
+                
+                if (typeof qq.maps !== 'undefined') {
+                    addStatus('✅ <strong>qq.maps 对象存在</strong>', 'ok');
+                    
+                    if (typeof qq.maps.LatLng !== 'undefined') {
+                        addStatus('✅ <strong>qq.maps.LatLng 可用！地图 API 完全正常</strong>', 'ok');
+                        
+                        // 测试创建地图
+                        try {
+                            const center = new qq.maps.LatLng(39.9042, 116.4074);
+                            addStatus('✅ <strong>成功创建 LatLng 对象</strong>', 'ok');
+                        } catch(e) {
+                            addStatus('❌ <strong>创建 LatLng 失败:</strong> ' + e.message, 'err');
+                        }
+                    } else {
+                        addStatus('❌ <strong>qq.maps.LatLng 不存在</strong>', 'err');
+                        addStatus('💡 可能原因：API 加载不完整，刷新页面重试', 'warn');
+                    }
+                } else {
+                    addStatus('❌ <strong>qq.maps 不存在</strong>', 'err');
+                    addStatus('💡 可能原因：脚本被拦截或加载失败', 'warn');
+                }
+            } else {
+                addStatus('❌ <strong>qq 对象不存在 - 地图 API 未加载</strong>', 'err');
+                addStatus('💡 可能原因：', 'warn');
+                addStatus('&nbsp;&nbsp;• 广告拦截器阻止了脚本加载', 'warn');
+                addStatus('&nbsp;&nbsp;• 网络连接问题', 'warn');
+                addStatus('&nbsp;&nbsp;• 浏览器安全策略限制', 'warn');
+                addStatus('<br><strong>请尝试：</strong>', 'warn');
+                addStatus('&nbsp;&nbsp;1. 关闭广告拦截器（AdBlock/uBlock）', 'warn');
+                addStatus('&nbsp;&nbsp;2. 使用无痕模式打开', 'warn');
+                addStatus('&nbsp;&nbsp;3. 检查浏览器控制台（F12）的错误信息', 'warn');
+            }
+            
+            // 显示详细诊断
+            addStatus('<h3>📋 诊断信息</h3>', 'warn');
+            addStatus('<strong>User Agent:</strong><br><pre>' + navigator.userAgent + '</pre>', 'warn');
+            addStatus('<strong>页面协议:</strong> ' + location.protocol, 'warn');
+            addStatus('<strong>qq 类型:</strong> ' + typeof qq, 'warn');
+            addStatus('<strong>qq.maps 类型:</strong> ' + (typeof qq !== 'undefined' ? typeof qq.maps : 'N/A'), 'warn');
+        }, 1000);
+    </script>
+</body>
+</html>

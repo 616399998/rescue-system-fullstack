@@ -144,13 +144,21 @@ router.get('/tasks', async (req, res) => {
         status_text: statusText,
         service_type: order.service_type,
         vehicle_plate: order.vehicle_plate,
+        vehicle_type: order.vehicle_type,
+        vehicle_color: order.vehicle_color,
         current_location: order.current_location,
+        current_coord: order.current_coord,
         destination: order.destination,
+        destination_coord: order.destination_coord,
         owner_name: order.owner_name,
         owner_phone: order.owner_phone,
         price: order.price,
         created_at: order.created_at,
-        progress: order.progress
+        progress: order.progress,
+        movable: order.movable,
+        special_note: order.special_note,
+        insurance_no: order.insurance_no,
+        priority: order.priority
       };
     });
 
@@ -194,6 +202,8 @@ router.get('/tasks/:id', async (req, res) => {
         price: order.price,
         priority: order.priority,
         insurance_no: order.insurance_no,
+        current_coord: order.current_coord,
+        destination_coord: order.destination_coord,
         created_at: order.created_at,
         timeline: timeline.map(t => ({
           time: new Date(t.created_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),

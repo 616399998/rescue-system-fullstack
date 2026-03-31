@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>地图加载测试</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #000; color: #0f0; }
+        .log { margin: 5px 0; }
+        .error { color: #f00; }
+        .success { color: #0f0; }
+    </style>
+</head>
+<body>
+    <h1>地图 API 加载测试</h1>
+    <div id="logs"></div>
+    
+    <script>
+        function log(msg, type = '') {
+            const div = document.createElement('div');
+            div.className = 'log ' + type;
+            div.textContent = msg;
+            document.getElementById('logs').appendChild(div);
+            console.log(msg);
+        }
+        
+        log('开始加载腾讯地图 API...', 'info');
+        log('当前页面协议：' + location.protocol, 'info');
+        log('当前页面 URL: ' + location.href, 'info');
+        
+        // 尝试加载
+        const script = document.createElement('script');
+        script.type = 'text/javascript';
+        script.src = 'https://map.qq.com/api/js?v=2.exp&key=67MBZ-EF6RT-THAX4-VEGBL-7AYMJ-LGBXX';
+        
+        script.onload = function() {
+            log('✅ 脚本加载成功！', 'success');
+            log('qq 对象：' + typeof qq, 'success');
+            log('qq.maps 对象：' + (typeof qq !== 'undefined' ? typeof qq.maps : 'N/A'), 'success');
+            
+            if (typeof qq !== 'undefined' && qq.maps) {
+                log('✅ 地图 API 可用！', 'success');
+            } else {
+                log('⚠️ 脚本加载成功但 qq.maps 不存在', 'error');
+            }
+        };
+        
+        script.onerror = function(e) {
+            log('❌ 脚本加载失败！', 'error');
+            log('错误事件：' + JSON.stringify({
+                type: e.type,
+                target: e.target ? e.target.src : 'unknown'
+            }), 'error');
+            log('可能的原因：', 'error');
+            log('  1. 网络无法访问 map.qq.com');
+            log('  2. 被浏览器扩展拦截（广告拦截器）');
+            log('  3. CSP 安全策略限制');
+            log('  4. API Key 无效或被限制');
+        };
+        
+        document.head.appendChild(script);
+        
+        // 5 秒后检查状态
+        setTimeout(() => {
+            log('--- 5 秒后检查 ---', 'info');
+            log('qq: ' + typeof qq, typeof qq !== 'undefined' ? 'success' : 'error');
+            if (typeof qq !== 'undefined') {
+                log('qq.maps: ' + typeof qq.maps, typeof qq.maps !== 'undefined' ? 'success' : 'error');
+            }
+        }, 5000);
+    </script>
+</body>
+</html>

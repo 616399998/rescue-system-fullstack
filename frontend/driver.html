@@ -4,38 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>拖车司机端 - 智慧救援</title>
-    <!-- 腾讯地图 API - 延迟加载，避免阻塞页面 -->
+    <!-- 腾讯地图 JS API v2 - 同步加载确保可用 -->
+    <script type="text/javascript" src="https://map.qq.com/api/js?v=2.exp&key=67MBZ-EF6RT-THAX4-VEGBL-7AYMJ-LGBXX" charset="utf-8"></script>
     <script>
-        // 标记地图 API 加载状态
-        window.tencentMapLoaded = false;
-        window.tencentMapLoadPromise = null;
-        
-        function loadTencentMap() {
-            if (window.tencentMapLoaded) return Promise.resolve();
-            if (window.tencentMapLoadPromise) return window.tencentMapLoadPromise;
-            
-            window.tencentMapLoadPromise = new Promise((resolve, reject) => {
-                const script = document.createElement('script');
-                script.type = 'text/javascript';
-                script.src = 'https://map.qq.com/api/js?v=2.exp&key=67MBZ-EF6RT-THAX4-VEGBL-7AYMJ-LGBXX';
-                script.onload = () => {
-                    window.tencentMapLoaded = true;
-                    console.log('腾讯地图 API 加载成功');
-                    resolve();
-                };
-                script.onerror = (e) => {
-                    console.warn('腾讯地图 API 加载失败，但页面仍可正常使用', e);
-                    window.tencentMapLoaded = false;
-                    resolve(); // 即使失败也 resolve，不影响页面使用
-                };
-                document.head.appendChild(script);
-            });
-            
-            return window.tencentMapLoadPromise;
-        }
+        window.addEventListener('DOMContentLoaded', function() {
+            console.log('=== 地图 API 加载检查 ===');
+            console.log('qq 对象:', typeof qq);
+            console.log('qq.maps 对象:', typeof qq?.maps);
+            if (typeof qq !== 'undefined' && typeof qq.maps !== 'undefined') {
+                console.log('✅ 腾讯地图 API 已就绪');
+            } else {
+                console.error('❌ 腾讯地图 API 未加载成功');
+            }
+        });
     </script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
             --primary-color: #00f0ff;
             --secondary-color: #0066ff;
@@ -931,98 +914,207 @@
             const mapContainer = document.getElementById('routeMap');
             const routeInfo = document.getElementById('routeInfo');
             
-            // 先加载腾讯地图 API
-            await loadTencentMap();
+            console.log('=== 开始加载地图 ===');
+            console.log('任务 ID:', task.id);
+            console.log('任务坐标:', task.current_coord, task.destination_coord);
+            console.log('任务地址:', task.current_location, task.destination);
             
-            // 如果地图 API 加载失败，显示提示但允许继续使用
-            if (!window.tencentMapLoaded || typeof qq === 'undefined') {
-                mapContainer.innerHTML = '<div style="padding:20px;text-align:center;color:#8a9ba8;">🗺️ 地图加载失败，但您仍可正常使用接单功能<br/><small>请检查网络连接或稍后重试</small></div>';
-                document.getElementById('routeInfo').classList.add('hidden');
+            // 确保地图容器可见且有尺寸
+            mapContainer.style.display = 'block';
+            mapContainer.style.height = '300px';
+            
+            // 检查地图 API 是否已加载
+            if (typeof qq === 'undefined' || typeof qq.maps === 'undefined') {
+                console.error('❌ 腾讯地图 API 未加载，使用降级模式');
+                renderMapFallback(task);
+                if (routeInfo) routeInfo.classList.add('hidden');
                 return;
             }
+            
+            console.log('✅ 腾讯地图 API 已就绪');
             
             // 清除旧地图
             if (routeMap) {
-                routeMap.destroy();
+                try { routeMap.destroy(); } catch(e) {}
                 routeMap = null;
+                driverMarker = null;
+                destinationMarker = null;
+                routeLine = null;
             }
             
-            // 获取司机当前位置
-            if (!navigator.geolocation) {
-                mapContainer.innerHTML = '<div style="padding:20px;text-align:center;color:#8a9ba8;">❌ 您的浏览器不支持定位</div>';
-                document.getElementById('routeInfo').classList.add('hidden');
-                return;
-            }
+            // 确定起点和终点坐标
+            let startLat, startLng, endLat, endLng;
             
-            navigator.geolocation.getCurrentPosition(async (position) => {
-                const fromLat = position.coords.latitude;
-                const fromLng = position.coords.longitude;
-                
-                console.log('当前位置:', fromLat, fromLng);
-                console.log('任务位置:', task.current_location);
-                
+            // 起点：优先使用订单的 current_coord（救援地点），其次使用司机位置
+            if (task.current_coord) {
+                const coords = task.current_coord.split(',');
+                startLat = parseFloat(coords[0]);
+                startLng = parseFloat(coords[1]);
+                console.log('使用订单起点坐标:', startLat, startLng);
+            } else if (navigator.geolocation) {
                 try {
-                    // 创建地图
-                    routeMap = new qq.maps.Map(mapContainer, {
-                        zoom: 12,
-                        center: new qq.maps.LatLng(fromLat, fromLng)
+                    const position = await new Promise((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(resolve, reject, {
+                            enableHighAccuracy: false,
+                            timeout: 8000,
+                            maximumAge: 300000
+                        });
                     });
-                    
-                    // 添加司机位置标记
-                    driverMarker = new qq.maps.Marker({
-                        position: new qq.maps.LatLng(fromLat, fromLng),
-                        map: routeMap,
-                        title: '我的位置'
-                    });
-                    
-                    // 添加目的地标记（使用地址）
-                    const geocoder = new qq.maps.Geocoder();
-                    geocoder.getLocation(task.current_location, function(result) {
-                        console.log('地理编码结果:', result);
-                        
-                        if (result && result.detail && result.detail.length > 0) {
-                            const destPos = result.detail[0].latLng;
-                            destinationMarker = new qq.maps.Marker({
-                                position: destPos,
-                                map: routeMap,
-                                title: task.current_location
-                            });
-                            
-                            // 调整视野显示所有标记
-                            const bounds = new qq.maps.LatLngBounds();
-                            bounds.extend(driverMarker.getPosition());
-                            bounds.extend(destinationMarker.getPosition());
-                            routeMap.fitBounds(bounds);
-                            
-                            // 绘制路线
-                            drawRoute(fromLat, fromLng, destPos.getLat(), destPos.getLng());
-                        } else {
-                            console.warn('地理编码失败，只显示起点');
-                            // 地理编码失败，只显示起点
-                            routeMap.setCenter(new qq.maps.LatLng(fromLat, fromLng));
-                            routeMap.setZoom(10);
-                            document.getElementById('routeInfo').classList.add('hidden');
-                        }
-                    });
-                } catch (error) {
-                    console.error('地图初始化失败:', error);
-                    mapContainer.innerHTML = '<div style="padding:20px;text-align:center;color:#8a9ba8;">🗺️ 地图初始化失败，但您仍可正常使用接单功能</div>';
-                    document.getElementById('routeInfo').classList.add('hidden');
+                    startLat = position.coords.latitude;
+                    startLng = position.coords.longitude;
+                    console.log('使用 GPS 起点坐标:', startLat, startLng);
+                } catch (e) {
+                    console.error('定位失败:', e);
+                    startLat = 39.9042;
+                    startLng = 116.4074;
                 }
-            }, (error) => {
-                console.error('定位失败:', error);
-                mapContainer.innerHTML = '<div style="padding:20px;text-align:center;color:#8a9ba8;">❌ 定位失败，请检查权限设置</div>';
-                document.getElementById('routeInfo').classList.add('hidden');
-            }, {
-                enableHighAccuracy: true,
-                timeout: 15000,
-                maximumAge: 0
+            } else {
+                startLat = 39.9042;
+                startLng = 116.4074;
+            }
+            
+            // 终点：优先使用 destination_coord，其次使用 current_coord
+            if (task.destination_coord) {
+                const coords = task.destination_coord.split(',');
+                endLat = parseFloat(coords[0]);
+                endLng = parseFloat(coords[1]);
+                console.log('使用订单终点坐标:', endLat, endLng);
+            } else if (task.current_coord) {
+                // 如果没有 destination_coord，用 current_coord 作为终点
+                const coords = task.current_coord.split(',');
+                endLat = parseFloat(coords[0]);
+                endLng = parseFloat(coords[1]);
+                console.log('使用订单起点坐标作为终点:', endLat, endLng);
+            } else {
+                // 都没有，用地理编码
+                console.log('使用地理编码获取终点坐标');
+                await geocodeAddress(task.current_location, function(geoLat, geoLng) {
+                    endLat = geoLat;
+                    endLng = geoLng;
+                });
+            }
+            
+            // 初始化地图
+            await initMap(startLat, startLng, endLat, endLng, task);
+        }
+        
+        // 地理编码辅助函数
+        async function geocodeAddress(address, callback) {
+            return new Promise((resolve) => {
+                if (typeof qq === 'undefined' || typeof qq.maps.Geocoder === 'undefined') {
+                    console.warn('地理编码不可用');
+                    resolve(callback(39.9042, 116.4074));
+                    return;
+                }
+                
+                const geocoder = new qq.maps.Geocoder();
+                geocoder.getLocation(address, function(result) {
+                    console.log('地理编码结果:', result);
+                    if (result && result.detail && result.detail.length > 0) {
+                        const lat = result.detail[0].latLng.getLat();
+                        const lng = result.detail[0].latLng.getLng();
+                        resolve(callback(lat, lng));
+                    } else {
+                        resolve(callback(39.9042, 116.4074));
+                    }
+                });
             });
         }
+        
+        // 初始化地图
+        async function initMap(startLat, startLng, endLat, endLng, task) {
+            const mapContainer = document.getElementById('routeMap');
+            const routeInfo = document.getElementById('routeInfo');
+            
+            try {
+                console.log('创建地图，起点:', startLat, startLng, '终点:', endLat, endLng);
+                
+                // 创建地图
+                routeMap = new qq.maps.Map(mapContainer, {
+                    zoom: 14,
+                    center: new qq.maps.LatLng(startLat, startLng)
+                });
+                
+                // 添加起点标记（司机位置）
+                driverMarker = new qq.maps.Marker({
+                    position: new qq.maps.LatLng(startLat, startLng),
+                    map: routeMap,
+                    title: '起点'
+                });
+                
+                // 添加终点标记（救援地点）
+                destinationMarker = new qq.maps.Marker({
+                    position: new qq.maps.LatLng(endLat, endLng),
+                    map: routeMap,
+                    title: task.current_location
+                });
+                
+                // 调整视野显示所有标记
+                const bounds = new qq.maps.LatLngBounds();
+                bounds.extend(driverMarker.getPosition());
+                bounds.extend(destinationMarker.getPosition());
+                routeMap.fitBounds(bounds);
+                
+                // 绘制路线
+                await drawRoute(startLat, startLng, endLat, endLng);
+                
+            } catch (error) {
+                console.error('地图初始化失败:', error);
+                renderMapFallback(task);
+                if (routeInfo) routeInfo.classList.add('hidden');
+            }
+        }
+        
+        // 降级模式：地图加载失败时显示
+        function renderMapFallback(task) {
+            const mapContainer = document.getElementById('routeMap');
+            mapContainer.innerHTML = `
+                <div style="padding:20px;text-align:center;color:#8a9ba8;">
+                    🗺️ 地图加载失败
+                    <br/><br/>
+                    <strong>您仍可正常使用接单功能</strong>
+                    <br/><br/>
+                    <div style="text-align:left;background:rgba(0,0,0,0.3);padding:15px;border-radius:8px;">
+                        <div>📍 当前位置：${task.current_location}</div>
+                        ${task.destination ? `<div>🎯 目的地：${task.destination}</div>` : ''}
+                    </div>
+                    <br/>
+                    <button class="btn btn-primary" onclick="openMapApp('${task.current_location}', '${task.destination || ''}')">
+                        🧭 打开外部导航
+                    </button>
+                    <br/><br/>
+                    <small>提示：请检查网络连接或关闭广告拦截器后刷新页面</small>
+                </div>
+            `;
+        }
 
+        // 打开外部地图应用
+        function openMapApp(from, to) {
+            const encodedFrom = encodeURIComponent(from);
+            const encodedTo = to ? encodeURIComponent(to) : '';
+            
+            // 尝试打开腾讯地图 URI
+            let url;
+            if (to) {
+                url = `https://apis.map.qq.com/uri/v1/routeplan?type=drive&from=${encodedFrom}&to=${encodedTo}`;
+            } else {
+                url = `https://apis.map.qq.com/uri/v1/geocoder?address=${encodedFrom}`;
+            }
+            
+            // 在新窗口打开
+            window.open(url, '_blank');
+            
+            // 也可以使用高德地图
+            // window.open(`https://www.amap.com/search?query=${encodedFrom}`, '_blank');
+        }
+        
         // 绘制路线
         async function drawRoute(fromLat, fromLng, toLat, toLng) {
+            const routeInfo = document.getElementById('routeInfo');
+            
             try {
+                console.log('请求路线规划:', fromLat, fromLng, '→', toLat, toLng);
+                
                 const res = await fetch(`${API_BASE}/drivers/route`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1035,28 +1127,44 @@
                 });
                 const data = await res.json();
                 
-                if (data.success && data.route) {
+                console.log('路线规划响应:', data);
+                
+                if (data.success && data.route && data.distance > 0) {
                     // 显示路线信息
-                    document.getElementById('routeInfo').classList.remove('hidden');
+                    routeInfo.classList.remove('hidden');
                     document.getElementById('routeDistance').textContent = (data.distance / 1000).toFixed(1) + 'km';
                     document.getElementById('routeDuration').textContent = Math.round(data.duration / 60) + '分钟';
                     
-                    // 解析路线坐标
+                    // 解析路线坐标并绘制
                     const path = [];
-                    if (data.route.steps) {
+                    
+                    // 腾讯地图方向 API 返回的路线格式
+                    if (data.route.steps && Array.isArray(data.route.steps)) {
                         data.route.steps.forEach(step => {
                             if (step.polyline) {
-                                const points = step.polyline.split(';');
-                                points.forEach(point => {
-                                    const [lng, lat] = point.split(',');
-                                    path.push(new qq.maps.LatLng(parseFloat(lat), parseFloat(lng)));
-                                });
+                                try {
+                                    const points = step.polyline.split(';');
+                                    points.forEach(point => {
+                                        const parts = point.split(',');
+                                        if (parts.length === 2) {
+                                            const lng = parseFloat(parts[0]);
+                                            const lat = parseFloat(parts[1]);
+                                            if (!isNaN(lat) && !isNaN(lng)) {
+                                                path.push(new qq.maps.LatLng(lat, lng));
+                                            }
+                                        }
+                                    });
+                                } catch (e) {
+                                    console.warn('解析路线点失败:', e);
+                                }
                             }
                         });
                     }
                     
+                    console.log('路线点数:', path.length);
+                    
                     // 绘制路线
-                    if (path.length > 0) {
+                    if (path.length >= 2) {
                         routeLine = new qq.maps.Polyline({
                             map: routeMap,
                             path: path,
@@ -1064,21 +1172,96 @@
                             strokeWeight: 5,
                             strokeOpacity: 0.8
                         });
+                        console.log('✅ 路线绘制成功');
+                    } else {
+                        console.warn('路线点不足，使用直线连接');
+                        // 如果路线点不足，用直线连接起点和终点
+                        routeLine = new qq.maps.Polyline({
+                            map: routeMap,
+                            path: [
+                                new qq.maps.LatLng(fromLat, fromLng),
+                                new qq.maps.LatLng(toLat, toLng)
+                            ],
+                            strokeColor: '#00f0ff',
+                            strokeWeight: 5,
+                            strokeOpacity: 0.8
+                        });
                     }
+                } else {
+                    console.warn('路线规划无数据，使用直线连接');
+                    // 没有路线数据，用直线连接
+                    routeLine = new qq.maps.Polyline({
+                        map: routeMap,
+                        path: [
+                            new qq.maps.LatLng(fromLat, fromLng),
+                            new qq.maps.LatLng(toLat, toLng)
+                        ],
+                        strokeColor: '#00f0ff',
+                        strokeWeight: 5,
+                        strokeOpacity: 0.8
+                    });
+                    
+                    // 估算距离和时间
+                    const distance = calculateDistance(fromLat, fromLng, toLat, toLng);
+                    routeInfo.classList.remove('hidden');
+                    document.getElementById('routeDistance').textContent = (distance / 1000).toFixed(1) + 'km';
+                    document.getElementById('routeDuration').textContent = Math.round(distance / 500) + '分钟';
                 }
             } catch (error) {
                 console.error('加载路线失败:', error);
+                // 失败时用直线连接
+                try {
+                    const distance = calculateDistance(fromLat, fromLng, toLat, toLng);
+                    routeInfo.classList.remove('hidden');
+                    document.getElementById('routeDistance').textContent = (distance / 1000).toFixed(1) + 'km';
+                    document.getElementById('routeDuration').textContent = Math.round(distance / 500) + '分钟';
+                    
+                    routeLine = new qq.maps.Polyline({
+                        map: routeMap,
+                        path: [
+                            new qq.maps.LatLng(fromLat, fromLng),
+                            new qq.maps.LatLng(toLat, toLng)
+                        ],
+                        strokeColor: '#00f0ff',
+                        strokeWeight: 5,
+                        strokeOpacity: 0.8
+                    });
+                } catch (e) {
+                    console.error('绘制直线也失败:', e);
+                }
             }
+        }
+        
+        // 计算两点间直线距离（Haversine 公式）
+        function calculateDistance(lat1, lng1, lat2, lng2) {
+            const R = 6371000; // 地球半径（米）
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLng = (lng2 - lng1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
         }
 
         // 开始导航
         function startNavigation() {
             if (!currentTask) return;
             
-            // 打开腾讯地图 APP 或网页版导航
-            const dest = encodeURIComponent(currentTask.current_location);
-            const url = `https://apis.map.qq.com/uri/v1/routeplan?type=drive&to=${dest}`;
-            window.open(url, '_blank');
+            // 优先使用坐标，其次使用地址
+            let url;
+            if (currentTask.current_coord) {
+                const [lat, lng] = currentTask.current_coord.split(',');
+                // 使用坐标打开腾讯地图
+                url = `https://apis.map.qq.com/uri/v1/geocoder?location=${lat},${lng}`;
+                // 直接打开导航 APP
+                url = `qqmap://map/navi?to=${lat},${lng}&tocompany=目的地`;
+                window.open(url, '_blank');
+            } else {
+                const dest = encodeURIComponent(currentTask.current_location);
+                url = `https://apis.map.qq.com/uri/v1/routeplan?type=drive&to=${dest}`;
+                window.open(url, '_blank');
+            }
         }
 
         // 导航去现场

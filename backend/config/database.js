@@ -83,7 +83,9 @@ function initDatabase() {
           navigation_started INTEGER DEFAULT 0,
           arrived_at_site DATETIME,
           arrived_at_dest DATETIME,
-          rejected_reason TEXT
+          rejected_reason TEXT,
+          current_coord TEXT,
+          destination_coord TEXT
         )`,
         // 订单时间线
         `CREATE TABLE IF NOT EXISTS order_timeline (

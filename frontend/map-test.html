@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>地图测试</title>
+    <script type="text/javascript" src="https://map.qq.com/api/js?v=2.exp&key=67MBZ-EF6RT-THAX4-VEGBL-7AYMJ-LGBXX"></script>
+    <style>
+        #map { width: 100%; height: 500px; }
+        .status { padding: 10px; margin: 10px; background: #f0f0f0; border-radius: 5px; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>腾讯地图测试</h1>
+    <div id="status" class="status">正在加载地图 API...</div>
+    <div id="map"></div>
+    
+    <script>
+        const statusDiv = document.getElementById('status');
+        
+        // 检查 API 加载状态
+        setTimeout(() => {
+            if (typeof qq !== 'undefined' && typeof qq.maps !== 'undefined') {
+                statusDiv.innerHTML = '<span class="success">✅ 腾讯地图 API 加载成功</span>';
+                initMap();
+            } else {
+                statusDiv.innerHTML = '<span class="error">❌ 腾讯地图 API 加载失败</span><br/>请检查网络连接或 API Key';
+                console.log('qq:', typeof qq);
+                console.log('qq.maps:', typeof qq?.maps);
+            }
+        }, 2000);
+        
+        function initMap() {
+            const mapContainer = document.getElementById('map');
+            
+            // 创建地图
+            const center = new qq.maps.LatLng(39.9042, 116.4074);
+            const map = new qq.maps.Map(mapContainer, {
+                zoom: 12,
+                center: center
+            });
+            
+            // 添加标记
+            const marker = new qq.maps.Marker({
+                position: center,
+                map: map,
+                title: '北京'
+            });
+            
+            statusDiv.innerHTML += '<br/><span class="success">✅ 地图初始化成功</span>';
+            console.log('地图初始化成功');
+        }
+        
+        // 测试定位
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    statusDiv.innerHTML += `<br/><span class="success">✅ 定位成功：${pos.coords.latitude}, ${pos.coords.longitude}</span>`;
+                },
+                (err) => {
+                    statusDiv.innerHTML += `<br/><span class="error">⚠️ 定位失败：${err.message}</span>`;
+                },
+                {
+                    enableHighAccuracy: false,
+                    timeout: 10000,
+                    maximumAge: 300000
+                }
+            );
+        } else {
+            statusDiv.innerHTML += '<br/><span class="error">❌ 浏览器不支持定位</span>';
+        }
+    </script>
+</body>
+</html>

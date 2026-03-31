@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>司机端诊断工具</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #1a1a2e; color: #fff; }
+        .section { background: #16213e; padding: 20px; margin: 20px 0; border-radius: 10px; border: 1px solid #0f3460; }
+        .success { color: #00ff88; }
+        .error { color: #ff6b6b; }
+        .warning { color: #ffa500; }
+        .info { color: #00f0ff; }
+        pre { background: #0a0e1a; padding: 15px; border-radius: 5px; overflow-x: auto; }
+        button { background: #0066ff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button:hover { background: #00f0ff; color: #000; }
+    </style>
+    
+    <!-- 腾讯地图 API -->
+    <script type="text/javascript" src="https://map.qq.com/api/js?v=2.exp&key=67MBZ-EF6RT-THAX4-VEGBL-7AYMJ-LGBXX"></script>
+</head>
+<body>
+    <h1>🔧 司机端诊断工具</h1>
+    
+    <div class="section">
+        <h2>1️⃣ 地图 API 加载状态</h2>
+        <div id="mapStatus">检查中...</div>
+        <button onclick="checkMapAPI()">重新检查</button>
+    </div>
+    
+    <div class="section">
+        <h2>2️⃣ 浏览器定位测试</h2>
+        <div id="geoStatus">未测试</div>
+        <button onclick="testGeolocation()">测试定位</button>
+    </div>
+    
+    <div class="section">
+        <h2>3️⃣ 地图渲染测试</h2>
+        <div id="mapTestStatus">未测试</div>
+        <button onclick="testMapRender()">测试地图渲染</button>
+        <div id="testMap" style="width:100%;height:300px;margin-top:10px;display:none;"></div>
+    </div>
+    
+    <div class="section">
+        <h2>4️⃣ 后端 API 测试</h2>
+        <div id="apiStatus">未测试</div>
+        <button onclick="testAPI()">测试 API</button>
+    </div>
+    
+    <div class="section">
+        <h2>📋 诊断报告</h2>
+        <pre id="report">点击上述按钮进行测试...</pre>
+    </div>
+
+    <script>
+        const report = [];
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const cssClass = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'info';
+            report.push(`<span class="${cssClass}">[${timestamp}] ${message}</span>`);
+            document.getElementById('report').innerHTML = report.join('<br/>');
+            console.log(message);
+        }
+        
+        // 检查地图 API
+        function checkMapAPI() {
+            log('检查腾讯地图 API...', 'info');
+            
+            setTimeout(() => {
+                if (typeof qq !== 'undefined') {
+                    log('✅ qq 对象存在', 'success');
+                    
+                    if (typeof qq.maps !== 'undefined') {
+                        log('✅ qq.maps 对象存在', 'success');
+                        
+                        if (typeof qq.maps.LatLng !== 'undefined') {
+                            log('✅ qq.maps.LatLng 构造函数可用', 'success');
+                            document.getElementById('mapStatus').innerHTML = '<span class="success">✅ 地图 API 完全可用</span>';
+                        } else {
+                            log('❌ qq.maps.LatLng 构造函数不存在', 'error');
+                            document.getElementById('mapStatus').innerHTML = '<span class="error">❌ qq.maps.LatLng 不可用</span>';
+                        }
+                    } else {
+                        log('❌ qq.maps 对象不存在', 'error');
+                        document.getElementById('mapStatus').innerHTML = '<span class="error">❌ qq.maps 未加载</span>';
+                    }
+                } else {
+                    log('❌ qq 对象不存在 - 地图 API 未加载', 'error');
+                    document.getElementById('mapStatus').innerHTML = '<span class="error">❌ 地图 API 未加载</span>';
+                }
+            }, 500);
+        }
+        
+        // 测试定位
+        function testGeolocation() {
+            log('测试浏览器定位...', 'info');
+            document.getElementById('geoStatus').innerHTML = '测试中...';
+            
+            if (!navigator.geolocation) {
+                log('❌ 浏览器不支持地理定位', 'error');
+                document.getElementById('geoStatus').innerHTML = '<span class="error">❌ 浏览器不支持定位</span>';
+                return;
+            }
+            
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    log(`✅ 定位成功：纬度 ${position.coords.latitude}, 经度 ${position.coords.longitude}`, 'success');
+                    log(`   精度：${position.coords.accuracy} 米`, 'info');
+                    document.getElementById('geoStatus').innerHTML = `<span class="success">✅ 定位成功<br/>纬度：${position.coords.latitude}<br/>经度：${position.coords.longitude}</span>`;
+                },
+                (error) => {
+                    let errorMsg = '';
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMsg = '用户拒绝了定位请求';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMsg = '位置信息不可用';
+                            break;
+                        case error.TIMEOUT:
+                            errorMsg = '定位请求超时';
+                            break;
+                        default:
+                            errorMsg = '未知错误';
+                    }
+                    log(`❌ 定位失败：${errorMsg} (code: ${error.code})`, 'error');
+                    log(`   详细信息：${error.message}`, 'warning');
+                    document.getElementById('geoStatus').innerHTML = `<span class="error">❌ 定位失败：${errorMsg}</span>`;
+                },
+                {
+                    enableHighAccuracy: false,
+                    timeout: 10000,
+                    maximumAge: 300000
+                }
+            );
+        }
+        
+        // 测试地图渲染
+        function testMapRender() {
+            log('测试地图渲染...', 'info');
+            
+            if (typeof qq === 'undefined' || typeof qq.maps === 'undefined') {
+                log('❌ 地图 API 未加载，无法测试', 'error');
+                return;
+            }
+            
+            document.getElementById('testMap').style.display = 'block';
+            
+            try {
+                const center = new qq.maps.LatLng(39.9042, 116.4074);
+                log('✅ qq.maps.LatLng 创建成功', 'success');
+                
+                const map = new qq.maps.Map(document.getElementById('testMap'), {
+                    zoom: 12,
+                    center: center
+                });
+                log('✅ 地图实例创建成功', 'success');
+                
+                const marker = new qq.maps.Marker({
+                    position: center,
+                    map: map,
+                    title: '测试标记'
+                });
+                log('✅ 地图标记创建成功', 'success');
+                
+                document.getElementById('mapTestStatus').innerHTML = '<span class="success">✅ 地图渲染测试通过</span>';
+            } catch (error) {
+                log(`❌ 地图渲染失败：${error.message}`, 'error');
+                log(`   堆栈：${error.stack}`, 'error');
+                document.getElementById('mapTestStatus').innerHTML = `<span class="error">❌ 地图渲染失败：${error.message}</span>`;
+            }
+        }
+        
+        // 测试后端 API
+        async function testAPI() {
+            log('测试后端 API...', 'info');
+            document.getElementById('apiStatus').innerHTML = '测试中...';
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/drivers/tasks?driver_id=1');
+                const data = await response.json();
+                
+                if (data.tasks) {
+                    log(`✅ API 响应成功，获取到 ${data.tasks.length} 个任务`, 'success');
+                    
+                    if (data.tasks.length > 0) {
+                        const task = data.tasks[0];
+                        log(`   示例任务：${task.order_no}`, 'info');
+                        log(`   当前位置：${task.current_location}`, 'info');
+                        log(`   坐标：${task.current_coord || 'null'}`, task.current_coord ? 'success' : 'warning');
+                    }
+                    
+                    document.getElementById('apiStatus').innerHTML = '<span class="success">✅ API 测试通过</span>';
+                } else {
+                    log('❌ API 响应格式异常', 'error');
+                    document.getElementById('apiStatus').innerHTML = '<span class="error">❌ API 响应异常</span>';
+                }
+            } catch (error) {
+                log(`❌ API 请求失败：${error.message}`, 'error');
+                document.getElementById('apiStatus').innerHTML = `<span class="error">❌ API 请求失败：${error.message}</span>`;
+            }
+        }
+        
+        // 页面加载时自动检查
+        window.onload = function() {
+            log('=== 诊断工具启动 ===', 'info');
+            checkMapAPI();
+        };
+    </script>
+</body>
+</html>
