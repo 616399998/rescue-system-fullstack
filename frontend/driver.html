@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>拖车司机端 - 智慧救援</title>
     <!-- 腾讯地图 JS API v2 - 同步加载确保可用 -->
     <script type="text/javascript" src="https://map.qq.com/api/js?v=2.exp&key=67MBZ-EF6RT-THAX4-VEGBL-7AYMJ-LGBXX" charset="utf-8"></script>
@@ -264,6 +267,20 @@
             color: var(--text-color);
             margin-top: 4px;
         }
+        .timeline-photos {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: 8px;
+        }
+        .timeline-photos img {
+            width: 60px;
+            height: 60px;
+            border-radius: 6px;
+            object-fit: cover;
+            cursor: pointer;
+            border: 1px solid rgba(0, 240, 255, 0.3);
+        }
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -522,9 +539,9 @@
             <div class="card">
                 <div class="card-title">📊 我的统计</div>
                 <div class="stats-grid">
-                    <div class="stat-card">
+                    <div class="stat-card" onclick="toggleMyOrders()" style="cursor: pointer;">
                         <div class="stat-value" id="totalOrders">0</div>
-                        <div class="stat-label">总订单</div>
+                        <div class="stat-label">总订单（点击展开）</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-value" id="driverRating">5.0</div>
@@ -532,6 +549,33 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- 我的订单列表 -->
+            <div class="card" style="margin-top: 15px;">
+                <div class="card-title" onclick="toggleMyOrders()" style="cursor: pointer;">📋 我的订单（点击展开/收起）</div>
+                
+                <!-- 搜索框 -->
+                <div style="margin-top: 10px; display: flex; gap: 8px;">
+                    <input type="text" id="orderSearchInput" placeholder="搜索订单号/车牌号" 
+                        style="flex: 1; padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(0,240,255,0.3); background: rgba(16,28,48,0.6); color: var(--text-color); font-size: 13px;"
+                        oninput="searchOrders()" />
+                    <button class="btn btn-primary" onclick="searchOrders()" style="width: auto; padding: 8px 16px; font-size: 13px;">🔍 搜索</button>
+                </div>
+                
+                <!-- 订单列表容器 - 可滚动（隐藏滚动条，适配手机） -->
+                <div id="myOrdersList" style="margin-top: 10px; max-height: 400px; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none;"></div>
+                <style>
+                    #myOrdersList::-webkit-scrollbar {
+                        display: none; /* Chrome/Safari 隐藏滚动条 */
+                    }
+                </style>
+                
+                <!-- 加载更多按钮 -->
+                <div id="loadMoreContainer" style="margin-top: 10px; text-align: center; display: none;">
+                    <button class="btn btn-primary" onclick="loadMoreOrders()" style="width: 100%; font-size: 13px;">加载更多...</button>
+                </div>
+            </div>
+            
             <button class="btn btn-danger" onclick="driverLogout()" style="margin-top: 20px;">退出登录</button>
         </div>
 
@@ -602,7 +646,19 @@
                     <label>作业说明</label>
                     <textarea id="workNote" placeholder="请描述作业内容"></textarea>
                 </div>
-                <button class="btn btn-success" onclick="submitStartWork()">✅ 开始作业</button>
+                <div class="form-group">
+                    <label style="color:#ff6b35;font-weight:bold;">📸 现场照片（必传）</label>
+                    <div style="font-size:12px;color:#8a9ba8;margin-bottom:10px;">请上传全车各个角度的照片，不少于 4 张（前、后、左、右）</div>
+                    <div class="photo-upload" onclick="document.getElementById('workPhotos').click()" style="border:2px dashed #00f0ff;border-radius:12px;padding:30px;text-align:center;cursor:pointer;background:rgba(0,240,255,0.05);">
+                        <div style="font-size:40px;margin-bottom:10px;">📷</div>
+                        <div style="color:#00f0ff;font-weight:bold;">点击上传现场照片</div>
+                        <div style="font-size:12px;color:#8a9ba8;margin-top:5px;">支持 JPG、PNG 格式，最少 4 张，最多 9 张</div>
+                    </div>
+                    <input type="file" id="workPhotos" accept="image/*" multiple style="display:none;" onchange="handleWorkPhotos(event)">
+                    <div class="photo-preview" id="workPhotoPreview" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:15px;"></div>
+                    <div id="photoCountHint" style="font-size:12px;color:#ff6b35;margin-top:8px;"></div>
+                </div>
+                <button class="btn btn-success" onclick="submitStartWork()" style="background:linear-gradient(135deg, #00ff88, #00cc6a);color:#0a0e1a;font-weight:bold;">✅ 确认开始作业</button>
                 <button class="btn btn-warning" onclick="closeStartWorkModal()" style="margin-top: 10px;">取消</button>
             </div>
         </div>
@@ -629,6 +685,36 @@
                 </div>
                 <button class="btn btn-primary" onclick="submitExpense()">提交</button>
                 <button class="btn btn-warning" onclick="document.getElementById('expenseModal').classList.remove('active')" style="margin-top: 10px;">取消</button>
+            </div>
+        </div>
+
+        <!-- 照片查看弹窗（支持组切换） -->
+        <div id="photoViewModal" class="modal" onclick="closePhotoModal()">
+            <div class="modal-content" style="max-width:900px;position:relative;" onclick="event.stopPropagation()">
+                <!-- 切换按钮 -->
+                <button id="photoPrevBtn" onclick="prevPhoto()" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.5);color:white;border:none;border-radius:50%;width:40px;height:40px;font-size:20px;cursor:pointer;display:none;">‹</button>
+                <button id="photoNextBtn" onclick="nextPhoto()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.5);color:white;border:none;border-radius:50%;width:40px;height:40px;font-size:20px;cursor:pointer;display:none;">›</button>
+                
+                <!-- 图片 -->
+                <img id="photoViewImage" src="" style="width: 100%; max-height:70vh; object-fit:contain; border-radius: 8px;" />
+                
+                <!-- 图片计数 -->
+                <div id="photoCount" style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,0.6);color:white;padding:5px 10px;border-radius:20px;font-size:12px;display:none;">1/5</div>
+                
+                <!-- 缩略图导航 -->
+                <div id="photoThumbnails" style="margin-top:15px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;display:none;"></div>
+                
+                <!-- 关闭按钮 -->
+                <button class="btn btn-warning" onclick="closePhotoModal()" style="margin-top: 10px;width:100%;">关闭</button>
+            </div>
+        </div>
+
+        <!-- 查看评价弹窗（司机端只能查看） -->
+        <div id="viewRateModal" class="modal" onclick="this.classList.remove('active')">
+            <div class="modal-content" onclick="event.stopPropagation()">
+                <div class="modal-title">📋 订单评价</div>
+                <div id="viewRateContent"></div>
+                <button class="btn btn-warning" onclick="document.getElementById('viewRateModal').classList.remove('active')" style="margin-top: 10px;">关闭</button>
             </div>
         </div>
     </div>
@@ -807,7 +893,187 @@
             setTimeout(() => toast.remove(), 3000);
         }
 
-        // 加载任务列表
+        // 查看照片（支持组切换）
+        let currentPhotoGroup = [];
+        let currentPhotoIndex = 0;
+        
+        // 查看照片组（从模板调用）
+        function viewPhotoGroup(photos, index) {
+            // 如果是字符串，解析 JSON（兼容后端传递的字符串形式）
+            if (typeof photos === 'string') {
+                try {
+                    photos = JSON.parse(photos);
+                } catch(e) {
+                    console.error('解析照片数组失败:', e);
+                    return;
+                }
+            }
+            if (!photos || photos.length === 0) return;
+            
+            const modal = document.getElementById('photoViewModal');
+            const img = document.getElementById('photoViewImage');
+            const prevBtn = document.getElementById('photoPrevBtn');
+            const nextBtn = document.getElementById('photoNextBtn');
+            const countDiv = document.getElementById('photoCount');
+            const thumbsDiv = document.getElementById('photoThumbnails');
+            
+            currentPhotoGroup = photos;
+            currentPhotoIndex = index || 0;
+            
+            updatePhotoDisplay();
+            
+            // 显示切换按钮和缩略图（多张图片时）
+            if (photos.length > 1) {
+                prevBtn.style.display = 'block';
+                nextBtn.style.display = 'block';
+                countDiv.style.display = 'block';
+                thumbsDiv.style.display = 'flex';
+                renderThumbnails();
+            } else {
+                prevBtn.style.display = 'none';
+                nextBtn.style.display = 'none';
+                countDiv.style.display = 'none';
+                thumbsDiv.style.display = 'none';
+            }
+            
+            modal.classList.add('active');
+        }
+        
+        // 查看单张照片（兼容旧调用）
+        function viewPhoto(photoUrl) {
+            const modal = document.getElementById('photoViewModal');
+            document.getElementById('photoViewImage').src = photoUrl;
+            document.getElementById('photoPrevBtn').style.display = 'none';
+            document.getElementById('photoNextBtn').style.display = 'none';
+            document.getElementById('photoCount').style.display = 'none';
+            document.getElementById('photoThumbnails').style.display = 'none';
+            modal.classList.add('active');
+        }
+        
+        // 更新照片显示
+        function updatePhotoDisplay() {
+            const img = document.getElementById('photoViewImage');
+            const countDiv = document.getElementById('photoCount');
+            
+            if (currentPhotoGroup.length > 0) {
+                img.src = currentPhotoGroup[currentPhotoIndex];
+                countDiv.textContent = `${currentPhotoIndex + 1}/${currentPhotoGroup.length}`;
+                updateThumbnails();
+            }
+        }
+        
+        // 上一张照片
+        function prevPhoto() {
+            if (currentPhotoIndex > 0) {
+                currentPhotoIndex--;
+                updatePhotoDisplay();
+            }
+        }
+        
+        // 下一张照片
+        function nextPhoto() {
+            if (currentPhotoIndex < currentPhotoGroup.length - 1) {
+                currentPhotoIndex++;
+                updatePhotoDisplay();
+            }
+        }
+        
+        // 关闭照片弹窗
+        function closePhotoModal() {
+            document.getElementById('photoViewModal').classList.remove('active');
+            currentPhotoGroup = [];
+            currentPhotoIndex = 0;
+        }
+        
+        // 渲染缩略图
+        function renderThumbnails() {
+            const thumbsDiv = document.getElementById('photoThumbnails');
+            thumbsDiv.innerHTML = currentPhotoGroup.map((photo, index) => `
+                <img src="${photo}" onclick="switchPhoto(${index})" 
+                    style="width:60px;height:60px;object-fit:cover;border-radius:4px;cursor:pointer;opacity:${index === currentPhotoIndex ? '1' : '0.5'};border:${index === currentPhotoIndex ? '2px solid var(--primary-color)' : '2px solid transparent'}" />
+            `).join('');
+        }
+        
+        // 更新缩略图状态
+        function updateThumbnails() {
+            const thumbsDiv = document.getElementById('photoThumbnails');
+            if (thumbsDiv.children.length === currentPhotoGroup.length) {
+                Array.from(thumbsDiv.children).forEach((thumb, index) => {
+                    thumb.style.opacity = index === currentPhotoIndex ? '1' : '0.5';
+                    thumb.style.border = index === currentPhotoIndex ? '2px solid var(--primary-color)' : '2px solid transparent';
+                });
+            }
+        }
+        
+        // 切换到指定照片
+        function switchPhoto(index) {
+            currentPhotoIndex = index;
+            updatePhotoDisplay();
+        }
+        
+        // 键盘事件支持
+        document.addEventListener('keydown', function(e) {
+            if (document.getElementById('photoViewModal').classList.contains('active')) {
+                if (e.key === 'ArrowLeft' && currentPhotoGroup.length > 0) {
+                    prevPhoto();
+                } else if (e.key === 'ArrowRight' && currentPhotoGroup.length > 0) {
+                    nextPhoto();
+                } else if (e.key === 'Escape') {
+                    closePhotoModal();
+                }
+            }
+        });
+
+        // 查看订单评价（司机端只能查看用户评价）
+        async function viewOrderRating(orderId) {
+            try {
+                const res = await fetch(`${API_BASE}/drivers/orders/${orderId}/rating`);
+                const data = await res.json();
+                
+                const content = document.getElementById('viewRateContent');
+                
+                if (data.rating && data.rating.user_rating) {
+                    const rating = data.rating;
+                    const stars = '⭐'.repeat(rating.user_rating || 0) + '☆'.repeat(5 - (rating.user_rating || 0));
+                    
+                    content.innerHTML = `
+                        <div style="margin-bottom: 15px;">
+                            <div style="font-size: 12px; color: #8a9ba8; margin-bottom: 4px;">订单号</div>
+                            <div style="font-size: 14px; color: var(--primary-color);">${rating.order_no}</div>
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <div style="font-size: 12px; color: #8a9ba8; margin-bottom: 4px;">用户评分</div>
+                            <div style="font-size: 24px;">${stars}</div>
+                            <div style="font-size: 14px; color: var(--warning-color);">${rating.user_rating} / 5</div>
+                        </div>
+                        ${rating.user_comment ? `
+                            <div style="margin-bottom: 15px;">
+                                <div style="font-size: 12px; color: #8a9ba8; margin-bottom: 4px;">评价内容</div>
+                                <div style="font-size: 13px; color: var(--text-color); padding: 10px; background: rgba(0,240,255,0.05); border-radius: 8px;">${rating.user_comment}</div>
+                            </div>
+                        ` : ''}
+                        ${rating.user_name ? `
+                            <div style="margin-bottom: 15px;">
+                                <div style="font-size: 12px; color: #8a9ba8; margin-bottom: 4px;">评价用户</div>
+                                <div style="font-size: 13px; color: var(--text-color);">${rating.user_name}</div>
+                            </div>
+                        ` : ''}
+                        <div style="font-size: 11px; color: #5a6d7e;">评价时间：${new Date(rating.user_rating_at || rating.updated_at).toLocaleString('zh-CN')}</div>
+                        <div style="margin-top:15px;padding:10px;background:rgba(255,165,0,0.1);border-radius:8px;font-size:11px;color:#f59e0b;">
+                            💡 提示：司机端仅可查看评价，不能评价用户
+                        </div>
+                    `;
+                } else {
+                    content.innerHTML = '<div style="text-align:center;color:#5a6d7e;padding:20px;">暂无评价</div>';
+                }
+                
+                document.getElementById('viewRateModal').classList.add('active');
+            } catch (error) {
+                showToast('❌ 加载评价失败');
+            }
+        }
+
+        // 加载任务列表（首页 - 只显示进行中/待处理）
         async function loadTasks() {
             if (!currentDriver) return;
             
@@ -815,7 +1081,8 @@
                 // 先初始化模拟数据
                 await fetch(`${API_BASE}/drivers/init-mock`, { method: 'POST' }).catch(() => {});
                 
-                const res = await fetch(`${API_BASE}/drivers/tasks?driver_id=${currentDriver.id}`);
+                // 首页只显示进行中和待处理的订单，不显示已完成
+                const res = await fetch(`${API_BASE}/drivers/tasks?driver_id=${currentDriver.id}&status_filter=active`);
                 const data = await res.json();
                 
                 console.log('任务列表:', data);
@@ -839,10 +1106,18 @@
                         if (task.status === 'completed') todayIncome += task.price || 0;
                     }
                     
+                    // 订单类型标签
+                    const typeBadge = task.order_type === 'assigned' 
+                        ? '<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(0,240,255,0.2);color:var(--primary-color);margin-left:8px;">📋 我的订单</span>'
+                        : '<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(255,165,0,0.2);color:var(--warning-color);margin-left:8px;">🆕 可接订单</span>';
+                    
                     return `
                         <div class="task-item" onclick="loadTaskDetail(${task.id})">
                             <div class="task-header">
-                                <span class="task-no">${task.order_no}</span>
+                                <div style="display:flex;align-items:center;">
+                                    <span class="task-no">${task.order_no}</span>
+                                    ${typeBadge}
+                                </div>
                                 <span class="task-status ${task.status}">${task.status_text}</span>
                             </div>
                             <div class="task-info">
@@ -892,20 +1167,71 @@
                     </div>
                     ${task.photos && task.photos.length > 0 ? `
                         <div class="card">
-                            <div class="card-title">📸 现场照片</div>
-                            <div class="photo-upload">
-                                ${task.photos.map(p => `<img class="photo-item" src="${p}" onclick="viewPhoto('${p}')"/>`).join('')}
+                            <div class="card-title">📸 求助人上传照片</div>
+                            <div class="photo-upload" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+                                ${task.photos.map((p, i) => `<div style="aspect-ratio:1;border-radius:8px;overflow:hidden;border:2px solid rgba(0,240,255,0.3);"><img class="photo-item" src="${p}" onclick="viewPhotoGroup(${JSON.stringify(task.photos)}, ${i})" style="width:100%;height:100%;object-fit:cover;cursor:pointer;"/></div>`).join('')}
                             </div>
+                        </div>
+                    ` : ''}
+                    
+                    <!-- 作业记录区域 -->
+                    ${(task.site_photos && task.site_photos.length > 0) || (task.work_photos && task.work_photos.length > 0) || task.sign_photo || task.site_note || task.work_type ? `
+                        <div class="card" style="border-color: rgba(0, 255, 136, 0.3);">
+                            <div class="card-title" style="color: var(--success-color);">📝 作业记录</div>
+                            
+                            ${task.site_photos && task.site_photos.length > 0 ? `
+                                <div style="margin-bottom: 15px;">
+                                    <div style="font-size: 12px; color: #8a9ba8; margin-bottom: 8px;">📍 到达现场照片</div>
+                                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+                                        ${task.site_photos.map((p, i) => `<div style="aspect-ratio:1;border-radius:8px;overflow:hidden;border:2px solid rgba(0,255,136,0.3);"><img src="${p}" onclick="viewPhotoGroup(${JSON.stringify(task.site_photos)}, ${i})" style="width:100%;height:100%;object-fit:cover;cursor:pointer;"/></div>`).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${task.site_note ? `
+                                <div style="margin-bottom: 15px; padding: 10px; background: rgba(0,255,136,0.05); border-radius: 8px; font-size: 12px; color: var(--text-color);">
+                                    <div style="color: var(--success-color); margin-bottom: 4px;">📋 现场说明</div>
+                                    ${task.site_note}
+                                </div>
+                            ` : ''}
+                            
+                            ${task.work_photos && task.work_photos.length > 0 ? `
+                                <div style="margin-bottom: 15px;">
+                                    <div style="font-size: 12px; color: #8a9ba8; margin-bottom: 8px;">🔧 作业照片</div>
+                                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+                                        ${task.work_photos.map((p, i) => `<div style="aspect-ratio:1;border-radius:8px;overflow:hidden;border:2px solid rgba(0,255,136,0.3);"><img src="${p}" onclick="viewPhotoGroup(${JSON.stringify(task.work_photos)}, ${i})" style="width:100%;height:100%;object-fit:cover;cursor:pointer;"/></div>`).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${task.work_type || task.work_note ? `
+                                <div style="margin-bottom: 15px; padding: 10px; background: rgba(0,255,136,0.05); border-radius: 8px; font-size: 12px; color: var(--text-color);">
+                                    ${task.work_type ? `<div style="color: var(--success-color); margin-bottom: 4px;">🔧 作业类型：${task.work_type === 'tow' ? '拖车作业' : task.work_type === 'repair' ? '现场维修' : task.work_type === 'fuel' ? '紧急送油' : task.work_type === 'battery' ? '电瓶搭电' : task.work_type}</div>` : ''}
+                                    ${task.work_note ? `<div style="color: var(--success-color); margin-bottom: 4px;">📋 作业说明</div><div>${task.work_note}</div>` : ''}
+                                </div>
+                            ` : ''}
+                            
+                            ${task.sign_photo ? `
+                                <div style="margin-bottom: 15px;">
+                                    <div style="font-size: 12px; color: #8a9ba8; margin-bottom: 8px;">✍️ 签收照片</div>
+                                    <div style="aspect-ratio:16/9;border-radius:8px;overflow:hidden;border:2px solid rgba(0,255,136,0.3);max-width:300px;">
+                                        <img src="${task.sign_photo}" onclick="viewPhoto('${task.sign_photo}')" style="width:100%;height:100%;object-fit:cover;cursor:pointer;"/>
+                                    </div>
+                                </div>
+                            ` : ''}
                         </div>
                     ` : ''}
                 `;
 
+                // 时间线内容包含 HTML（照片），需要直接渲染
                 document.getElementById('taskTimeline').innerHTML = task.timeline.map(t => `
                     <div class="timeline-item">
                         <div class="timeline-time">${t.time}</div>
                         <div class="timeline-content">${t.content}</div>
                     </div>
                 `).join('');
+                
+                // 时间线照片已经由后端生成了 onclick，不需要重新绑定
 
                 // 操作按钮 - 完整拖车流程
                 let actions = '';
@@ -941,7 +1267,7 @@
                     actions = `
                         <div class="card">
                             <div class="card-title">📋 任务操作</div>
-                            <button class="btn btn-success" onclick="showStartWorkModal(${task.id})">🔧 开始作业</button>
+                            <button class="btn btn-success" onclick="showStartWorkModal(${task.id})" style="width:100%;font-weight:bold;">🔧 开始作业（上传照片）</button>
                         </div>
                     `;
                 } else if (task.status === 'processing' && task.progress === 60) {
@@ -949,25 +1275,7 @@
                     actions = `
                         <div class="card">
                             <div class="card-title">📋 任务操作</div>
-                            <button class="btn btn-primary" onclick="startNavigateToDest(${task.id})">🧭 导航去目的地</button>
-                            <button class="btn btn-success" onclick="finishWork(${task.id})" style="margin-top: 10px;">✅ 作业完成</button>
-                        </div>
-                    `;
-                } else if (task.status === 'processing' && task.progress === 70) {
-                    // 作业完成，前往目的地
-                    actions = `
-                        <div class="card">
-                            <div class="card-title">📋 任务操作</div>
-                            <button class="btn btn-primary" onclick="startNavigateToDest(${task.id})">🧭 导航去目的地</button>
-                            <button class="btn btn-success" onclick="arriveDest(${task.id})" style="margin-top: 10px;">🎯 到达目的地</button>
-                        </div>
-                    `;
-                } else if (task.status === 'processing' && task.progress >= 80) {
-                    // 已到达目的地，完成任务
-                    actions = `
-                        <div class="card">
-                            <div class="card-title">📋 任务操作</div>
-                            <button class="btn btn-success" onclick="showCompleteModal(${task.id})">✅ 完成任务</button>
+                            <button class="btn btn-success" onclick="finishWork(${task.id})" style="width:100%;font-weight:bold;">✅ 作业完成</button>
                         </div>
                     `;
                 } else if (task.status === 'completed') {
@@ -975,6 +1283,7 @@
                         <div class="card">
                             <div class="card-title">✅ 任务已完成</div>
                             <div style="text-align:center;color:#8a9ba8;font-size:13px;">该任务已结束</div>
+                            <button class="btn btn-primary" onclick="viewOrderRating(${task.id})" style="margin-top: 10px;">📋 查看评价</button>
                         </div>
                     `;
                 }
@@ -1220,24 +1529,127 @@
         // 注：路线规划功能已移除，因为无法获取司机实时位置
         // 地图仅显示救援地点，点击"开始导航"按钮可唤起外部导航 APP
 
-        // 开始导航
+        // 开始导航（从司机当前位置到救援地点）- 调用手机原生地图 APP
         function startNavigation() {
             if (!currentTask) return;
             
+            let lat, lng, name;
+            
             // 优先使用坐标，其次使用地址
-            let url;
             if (currentTask.current_coord) {
-                const [lat, lng] = currentTask.current_coord.split(',');
-                // 使用坐标打开腾讯地图
-                url = `https://apis.map.qq.com/uri/v1/geocoder?location=${lat},${lng}`;
-                // 直接打开导航 APP
-                url = `qqmap://map/navi?to=${lat},${lng}&tocompany=目的地`;
-                window.open(url, '_blank');
+                [lat, lng] = currentTask.current_coord.split(',');
+                name = currentTask.current_location || '救援地点';
+            } else if (currentTask.current_location) {
+                showToast('❌ 该订单只有地址信息，建议使用坐标导航');
+                return;
             } else {
-                const dest = encodeURIComponent(currentTask.current_location);
-                url = `https://apis.map.qq.com/uri/v1/routeplan?type=drive&to=${dest}`;
-                window.open(url, '_blank');
+                showToast('❌ 没有可用的导航信息');
+                return;
             }
+            
+            const isiOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+            const isAndroid = /Android/i.test(navigator.userAgent);
+            const ua = navigator.userAgent;
+            
+            // 显示调试信息
+            console.log('=== 导航调试信息 ===');
+            console.log('设备:', isiOS ? 'iOS' : isAndroid ? 'Android' : '其他');
+            console.log('UserAgent:', ua);
+            console.log('终点坐标:', lat, lng);
+            console.log('终点名称:', name);
+            
+            // 根据系统选择最佳调用方式
+            if (isiOS) {
+                openMapOniOS(lat, lng, name);
+            } else if (isAndroid) {
+                openMapOnAndroid(lat, lng, name);
+            } else {
+                // 其他设备 - 打开网页版
+                window.open(`https://uri.amap.com/marker?position=${lng},${lat}&name=${encodeURIComponent(name)}`, '_blank');
+            }
+        }
+        
+        // iOS 打开地图 APP
+        function openMapOniOS(lat, lng, name) {
+            // 高德地图 iOS scheme
+            const iosamap = `iosamap://navi?sourceApplication=救援系统&poiname=${encodeURIComponent(name)}&lat=${lat}&lng=${lng}&dev=0&style=2`;
+            
+            console.log('🧭 尝试打开高德地图 (iOS)');
+            window.location.href = iosamap;
+            
+            // 2 秒后如果没打开，尝试百度
+            setTimeout(() => {
+                const baiduScheme = `baidumap://map/navi?location=${lat},${lng}&coord_type=bd09ll&src=救援系统&title=${encodeURIComponent(name)}`;
+                window.location.href = baiduScheme;
+            }, 2000);
+        }
+        
+        // Android 打开地图 APP（使用 Intent）
+        function openMapOnAndroid(lat, lng, name) {
+            // 方法 1: 直接使用 androidamap scheme（最简单）
+            const androidamap = `androidamap://navi?sourceApplication=救援系统&poiname=${encodeURIComponent(name)}&lat=${lat}&lng=${lng}&dev=0&style=2`;
+            
+            // 方法 2: 使用 intent URI（兼容性更好）
+            const intentUri = `intent://navi?sourceApplication=救援系统&poiname=${encodeURIComponent(name)}&lat=${lat}&lng=${lng}&dev=0&style=2#Intent;scheme=androidamap;package=com.autonavi.amap;end`;
+            
+            console.log('🧭 尝试打开高德地图');
+            
+            // 先尝试直接 scheme
+            window.location.href = androidamap;
+            
+            // 1.5 秒后如果没打开，尝试 intent
+            setTimeout(() => {
+                console.log('scheme 失败，尝试 intent');
+                window.location.href = intentUri;
+            }, 1500);
+            
+            // 3 秒后如果还没打开，显示选择器
+            setTimeout(() => {
+                // 检查是否还在当前页面（说明 APP 没打开）
+                if (document.visibilityState === 'visible') {
+                    console.log('APP 未打开，显示选择器');
+                    showMapSelector(lat, lng, name);
+                }
+            }, 3000);
+        }
+        
+        // 打开应用商店
+        function openAppStore() {
+            const isiOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+            if (isiOS) {
+                window.open('https://apps.apple.com/cn/app/id383034042', '_blank');
+            } else {
+                window.open('market://details?id=com.autonavi.amap', '_blank');
+            }
+        }
+        
+        // 显示地图 APP 选择器
+        function showMapSelector(lat, lng, name) {
+            const html = `
+                <div id="mapSelector" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;">
+                    <div style="background:#1a1f2e;border-radius:16px;padding:24px;max-width:320px;width:90%;">
+                        <div style="text-align:center;margin-bottom:20px;">
+                            <div style="font-size:18px;font-weight:bold;margin-bottom:8px;">🧭 选择地图 APP</div>
+                            <div style="font-size:13px;color:#8a9ba8;">目的地：${name}</div>
+                        </div>
+                        <button onclick="openWithScheme('gaode')" style="width:100%;padding:14px;margin-bottom:12px;border:none;border-radius:12px;background:#008000;color:#fff;font-size:15px;font-weight:bold;">🗺️ 高德地图</button>
+                        <button onclick="openWithScheme('baidu')" style="width:100%;padding:14px;margin-bottom:12px;border:none;border-radius:12px;background:#0066ff;color:#fff;font-size:15px;font-weight:bold;">🔵 百度地图</button>
+                        <button onclick="openWithScheme('tencent')" style="width:100%;padding:14px;margin-bottom:12px;border:none;border-radius:12px;background:#00e0ff;color:#000;font-size:15px;font-weight:bold;">💠 腾讯地图</button>
+                        <button onclick="openAppStore()" style="width:100%;padding:14px;margin-bottom:12px;border:none;border-radius:12px;background:#ff6b35;color:#fff;font-size:15px;">📥 下载高德地图</button>
+                        <button onclick="document.getElementById('mapSelector').remove()" style="width:100%;padding:14px;border:none;border-radius:12px;background:#3a4d5e;color:#fff;font-size:15px;">取消</button>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', html);
+            
+            window.openWithScheme = function(scheme) {
+                const urls = {
+                    'gaode': `intent://navi?sourceApplication=救援系统&poiname=${encodeURIComponent(name)}&lat=${lat}&lng=${lng}&dev=0&style=2#Intent;scheme=iosamap;package=com.autonavi.amap;end`,
+                    'baidu': `intent://map/navi?location=${lat},${lng}&coord_type=bd09ll&src=救援系统&title=${encodeURIComponent(name)}#Intent;scheme=baidumap;package=com.baidu.BaiduMap;end`,
+                    'tencent': `intent://map/routeplan?type=drive&from=我的位置&to=${lat},${lng}&toname=${encodeURIComponent(name)}#Intent;scheme=qqmap;package=com.tencent.map;end`
+                };
+                window.location.href = urls[scheme];
+            };
         }
 
         // 导航去现场
@@ -1252,7 +1664,24 @@
         function startNavigateToDest(taskId) {
             loadTaskDetail(taskId);
             setTimeout(() => {
-                startNavigation();
+                if (!currentTask) return;
+                
+                let url;
+                
+                // 使用目的地坐标或地址
+                if (currentTask.destination_coord) {
+                    const [lat, lng] = currentTask.destination_coord.split(',');
+                    url = `https://apis.map.qq.com/uri/v1/routeplan?type=drive&to=${lat},${lng}&toname=${encodeURIComponent(currentTask.destination || '目的地')}`;
+                } else if (currentTask.destination) {
+                    const dest = encodeURIComponent(currentTask.destination);
+                    url = `https://apis.map.qq.com/uri/v1/routeplan?type=drive&to=${dest}`;
+                } else {
+                    showToast('❌ 没有目的地信息');
+                    return;
+                }
+                
+                console.log('🧭 导航去目的地:', url);
+                window.open(url, '_blank');
             }, 500);
         }
 
@@ -1282,7 +1711,12 @@
                 const res = await fetch(`${API_BASE}/drivers/tasks/${taskId}/confirm`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ accepted })
+                    body: JSON.stringify({ 
+                        accepted,
+                        driver_id: currentDriver?.id,
+                        driver_name: currentDriver?.name,
+                        driver_phone: currentDriver?.phone
+                    })
                 });
                 const data = await res.json();
                 
@@ -1370,9 +1804,75 @@
             }
         }
 
+        // 作业照片上传
+        let workPhotos = [];
+        
+        function handleWorkPhotos(event) {
+            const files = event.target.files;
+            const preview = document.getElementById('workPhotoPreview');
+            const hint = document.getElementById('photoCountHint');
+            
+            console.log('=== 照片选择调试 ===');
+            console.log('选择文件数量:', files.length);
+            console.log('当前已选:', workPhotos.length);
+            
+            if (files.length + workPhotos.length > 9) {
+                showToast('❌ 最多只能上传 9 张照片');
+                return;
+            }
+            
+            // 预览照片
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                console.log(`照片 ${i+1}:`, file.name, file.type, file.size);
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const div = document.createElement('div');
+                    div.className = 'photo-item';
+                    div.style.cssText = 'position:relative;aspect-ratio:1;overflow:hidden;border-radius:8px;border:2px solid rgba(0,240,255,0.3);';
+                    div.innerHTML = `
+                        <img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;">
+                        <button onclick="removeWorkPhoto(${workPhotos.length}, this)" style="position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;background:rgba(255,107,53,0.9);border:none;color:#fff;cursor:pointer;font-size:14px;">×</button>
+                    `;
+                    preview.appendChild(div);
+                };
+                reader.readAsDataURL(file);
+                workPhotos.push(file);
+            }
+            
+            // 更新提示
+            const total = workPhotos.length;
+            console.log('总照片数:', total);
+            if (total < 4) {
+                hint.textContent = `⚠️ 还需上传 ${4 - total} 张照片（最少 4 张）`;
+                hint.style.color = '#ff6b35';
+            } else {
+                hint.textContent = `✅ 已上传 ${total} 张照片`;
+                hint.style.color = '#00ff88';
+            }
+        }
+        
+        function removeWorkPhoto(index, btn) {
+            workPhotos.splice(index, 1);
+            btn.parentElement.remove();
+            
+            // 更新提示
+            const total = workPhotos.length;
+            const hint = document.getElementById('photoCountHint');
+            if (total < 4) {
+                hint.textContent = `⚠️ 还需上传 ${4 - total} 张照片（最少 4 张）`;
+            } else {
+                hint.textContent = `✅ 已上传 ${total} 张照片`;
+            }
+        }
+
         // 显示开始作业弹窗
         function showStartWorkModal(taskId) {
             currentTaskId = taskId;
+            workPhotos = [];
+            document.getElementById('workPhotoPreview').innerHTML = '';
+            document.getElementById('photoCountHint').textContent = '';
             document.getElementById('startWorkModal').classList.add('active');
         }
 
@@ -1380,11 +1880,106 @@
             document.getElementById('startWorkModal').classList.remove('active');
             document.getElementById('workType').value = 'tow';
             document.getElementById('workNote').value = '';
+            workPhotos = [];
+            document.getElementById('workPhotoPreview').innerHTML = '';
+            document.getElementById('photoCountHint').textContent = '';
         }
 
         async function submitStartWork() {
             const workType = document.getElementById('workType').value;
             const workNote = document.getElementById('workNote').value;
+            
+            console.log('=== 开始作业调试 ===');
+            console.log('workPhotos 数组:', workPhotos);
+            console.log('照片数量:', workPhotos.length);
+            console.log('作业类型:', workType);
+            console.log('作业说明:', workNote);
+            console.log('预览区域 HTML:', document.getElementById('workPhotoPreview').innerHTML.substring(0, 100));
+            
+            // 验证照片数量
+            if (workPhotos.length < 4) {
+                console.log('❌ 照片数量不足，拒绝提交');
+                showToast(`❌ 请至少上传 4 张现场照片（已上传 ${workPhotos.length} 张）`);
+                return;
+            }
+            
+            console.log('✅ 照片数量验证通过，开始上传');
+            
+            // 上传照片
+            const formData = new FormData();
+            for (let i = 0; i < workPhotos.length; i++) {
+                formData.append('photos', workPhotos[i]);
+                console.log(`上传照片 ${i+1}:`, workPhotos[i].name, workPhotos[i].size);
+            }
+            
+            try {
+                console.log('📤 开始上传照片...');
+                console.log('API_BASE:', API_BASE);
+                console.log('FormData 内容:', formData);
+                for (let pair of formData.entries()) {
+                    console.log('  -', pair[0], ':', pair[1].name, pair[1].size);
+                }
+                
+                const uploadRes = await fetch(`${API_BASE}/drivers/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                console.log('📥 上传响应状态:', uploadRes.status);
+                const uploadText = await uploadRes.text();
+                console.log('📥 上传响应原文:', uploadText);
+                
+                let uploadData;
+                try {
+                    uploadData = JSON.parse(uploadText);
+                } catch(e) {
+                    console.error('JSON 解析失败:', e);
+                    showToast('❌ 照片上传失败：服务器返回格式错误');
+                    return;
+                }
+                
+                console.log('📥 上传响应:', uploadData);
+                
+                if (!uploadData.success || !uploadData.urls || uploadData.urls.length === 0) {
+                    showToast('❌ 照片上传失败：' + (uploadData.error || '未知错误'));
+                    return;
+                }
+                
+                const photos = uploadData.urls;
+                console.log('✅ 照片上传成功:', photos);
+                
+                // 提交开始作业
+                console.log('📤 提交开始作业...');
+                const requestBody = { 
+                    work_type: workType, 
+                    work_note: workNote,
+                    work_photos: photos
+                };
+                console.log('请求体:', JSON.stringify(requestBody));
+                
+                const res = await fetch(`${API_BASE}/drivers/tasks/${currentTaskId}/start-work`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                console.log('📥 作业响应状态:', res.status);
+                const data = await res.json();
+                console.log('📥 作业响应数据:', data);
+                
+                if (!res.ok) {
+                    showToast('❌ 操作失败：' + (data.error || '未知错误'));
+                    return;
+                }
+                
+                showToast('✅ ' + data.message);
+                closeStartWorkModal();
+                loadTaskDetail(currentTaskId);
+                loadTasks();
+            } catch (error) {
+                console.error('❌ 开始作业失败:', error);
+                showToast('❌ 操作失败：' + error.message);
+            }
             
             try {
                 const res = await fetch(`${API_BASE}/drivers/tasks/${currentTaskId}/start-work`, {
@@ -1405,19 +2000,35 @@
 
         // 完成作业
         async function finishWork(taskId) {
+            console.log('=== 完成作业调试 ===');
+            console.log('订单 ID:', taskId);
+            
             try {
                 const res = await fetch(`${API_BASE}/drivers/tasks/${taskId}/finish-work`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({})
                 });
+                
+                console.log('📥 响应状态:', res.status);
                 const data = await res.json();
+                console.log('📥 响应数据:', data);
+                
+                if (!res.ok) {
+                    showToast('❌ 操作失败：' + (data.error || '未知错误'));
+                    return;
+                }
                 
                 showToast('✅ ' + data.message);
-                loadTaskDetail(taskId);
-                loadTasks();
+                
+                // 强制刷新，确保获取最新状态
+                setTimeout(() => {
+                    loadTaskDetail(taskId);
+                    loadTasks();
+                }, 500);
             } catch (error) {
-                showToast('❌ 操作失败');
+                console.error('❌ 完成作业失败:', error);
+                showToast('❌ 操作失败：' + error.message);
             }
         }
 
@@ -1512,8 +2123,183 @@
                 
                 document.getElementById('totalOrders').textContent = driver.total_orders || 0;
                 document.getElementById('driverRating').textContent = driver.rating || 5.0;
+                
+                // 加载我的订单列表
+                loadMyOrders();
             } catch (error) {
                 console.error('加载个人信息失败:', error);
+            }
+        }
+
+        // 我的订单列表展开/收起状态
+        let myOrdersExpanded = false;
+        let allMyOrders = []; // 缓存所有订单用于搜索
+        let filteredMyOrders = []; // 当前显示的订单（分页后）
+        let currentOrdersPage = 1;
+        let ordersPageSize = 20;
+
+        // 切换我的订单显示/收起
+        function toggleMyOrders() {
+            const container = document.getElementById('myOrdersList');
+            const loadMoreElement = document.getElementById('loadMoreContainer');
+            myOrdersExpanded = !myOrdersExpanded;
+            
+            if (myOrdersExpanded) {
+                container.style.display = 'block';
+                loadMoreElement.style.display = 'block';
+                loadMyOrders();
+            } else {
+                container.style.display = 'none';
+                loadMoreElement.style.display = 'none';
+                container.innerHTML = '';
+                document.getElementById('orderSearchInput').value = '';
+            }
+        }
+
+        // 搜索订单
+        function searchOrders() {
+            const keyword = document.getElementById('orderSearchInput').value.trim().toLowerCase();
+            const container = document.getElementById('myOrdersList');
+            const loadMoreElement = document.getElementById('loadMoreContainer');
+            
+            if (!keyword) {
+                // 清空搜索，显示全部
+                currentOrdersPage = 1;
+                filteredMyOrders = [...allMyOrders];
+                renderMyOrdersWithPagination();
+                updateLoadMoreButton();
+                return;
+            }
+            
+            // 过滤订单
+            filteredMyOrders = allMyOrders.filter(task => {
+                return (task.order_no && task.order_no.toLowerCase().includes(keyword)) ||
+                       (task.vehicle_plate && task.vehicle_plate.toLowerCase().includes(keyword));
+            });
+            
+            // 重置分页
+            currentOrdersPage = 1;
+            renderMyOrdersWithPagination();
+            updateLoadMoreButton();
+        }
+
+        // 渲染订单列表
+        function renderMyOrders(orders) {
+            const container = document.getElementById('myOrdersList');
+            
+            if (orders.length === 0) {
+                container.innerHTML = '<div style="text-align:center;color:#5a6d7e;font-size:13px;padding:20px;">未找到匹配的订单</div>';
+                return;
+            }
+
+            container.innerHTML = orders.map(task => {
+                const statusBadge = task.status === 'completed' 
+                    ? '<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(0,255,136,0.2);color:var(--success-color);">✅ 已完成</span>'
+                    : task.status === 'processing'
+                    ? '<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(0,240,255,0.2);color:var(--primary-color);">🔄 进行中</span>'
+                    : '<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(255,165,0,0.2);color:var(--warning-color);">⏳ 待处理</span>';
+                
+                const incomeText = task.status === 'completed' && task.price 
+                    ? `<span style="color:var(--success-color)">+¥${task.price}</span>`
+                    : '';
+                
+                // 已完成订单显示查看评价按钮（司机端只能查看）
+                const rateButton = task.status === 'completed'
+                    ? `<button class="btn btn-warning" onclick="event.stopPropagation();viewOrderRating(${task.id})" style="width: auto; padding: 4px 12px; font-size: 11px; margin-top: 8px;">📋 查看评价</button>`
+                    : '';
+                
+                return `
+                    <div class="task-item" onclick="loadTaskDetail(${task.id})" style="margin-bottom:8px;">
+                        <div class="task-header">
+                            <div style="display:flex;align-items:center;">
+                                <span class="task-no">${task.order_no}</span>
+                                ${statusBadge}
+                            </div>
+                            <span style="font-size:11px;color:#5a6d7e;">${new Date(task.created_at).toLocaleDateString('zh-CN')}</span>
+                        </div>
+                        <div class="task-info">
+                            车牌：<span>${task.vehicle_plate || '未填写'}</span><br/>
+                            ${incomeText}
+                        </div>
+                        ${rateButton}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 加载我的订单列表（个人中心 - 显示所有订单）
+        async function loadMyOrders() {
+            if (!currentDriver) return;
+            
+            const container = document.getElementById('myOrdersList');
+            const loadMoreElement = document.getElementById('loadMoreContainer');
+            
+            try {
+                // 获取该司机的所有订单（包括已完成）
+                const res = await fetch(`${API_BASE}/drivers/tasks?driver_id=${currentDriver.id}&status=all`);
+                const data = await res.json();
+                
+                console.log('我的订单列表:', data);
+                
+                if (!data.tasks || data.tasks.length === 0) {
+                    container.innerHTML = '<div style="text-align:center;color:#5a6d7e;font-size:13px;padding:20px;">暂无订单</div>';
+                    loadMoreElement.style.display = 'none';
+                    return;
+                }
+
+                // 只显示已接单的订单（order_type === 'assigned'）
+                allMyOrders = data.tasks.filter(task => task.order_type === 'assigned');
+                
+                if (allMyOrders.length === 0) {
+                    container.innerHTML = '<div style="text-align:center;color:#5a6d7e;font-size:13px;padding:20px;">暂无订单</div>';
+                    loadMoreElement.style.display = 'none';
+                    return;
+                }
+
+                // 按创建时间倒序排序（新的在前）
+                allMyOrders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                
+                // 重置分页
+                currentOrdersPage = 1;
+                filteredMyOrders = [...allMyOrders];
+                
+                // 渲染第一页
+                renderMyOrdersWithPagination();
+                
+                // 判断是否需要显示加载更多按钮
+                updateLoadMoreButton();
+            } catch (error) {
+                console.error('加载我的订单失败:', error);
+                container.innerHTML = '<div style="text-align:center;color:#ff6b35;font-size:13px;padding:20px;">加载失败</div>';
+                loadMoreElement.style.display = 'none';
+            }
+        }
+        
+        // 分页渲染订单列表
+        function renderMyOrdersWithPagination() {
+            const start = 0;
+            const end = currentOrdersPage * ordersPageSize;
+            const ordersToShow = filteredMyOrders.slice(start, end);
+            renderMyOrders(ordersToShow);
+        }
+        
+        // 加载更多订单
+        function loadMoreOrders() {
+            currentOrdersPage++;
+            renderMyOrdersWithPagination();
+            updateLoadMoreButton();
+        }
+        
+        // 更新加载更多按钮状态
+        function updateLoadMoreButton() {
+            const loadMoreElement = document.getElementById('loadMoreContainer');
+            const totalOrders = filteredMyOrders.length;
+            const displayedOrders = currentOrdersPage * ordersPageSize;
+            
+            if (displayedOrders >= totalOrders) {
+                loadMoreElement.style.display = 'none';
+            } else {
+                loadMoreElement.style.display = 'block';
             }
         }
 
@@ -1524,19 +2310,31 @@
             // 每 10 秒更新一次位置
             locationTimer = setInterval(async () => {
                 if (navigator.geolocation && currentDriver) {
-                    navigator.geolocation.getCurrentPosition(async (position) => {
-                        const { latitude, longitude, speed } = position.coords;
-                        
-                        try {
-                            await fetch(`${API_BASE}/drivers/profile/${currentDriver.id}/location`, {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ latitude, longitude, speed: speed || 0 })
-                            });
-                        } catch (error) {
-                            console.error('位置更新失败:', error);
+                    navigator.geolocation.getCurrentPosition(
+                        async (position) => {
+                            const { latitude, longitude, speed } = position.coords;
+                            
+                            try {
+                                await fetch(`${API_BASE}/drivers/profile/${currentDriver.id}/location`, {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ latitude, longitude, speed: speed || 0 })
+                                });
+                                console.log('✅ 位置更新成功:', latitude, longitude);
+                            } catch (error) {
+                                console.error('位置更新失败:', error);
+                            }
+                        },
+                        (error) => {
+                            console.warn('⚠️ 定位失败:', error.code, error.message);
+                            // 降级：使用上次已知位置或订单坐标
+                        },
+                        {
+                            enableHighAccuracy: false,  // 不使用高精度（省电、快速）
+                            timeout: 10000,              // 10 秒超时
+                            maximumAge: 300000           // 允许使用 5 分钟内的缓存位置
                         }
-                    });
+                    );
                 }
             }, 10000);
         }
