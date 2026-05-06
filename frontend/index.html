@@ -785,6 +785,36 @@
         </div>
     </div>
 
+    <!-- 查看评价弹窗 -->
+    <div class="modal" id="viewRateModal">
+        <div class="modal-header">
+            <span class="modal-title">📋 订单评价</span>
+            <button class="modal-close" onclick="closeModal('viewRateModal')">×</button>
+        </div>
+        <div id="viewRateContent" style="padding:20px;"></div>
+    </div>
+
+    <!-- 图片查看弹窗（支持组切换） -->
+    <div class="modal" id="photoViewModal" onclick="closePhotoModal()">
+        <div class="modal-content" style="max-width:900px;position:relative;" onclick="event.stopPropagation()">
+            <!-- 切换按钮 -->
+            <button id="photoPrevBtn" onclick="prevPhoto()" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.5);color:white;border:none;border-radius:50%;width:40px;height:40px;font-size:20px;cursor:pointer;display:none;">‹</button>
+            <button id="photoNextBtn" onclick="nextPhoto()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.5);color:white;border:none;border-radius:50%;width:40px;height:40px;font-size:20px;cursor:pointer;display:none;">›</button>
+            
+            <!-- 图片 -->
+            <img id="photoViewImage" src="" style="width: 100%; max-height:70vh; object-fit:contain; border-radius: 8px;" />
+            
+            <!-- 图片计数 -->
+            <div id="photoCount" style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,0.6);color:white;padding:5px 10px;border-radius:20px;font-size:12px;display:none;">1/5</div>
+            
+            <!-- 缩略图导航 -->
+            <div id="photoThumbnails" style="margin-top:15px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;display:none;"></div>
+            
+            <!-- 关闭按钮 -->
+            <button class="submit-btn" onclick="closePhotoModal()" style="margin-top: 10px;width:100%;">关闭</button>
+        </div>
+    </div>
+
     <!-- 充值弹窗 -->
     <div class="modal" id="rechargeModal">
         <div class="modal-header">
@@ -1159,8 +1189,8 @@
                             <span class="order-price">¥${order.price}</span>
                             <span class="order-time">${new Date(order.created_at).toLocaleString('zh-CN')}</span>
                         </div>
-                        ${order.status === 'completed' && !order.rated ? `
-                        <button class="action-btn btn-rate" onclick="event.stopPropagation();openRateModal(${order.id})" style="margin-top:10px;width:100%;">⭐ 评价服务</button>
+                        ${order.status === 'completed' ? `
+                        <button class="action-btn btn-rate" onclick="event.stopPropagation();${order.rated ? `viewOrderRating(${order.id})` : `openRateModal(${order.id})`}" style="margin-top:10px;width:100%;">${order.rated ? '📋 查看评价' : '⭐ 评价服务'}</button>
                         ` : ''}
                     </div>
                 `).join('');
@@ -1213,9 +1243,9 @@
                     <div class="detail-section">
                         <div class="detail-title">📸 现场照片 (${order.photos.length}张)</div>
                         <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;">
-                            ${order.photos.map(p => {
+                            ${order.photos.map((p, i) => {
                                 const photoUrl = p.startsWith('http') ? p : (p.startsWith('/uploads') ? p : `${API_BASE}${p}`);
-                                return `<div style="width:80px;height:80px;flex-shrink:0;overflow:hidden;border-radius:6px;border:2px solid rgba(255,107,53,0.2);cursor:pointer;" onclick="viewPhoto('${photoUrl}')"><img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;"></div>`;
+                                return `<div style="width:80px;height:80px;flex-shrink:0;overflow:hidden;border-radius:6px;border:2px solid rgba(255,107,53,0.2);cursor:pointer;" onclick="viewPhotoGroup(${JSON.stringify(order.photos)}, ${i})"><img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;"></div>`;
                             }).join('')}
                         </div>
                     </div>
@@ -1419,7 +1449,8 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         rating: currentRating,
-                        comment: document.getElementById('rateComment').value
+                        comment: document.getElementById('rateComment').value,
+                        driver_id: null // 会自动从订单获取
                     })
                 });
                 const data = await res.json();
@@ -1434,6 +1465,47 @@
                 }
             } catch (error) {
                 showAlert('error', '错误', '提交评价失败');
+            }
+        }
+
+        // 查看订单评价
+        async function viewOrderRating(orderId) {
+            try {
+                const res = await fetch(`${API_BASE}/api/orders/${orderId}/rating`);
+                const data = await res.json();
+                
+                const content = document.getElementById('viewRateContent');
+                
+                if (data.rating && data.rating.user_rating) {
+                    const rating = data.rating;
+                    const stars = '⭐'.repeat(rating.user_rating || 0) + '☆'.repeat(5 - (rating.user_rating || 0));
+                    
+                    content.innerHTML = `
+                        <div style="margin-bottom:15px;">
+                            <div style="font-size:12px;color:#5a6d7e;margin-bottom:4px;">订单号</div>
+                            <div style="font-size:14px;color:var(--primary-color);">${rating.order_no}</div>
+                        </div>
+                        <div style="margin-bottom:15px;">
+                            <div style="font-size:12px;color:#5a6d7e;margin-bottom:4px;">您的评分</div>
+                            <div style="font-size:24px;">${stars}</div>
+                            <div style="font-size:14px;color:var(--warning-color);">${rating.user_rating} / 5</div>
+                        </div>
+                        ${rating.user_comment ? `
+                            <div style="margin-bottom:15px;">
+                                <div style="font-size:12px;color:#5a6d7e;margin-bottom:4px;">评价内容</div>
+                                <div style="font-size:13px;color:var(--text-color);padding:10px;background:rgba(0,240,255,0.05);border-radius:8px;">${rating.user_comment}</div>
+                            </div>
+                        ` : ''}
+                        <div style="font-size:11px;color:#5a6d7e;">评价时间：${new Date(rating.user_rating_at || rating.updated_at).toLocaleString('zh-CN')}</div>
+                    `;
+                } else {
+                    content.innerHTML = '<div style="text-align:center;color:#5a6d7e;padding:20px;">暂无评价</div>';
+                }
+                
+                document.getElementById('viewRateModal').classList.add('active');
+            } catch (error) {
+                console.error('查看评价失败:', error);
+                showAlert('error', '错误', '查看评价失败');
             }
         }
 
@@ -1495,15 +1567,133 @@
             if (alert.callback) { alert.callback(); alert.callback = null; }
         }
 
-        // 查看照片
+        // 查看照片（支持组切换）
+        let currentPhotoGroup = [];
+        let currentPhotoIndex = 0;
+        
+        // 查看照片组
+        function viewPhotoGroup(photos, index) {
+            if (!photos || photos.length === 0) return;
+            
+            const modal = document.getElementById('photoViewModal');
+            const img = document.getElementById('photoViewImage');
+            const prevBtn = document.getElementById('photoPrevBtn');
+            const nextBtn = document.getElementById('photoNextBtn');
+            const countDiv = document.getElementById('photoCount');
+            const thumbsDiv = document.getElementById('photoThumbnails');
+            
+            currentPhotoGroup = photos;
+            currentPhotoIndex = index || 0;
+            
+            // 更新显示
+            const photoUrl = photos[currentPhotoIndex].startsWith('http') ? photos[currentPhotoIndex] : 
+                           (photos[currentPhotoIndex].startsWith('/uploads') ? photos[currentPhotoIndex] : `${API_BASE}${photos[currentPhotoIndex]}`);
+            img.src = photoUrl;
+            countDiv.textContent = `${currentPhotoIndex + 1}/${photos.length}`;
+            
+            // 多张照片时显示切换按钮
+            if (photos.length > 1) {
+                prevBtn.style.display = 'block';
+                nextBtn.style.display = 'block';
+                countDiv.style.display = 'block';
+                thumbsDiv.style.display = 'flex';
+                renderThumbnails();
+            } else {
+                prevBtn.style.display = 'none';
+                nextBtn.style.display = 'none';
+                countDiv.style.display = 'none';
+                thumbsDiv.style.display = 'none';
+            }
+            
+            modal.classList.add('active');
+        }
+        
+        // 查看单张照片（兼容旧调用）
         function viewPhoto(src) {
             const photoUrl = src.startsWith('http') ? src : (src.startsWith('/uploads') ? src : `${API_BASE}${src}`);
-            const modal = document.createElement('div');
-            modal.className = 'modal active';
-            modal.onclick = () => modal.remove();
-            modal.innerHTML = `<img src="${photoUrl}" style="max-width:90%;max-height:80vh;border-radius:8px;" onclick="event.stopPropagation()">`;
-            document.body.appendChild(modal);
+            const modal = document.getElementById('photoViewModal');
+            const img = document.getElementById('photoViewImage');
+            img.src = photoUrl;
+            document.getElementById('photoPrevBtn').style.display = 'none';
+            document.getElementById('photoNextBtn').style.display = 'none';
+            document.getElementById('photoCount').style.display = 'none';
+            document.getElementById('photoThumbnails').style.display = 'none';
+            modal.classList.add('active');
         }
+        
+        // 更新照片显示
+        function updatePhotoDisplay() {
+            const img = document.getElementById('photoViewImage');
+            const countDiv = document.getElementById('photoCount');
+            
+            if (currentPhotoGroup.length > 0) {
+                const photoUrl = currentPhotoGroup[currentPhotoIndex].startsWith('http') ? currentPhotoGroup[currentPhotoIndex] : 
+                               (currentPhotoGroup[currentPhotoIndex].startsWith('/uploads') ? currentPhotoGroup[currentPhotoIndex] : `${API_BASE}${currentPhotoGroup[currentPhotoIndex]}`);
+                img.src = photoUrl;
+                countDiv.textContent = `${currentPhotoIndex + 1}/${currentPhotoGroup.length}`;
+                updateThumbnails();
+            }
+        }
+        
+        // 上一张
+        function prevPhoto() {
+            if (currentPhotoIndex > 0) {
+                currentPhotoIndex--;
+                updatePhotoDisplay();
+            }
+        }
+        
+        // 下一张
+        function nextPhoto() {
+            if (currentPhotoIndex < currentPhotoGroup.length - 1) {
+                currentPhotoIndex++;
+                updatePhotoDisplay();
+            }
+        }
+        
+        // 关闭弹窗
+        function closePhotoModal() {
+            document.getElementById('photoViewModal').classList.remove('active');
+            currentPhotoGroup = [];
+            currentPhotoIndex = 0;
+        }
+        
+        // 渲染缩略图
+        function renderThumbnails() {
+            const thumbsDiv = document.getElementById('photoThumbnails');
+            thumbsDiv.innerHTML = currentPhotoGroup.map((photo, index) => {
+                const photoUrl = photo.startsWith('http') ? photo : (photo.startsWith('/uploads') ? photo : `${API_BASE}${photo}`);
+                return `<img src="${photoUrl}" onclick="switchPhoto(${index})" 
+                    style="width:60px;height:60px;object-fit:cover;border-radius:4px;cursor:pointer;opacity:${index === currentPhotoIndex ? '1' : '0.5'};border:${index === currentPhotoIndex ? '2px solid var(--primary-color)' : '2px solid transparent'}" />`;
+            }).join('');
+        }
+        
+        // 更新缩略图
+        function updateThumbnails() {
+            const thumbsDiv = document.getElementById('photoThumbnails');
+            if (thumbsDiv.children.length === currentPhotoGroup.length) {
+                Array.from(thumbsDiv.children).forEach((thumb, index) => {
+                    thumb.style.opacity = index === currentPhotoIndex ? '1' : '0.5';
+                    thumb.style.border = index === currentPhotoIndex ? '2px solid var(--primary-color)' : '2px solid transparent';
+                });
+            }
+        }
+        
+        // 切换照片
+        function switchPhoto(index) {
+            currentPhotoIndex = index;
+            updatePhotoDisplay();
+        }
+        
+        // 键盘事件
+        document.addEventListener('keydown', function(e) {
+            const modal = document.getElementById('photoViewModal');
+            if (modal && modal.classList.contains('active')) {
+                if (e.key === 'ArrowLeft' && currentPhotoGroup.length > 0) prevPhoto();
+                else if (e.key === 'ArrowRight' && currentPhotoGroup.length > 0) nextPhoto();
+                else if (e.key === 'Escape') closePhotoModal();
+            }
+        });
 
         // 初始化
         document.addEventListener('DOMContentLoaded', () => {

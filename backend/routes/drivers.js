@@ -113,17 +113,34 @@ router.post('/register', async (req, res) => {
 
 // ==================== 任务管理 ====================
 
-// 获取我的任务列表
+// 获取我的任务列表（包含待抢单）
 router.get('/tasks', async (req, res) => {
   try {
-    const { driver_id, status, page = 1, limit = 20 } = req.query;
+    const { driver_id, status, status_filter, page = 1, limit = 50 } = req.query;
     
-    let query = 'SELECT * FROM orders WHERE driver_id = ?';
-    const params = [driver_id];
+    let query;
+    let params;
+    
+    // 如果传递了 status=all，只查询该司机的所有订单（不包括可接订单）
+    if (status === 'all') {
+      query = 'SELECT * FROM orders WHERE driver_id = ?';
+      params = [driver_id];
+    } else {
+      // 查询：已接单的订单 + 待抢单的订单（pending 且未分配司机）
+      query = 'SELECT * FROM orders WHERE (driver_id = ? OR (status = ? AND driver_id IS NULL))';
+      params = [driver_id, 'pending'];
 
-    if (status && status !== 'all') {
-      query += ' AND status = ?';
-      params.push(status);
+      // 支持 status_filter 参数：active=只显示进行中/待处理，completed=只显示已完成
+      if (status_filter === 'active') {
+        query += ' AND status != ? AND status != ?';
+        params.push('completed', 'cancelled');
+      } else if (status_filter === 'completed') {
+        query += ' AND status = ?';
+        params.push('completed');
+      } else if (status && status !== 'all') {
+        query += ' AND status = ?';
+        params.push(status);
+      }
     }
 
     query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
@@ -137,11 +154,15 @@ router.get('/tasks', async (req, res) => {
       else if (order.status === 'completed') statusText = '已完成';
       else if (order.status === 'cancelled') statusText = '已取消';
 
+      // 判断订单类型：已接单 vs 可接单
+      const orderType = order.driver_id == driver_id ? 'assigned' : 'available';
+
       return {
         id: order.id,
         order_no: order.order_no,
         status: order.status,
         status_text: statusText,
+        order_type: orderType, // 新增：订单类型
         service_type: order.service_type,
         vehicle_plate: order.vehicle_plate,
         vehicle_type: order.vehicle_type,
@@ -185,6 +206,7 @@ router.get('/tasks/:id', async (req, res) => {
         id: order.id,
         order_no: order.order_no,
         status: order.status,
+        progress: order.progress || 0,
         service_type: order.service_type,
         vehicle_type: order.vehicle_type,
         vehicle_plate: order.vehicle_plate,
@@ -198,7 +220,13 @@ router.get('/tasks/:id', async (req, res) => {
         owner_phone: order.owner_phone,
         movable: order.movable,
         special_note: order.special_note,
-        photos: order.photos ? JSON.parse(order.photos) : [],
+        photos: order.photos ? JSON.parse(order.photos || '[]') : [],
+        site_photos: order.site_photos ? JSON.parse(order.site_photos || '[]') : [],
+        work_photos: order.work_photos ? JSON.parse(order.work_photos || '[]') : [],
+        sign_photo: order.sign_photo || '',
+        site_note: order.site_note || '',
+        work_type: order.work_type || '',
+        work_note: order.work_note || '',
         price: order.price,
         priority: order.priority,
         insurance_no: order.insurance_no,
@@ -221,7 +249,7 @@ router.get('/tasks/:id', async (req, res) => {
 router.put('/tasks/:id/confirm', async (req, res) => {
   try {
     const orderId = req.params.id;
-    const { accepted, reject_reason } = req.body;
+    const { accepted, reject_reason, driver_id, driver_name, driver_phone } = req.body;
 
     const order = await get('SELECT * FROM orders WHERE id = ?', [orderId]);
     if (!order) {
@@ -240,9 +268,9 @@ router.put('/tasks/:id/confirm', async (req, res) => {
 
       res.json({ success: true, message: '已拒绝任务' });
     } else {
-      // 确认任务 - 更新订单状态和进度
-      await run('UPDATE orders SET status = ?, progress = ? WHERE id = ?', 
-        ['processing', 0, orderId]);
+      // 确认任务 - 更新订单状态和进度，绑定司机信息
+      await run('UPDATE orders SET status = ?, progress = ?, driver_id = ?, driver_name = ?, driver_phone = ? WHERE id = ?', 
+        ['processing', 0, driver_id || null, driver_name || null, driver_phone || null, orderId]);
       
       await run(
         'INSERT INTO order_timeline (order_id, status, description) VALUES (?, ?, ?)',
@@ -268,7 +296,7 @@ router.put('/tasks/:id/start', async (req, res) => {
       return res.status(404).json({ error: '任务不存在' });
     }
 
-    await run('UPDATE orders SET progress = ?, navigation_started = 1 WHERE id = ?', [10, orderId]);
+    await run('UPDATE orders SET status = ?, progress = ?, navigation_started = 1 WHERE id = ?', ['processing', 10, orderId]);
 
     await run(
       'INSERT INTO order_timeline (order_id, status, description) VALUES (?, ?, ?)',
@@ -294,17 +322,21 @@ router.put('/tasks/:id/arrive-site', async (req, res) => {
     }
 
     // 更新进度为 50（到达现场）
-    await run('UPDATE orders SET progress = ?, arrived_at_site = ?, site_photos = ?, site_note = ? WHERE id = ?', 
-      [50, new Date().toISOString(), JSON.stringify(photos || []), site_note || '', orderId]);
+    await run('UPDATE orders SET status = ?, progress = ?, arrived_at_site = ?, site_photos = ?, site_note = ? WHERE id = ?', 
+      ['processing', 50, new Date().toISOString(), JSON.stringify(photos || []), site_note || '', orderId]);
 
     let photoDesc = '';
     if (photos && photos.length > 0) {
       photoDesc = `，已上传现场照片 ${photos.length} 张`;
     }
 
+    // 时间线描述包含照片 HTML（支持组查看）- 使用 data 属性存储照片数组
+    const photosJson = photos ? JSON.stringify(photos) : '[]';
+    const timelineDesc = `司机已到达现场${photoDesc}${photos && photos.length > 0 ? '<br/><div class="timeline-photos">' + photos.map((p, i) => `<img src="${p}" data-photos='${photosJson}' data-index="${i}" onclick="viewPhotoGroup(JSON.parse(this.dataset.photos), this.dataset.index)" style="width:60px;height:60px;border-radius:6px;margin:4px;cursor:pointer;object-fit:cover;">`).join('') + '</div>' : ''}`;
+
     await run(
       'INSERT INTO order_timeline (order_id, status, description) VALUES (?, ?, ?)',
-      [orderId, 'processing', `司机已到达现场${photoDesc}`]
+      [orderId, 'processing', timelineDesc]
     );
 
     res.json({ success: true, message: '已到达现场，请开始作业' });
@@ -318,16 +350,21 @@ router.put('/tasks/:id/arrive-site', async (req, res) => {
 router.put('/tasks/:id/start-work', async (req, res) => {
   try {
     const orderId = req.params.id;
-    const { work_type, work_note } = req.body;
+    const { work_type, work_note, work_photos } = req.body;
+
+    console.log('=== 开始作业 API 调试 ===');
+    console.log('订单 ID:', orderId);
+    console.log('请求体:', JSON.stringify(req.body, null, 2));
+    console.log('work_photos:', work_photos);
 
     const order = await get('SELECT * FROM orders WHERE id = ?', [orderId]);
     if (!order) {
       return res.status(404).json({ error: '任务不存在' });
     }
 
-    // 更新进度为 60（作业中）
-    await run('UPDATE orders SET progress = ?, work_type = ?, work_note = ? WHERE id = ?', 
-      [60, work_type || 'tow', work_note || '', orderId]);
+    // 更新进度为 60（作业中），保存作业照片
+    await run('UPDATE orders SET status = ?, progress = ?, work_type = ?, work_note = ?, work_photos = ? WHERE id = ?', 
+      ['processing', 60, work_type || 'tow', work_note || '', work_photos ? JSON.stringify(work_photos) : null, orderId]);
 
     const workTypeText = {
       'tow': '拖车作业',
@@ -336,15 +373,25 @@ router.put('/tasks/:id/start-work', async (req, res) => {
       'battery': '电瓶搭电'
     }[work_type] || '作业';
 
+    let photoDesc = '';
+    if (work_photos && work_photos.length > 0) {
+      photoDesc = `，已上传现场照片 ${work_photos.length} 张`;
+    }
+
+    // 时间线描述包含照片 HTML（支持组查看）- 使用 data 属性存储照片数组
+    const photosJson = work_photos ? JSON.stringify(work_photos) : '[]';
+    const timelineDesc = `司机已开始${workTypeText}${photoDesc}${work_photos && work_photos.length > 0 ? '<br/><div class="timeline-photos">' + work_photos.map((p, i) => `<img src="${p}" data-photos='${photosJson}' data-index="${i}" onclick="viewPhotoGroup(JSON.parse(this.dataset.photos), this.dataset.index)" style="width:60px;height:60px;border-radius:6px;margin:4px;cursor:pointer;object-fit:cover;">`).join('') + '</div>' : ''}`;
+
     await run(
       'INSERT INTO order_timeline (order_id, status, description) VALUES (?, ?, ?)',
-      [orderId, 'processing', `司机已开始${workTypeText}`]
+      [orderId, 'processing', timelineDesc]
     );
 
+    console.log('✅ 开始作业成功');
     res.json({ success: true, message: '已开始作业' });
   } catch (error) {
-    console.error('开始作业错误:', error);
-    res.status(500).json({ error: '操作失败' });
+    console.error('❌ 开始作业错误:', error);
+    res.status(500).json({ error: '操作失败：' + error.message });
   }
 });
 
@@ -358,16 +405,16 @@ router.put('/tasks/:id/finish-work', async (req, res) => {
       return res.status(404).json({ error: '任务不存在' });
     }
 
-    // 更新进度为 70（作业完成）
-    await run('UPDATE orders SET progress = ?, work_finished_at = ? WHERE id = ?', 
-      [70, new Date().toISOString(), orderId]);
+    // 更新状态为 completed，进度 100（作业完成即订单完成）
+    await run('UPDATE orders SET status = ?, progress = ?, work_finished_at = ? WHERE id = ?', 
+      ['completed', 100, new Date().toISOString(), orderId]);
 
     await run(
       'INSERT INTO order_timeline (order_id, status, description) VALUES (?, ?, ?)',
-      [orderId, 'processing', '作业完成，准备前往目的地']
+      [orderId, 'completed', '作业完成，订单已结束']
     );
 
-    res.json({ success: true, message: '作业已完成' });
+    res.json({ success: true, message: '作业已完成，订单已结束' });
   } catch (error) {
     console.error('完成作业错误:', error);
     res.status(500).json({ error: '操作失败' });
@@ -385,12 +432,15 @@ router.put('/tasks/:id/arrive-dest', async (req, res) => {
       return res.status(404).json({ error: '任务不存在' });
     }
 
-    await run('UPDATE orders SET progress = ?, arrived_at_dest = ?, sign_photo = ?, sign_user = ? WHERE id = ?', 
-      [80, new Date().toISOString(), sign_photo || '', sign_user || '']);
+    await run('UPDATE orders SET status = ?, progress = ?, arrived_at_dest = ?, sign_photo = ?, sign_user = ? WHERE id = ?', 
+      ['processing', 80, new Date().toISOString(), sign_photo || '', sign_user || '']);
+
+    // 时间线描述包含签收照片
+    const timelineDesc = `已到达目的地，等待签收确认${sign_photo ? '<br/><div class="timeline-photos"><img src="' + sign_photo + '" onclick="viewPhoto(\'' + sign_photo + '\')" style="width:60px;height:60px;border-radius:6px;margin:4px;cursor:pointer;object-fit:cover;"></div>' : ''}`;
 
     await run(
       'INSERT INTO order_timeline (order_id, status, description) VALUES (?, ?, ?)',
-      [orderId, 'processing', '已到达目的地，等待签收确认']
+      [orderId, 'processing', timelineDesc]
     );
 
     res.json({ success: true, message: '已到达目的地' });
@@ -491,7 +541,7 @@ router.get('/profile/:id', async (req, res) => {
         rating: driver.rating,
         total_orders: driver.total_orders,
         status: driver.status,
-        accepting_orders: driver.accepting_orders || 1, // 默认开启接单
+        accepting_orders: driver.accepting_orders !== null ? driver.accepting_orders : 1, // 如果为 NULL 则默认开启，否则使用保存的值
         latitude: driver.latitude,
         longitude: driver.longitude
       }
@@ -593,13 +643,29 @@ router.post('/route', async (req, res) => {
 
 // 上传照片（支持水印）
 router.post('/upload', upload.array('photos', 9), (req, res) => {
+  console.log('=== 上传照片调试 ===');
+  console.log('files:', req.files);
+  console.log('body:', req.body);
+  console.log('headers:', req.headers['content-type']);
+  
   try {
-    const files = req.files || [];
+    if (!req.files || req.files.length === 0) {
+      console.log('❌ 没有收到文件');
+      return res.status(400).json({ error: '没有上传文件', success: false });
+    }
+    
+    const files = req.files;
+    console.log('✅ 收到文件数量:', files.length);
+    files.forEach((f, i) => {
+      console.log(`  文件${i+1}: ${f.originalname} -> ${f.filename} (${f.size} bytes)`);
+    });
+    
     const urls = files.map(file => `/uploads/drivers/${file.filename}`);
+    console.log('✅ URLs:', urls);
     res.json({ success: true, urls });
   } catch (error) {
-    console.error('上传照片错误:', error);
-    res.status(500).json({ error: '上传失败' });
+    console.error('❌ 上传照片错误:', error);
+    res.status(500).json({ error: '上传失败：' + error.message });
   }
 });
 
@@ -737,6 +803,82 @@ router.post('/init-mock', async (req, res) => {
   } catch (error) {
     console.error('初始化司机模拟数据错误:', error);
     res.status(500).json({ error: '初始化失败' });
+  }
+});
+
+// ==================== 订单评价（司机端只能查看） ====================
+
+// 获取订单评价（司机端只能查看，不能评价）
+router.get('/orders/:id/rating', async (req, res) => {
+  try {
+    const orderId = req.params.id;
+
+    const rating = await get('SELECT * FROM order_ratings WHERE order_id = ?', [orderId]);
+    
+    if (!rating) {
+      return res.json({ rating: null });
+    }
+
+    const order = await get('SELECT order_no, user_id FROM orders WHERE id = ?', [orderId]);
+
+    res.json({
+      rating: {
+        ...rating,
+        order_no: order?.order_no || '',
+        can_rate: false // 司机端不能评价
+      }
+    });
+  } catch (error) {
+    console.error('获取评价错误:', error);
+    res.status(500).json({ error: '获取评价失败' });
+  }
+});
+
+// 获取司机的所有评价（用于展示司机评分）
+router.get('/drivers/:id/ratings', async (req, res) => {
+  try {
+    const driverId = req.params.id;
+    const { page = 1, limit = 20 } = req.query;
+
+    const ratings = await all(`
+      SELECT 
+        r.*,
+        o.order_no,
+        o.user_id,
+        u.username as user_name
+      FROM order_ratings r
+      JOIN orders o ON r.order_id = o.id
+      LEFT JOIN users u ON o.user_id = u.id
+      WHERE r.driver_id = ? AND r.user_rating IS NOT NULL
+      ORDER BY r.user_rating_at DESC
+      LIMIT ? OFFSET ?
+    `, [driverId, parseInt(limit), (parseInt(page) - 1) * parseInt(limit)]);
+
+    const stats = await get(`
+      SELECT 
+        COUNT(*) as total_ratings,
+        AVG(user_rating) as avg_rating
+      FROM order_ratings
+      WHERE driver_id = ? AND user_rating IS NOT NULL
+    `, [driverId]);
+
+    res.json({
+      ratings: ratings.map(r => ({
+        id: r.id,
+        order_no: r.order_no,
+        user_name: r.user_name || '匿名用户',
+        rating: r.user_rating,
+        comment: r.user_comment,
+        created_at: r.user_rating_at
+      })),
+      stats: {
+        total: stats?.total_ratings || 0,
+        average: stats?.avg_rating || 0
+      }
+    });
+  } catch (error) {
+    console.error('获取司机评价错误:', error);
+    res.status(500).json({ error: '获取评价失败' });
   }
 });
 

@@ -307,11 +307,11 @@ router.put('/:id/cancel', async (req, res) => {
   }
 });
 
-// 提交评价（个人端）- 文档第 38 项
+// 提交评价（个人端/用户端）- 用户评价司机
 router.post('/:id/rate', async (req, res) => {
   try {
     const orderId = req.params.id;
-    const { rating, comment } = req.body;
+    const { rating, comment, driver_id } = req.body;
 
     if (!rating || rating < 1 || rating > 5) {
       return res.status(400).json({ error: '评分无效' });
@@ -326,20 +326,70 @@ router.post('/:id/rate', async (req, res) => {
       return res.status(400).json({ error: '订单未完成，无法评价' });
     }
 
-    if (order.rated) {
+    // 检查是否已评价
+    const existing = await get('SELECT * FROM order_ratings WHERE order_id = ?', [orderId]);
+    if (existing && existing.user_rating) {
       return res.status(400).json({ error: '已评价过该订单' });
     }
 
-    await run(`
-      UPDATE orders SET 
-        rating = ?, comment = ?, rated = 1, rated_at = ?
-      WHERE id = ?
-    `, [rating, comment || '', new Date().toISOString(), orderId]);
+    const userId = req.body.user_id || 1; // 默认用户 ID
+
+    if (existing) {
+      // 更新评价
+      await run(`
+        UPDATE order_ratings SET 
+          user_rating = ?, user_comment = ?, user_rating_at = ?, updated_at = ?
+        WHERE order_id = ?
+      `, [rating, comment || '', new Date().toISOString(), new Date().toISOString(), orderId]);
+    } else {
+      // 插入新评价
+      await run(`
+        INSERT INTO order_ratings (order_id, user_id, driver_id, user_rating, user_comment, user_rating_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `, [orderId, userId, driver_id || order.driver_id, rating, comment || '', new Date().toISOString()]);
+    }
+
+    // 更新订单状态
+    await run('UPDATE orders SET rated = 1, rated_at = ? WHERE id = ?', [new Date().toISOString(), orderId]);
+
+    // 更新司机评分（平均分）
+    if (driver_id) {
+      const avgResult = await get('SELECT AVG(user_rating) as avg_rating FROM order_ratings WHERE driver_id = ? AND user_rating IS NOT NULL', [driver_id]);
+      if (avgResult && avgResult.avg_rating) {
+        await run('UPDATE drivers SET rating = ? WHERE id = ?', [Math.round(avgResult.avg_rating * 10) / 10, driver_id]);
+      }
+    }
 
     res.json({ success: true, message: '评价成功' });
   } catch (error) {
     console.error('提交评价错误:', error);
     res.status(500).json({ error: '提交评价失败' });
+  }
+});
+
+// 获取订单评价（用户端可以查看）
+router.get('/:id/rating', async (req, res) => {
+  try {
+    const orderId = req.params.id;
+
+    const rating = await get('SELECT * FROM order_ratings WHERE order_id = ?', [orderId]);
+    
+    if (!rating) {
+      return res.json({ rating: null, can_rate: true });
+    }
+
+    const order = await get('SELECT order_no, driver_id FROM orders WHERE id = ?', [orderId]);
+
+    res.json({
+      rating: {
+        ...rating,
+        order_no: order?.order_no || '',
+        can_rate: !rating.user_rating // 如果还没有用户评价，就可以评价
+      }
+    });
+  } catch (error) {
+    console.error('获取评价错误:', error);
+    res.status(500).json({ error: '获取评价失败' });
   }
 });
 

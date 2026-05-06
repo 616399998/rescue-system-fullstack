@@ -406,6 +406,7 @@
                 <button class="nav-btn" onclick="switchModule('drivers', this)">👨‍✈️ 司机管理</button>
                 <button class="nav-btn" onclick="switchModule('users', this)">👥 用户管理</button>
                 <button class="nav-btn" onclick="switchModule('finance', this)">💰 财务报表</button>
+                <button class="nav-btn" onclick="switchModule('ratings', this)">⭐ 评价管理</button>
             </div>
             <div class="admin-user">
                 <span id="adminName">管理员</span>
@@ -600,6 +601,72 @@
                     </table>
                 </div>
             </div>
+            
+            <!-- 评价管理模块 -->
+            <div id="ratingsModule" class="tab-content">
+                <div class="section-title" style="font-size:16px;font-weight:bold;margin:20px 0;">⭐ 评价管理</div>
+                
+                <!-- 筛选条件 -->
+                <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+                    <select id="ratingDriverFilter" style="padding:8px 12px;border-radius:8px;border:1px solid rgba(0,240,255,0.3);background:rgba(16,28,48,0.95);color:var(--text-color);font-size:13px;">
+                        <option value="">所有司机</option>
+                    </select>
+                    <select id="ratingValueFilter" style="padding:8px 12px;border-radius:8px;border:1px solid rgba(0,240,255,0.3);background:rgba(16,28,48,0.95);color:var(--text-color);font-size:13px;">
+                        <option value="">所有评分</option>
+                        <option value="5">⭐⭐⭐⭐⭐ (5 星)</option>
+                        <option value="4">⭐⭐⭐⭐ (4 星)</option>
+                        <option value="3">⭐⭐⭐ (3 星)</option>
+                        <option value="2">⭐⭐ (2 星)</option>
+                        <option value="1">⭐ (1 星)</option>
+                    </select>
+                    <button class="action-btn btn-view" onclick="loadRatings()">🔍 筛选</button>
+                    <button class="action-btn btn-refresh" onclick="resetRatingFilters()">🔄 重置</button>
+                </div>
+                
+                <!-- 评价列表 -->
+                <div class="table-container" style="max-height:600px;overflow-y:auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>订单号</th>
+                                <th>司机</th>
+                                <th>评价用户</th>
+                                <th>评分</th>
+                                <th>评价内容</th>
+                                <th>评价时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ratingsTable"></tbody>
+                    </table>
+                </div>
+                
+                <!-- 分页 -->
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px;">
+                    <div style="color:#5a6d7e;font-size:13px;">
+                        第 <span id="ratingCurrentPage">1</span> 页，共 <span id="ratingTotalPages">1</span> 页，总计 <span id="ratingTotalCount">0</span> 条评价
+                    </div>
+                    <div style="display:flex;gap:10px;">
+                        <button class="action-btn btn-view" onclick="changeRatingPage(-1)" id="ratingPrevBtn">上一页</button>
+                        <button class="action-btn btn-view" onclick="changeRatingPage(1)" id="ratingNextBtn">下一页</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 评价详情弹窗 -->
+    <div class="modal" id="ratingDetailModal">
+        <div class="modal-content" style="max-width:600px;">
+            <div class="modal-header">
+                <span class="modal-title">⭐ 评价详情</span>
+                <button class="modal-close" onclick="closeModal('ratingDetailModal')">×</button>
+            </div>
+            <div id="ratingDetailContent" style="padding:20px;"></div>
+            <div style="margin-top:20px;display:flex;gap:10px;">
+                <button class="action-btn btn-danger" onclick="deleteCurrentRating()" style="flex:1;">🗑️ 删除评价</button>
+                <button class="action-btn btn-warning" onclick="closeModal('ratingDetailModal')" style="flex:1;">关闭</button>
+            </div>
         </div>
     </div>
 
@@ -623,6 +690,27 @@
                 <button class="action-btn btn-cancel" onclick="updateOrderStatus('cancelled')" style="flex:1;padding:12px;">❌ 取消订单</button>
                 <button class="action-btn btn-dispatch" onclick="showDispatchModal()" style="flex:1;padding:12px;">🚛 重新派单</button>
             </div>
+        </div>
+    </div>
+
+    <!-- 图片查看弹窗（支持组切换） -->
+    <div class="modal" id="photoViewModal" onclick="closePhotoModal()">
+        <div class="modal-content" style="max-width:900px;position:relative;" onclick="event.stopPropagation()">
+            <!-- 切换按钮 -->
+            <button id="photoPrevBtn" onclick="prevPhoto()" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.5);color:white;border:none;border-radius:50%;width:40px;height:40px;font-size:20px;cursor:pointer;display:none;">‹</button>
+            <button id="photoNextBtn" onclick="nextPhoto()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.5);color:white;border:none;border-radius:50%;width:40px;height:40px;font-size:20px;cursor:pointer;display:none;">›</button>
+            
+            <!-- 图片 -->
+            <img id="photoViewImage" src="" style="width: 100%; max-height:70vh; object-fit:contain; border-radius: 8px;" />
+            
+            <!-- 图片计数 -->
+            <div id="photoCount" style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,0.6);color:white;padding:5px 10px;border-radius:20px;font-size:12px;display:none;">1/5</div>
+            
+            <!-- 缩略图导航 -->
+            <div id="photoThumbnails" style="margin-top:15px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;display:none;"></div>
+            
+            <!-- 关闭按钮 -->
+            <button class="action-btn" onclick="closePhotoModal()" style="margin-top: 10px;width:100%;">关闭</button>
         </div>
     </div>
 
@@ -707,6 +795,10 @@
             if (module === 'drivers') loadDrivers();
             if (module === 'users') loadUsers();
             if (module === 'finance') loadFinance();
+            if (module === 'ratings') {
+                loadRatingDrivers();
+                loadRatings();
+            }
         }
 
         // 刷新数据
@@ -717,6 +809,7 @@
             if (currentModule === 'drivers') loadDrivers();
             if (currentModule === 'users') loadUsers();
             if (currentModule === 'finance') loadFinance();
+            if (currentModule === 'ratings') loadRatings();
         }
 
         // 加载仪表盘
@@ -1043,13 +1136,14 @@
         // 下线/激活司机
         async function offlineDriver(driverId) {
             const currentStatus = allDrivers.find(d => d.id === driverId)?.status;
-            const action = currentStatus === 'active' ? '下线' : '激活';
+            const newStatus = currentStatus === 'active' ? 'offline' : 'active';
+            const action = newStatus === 'active' ? '激活' : '下线';
             if (!confirm(`确认${action}该司机？`)) return;
             try {
-                const res = await fetch(`${API_BASE}/api/admin/drivers/${driverId}/reject`, {
+                const res = await fetch(`${API_BASE}/api/admin/drivers/${driverId}/toggle-status`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ reason: currentStatus === 'active' ? '管理员下线' : '' })
+                    body: JSON.stringify({ status: newStatus })
                 });
                 const data = await res.json();
                 if (data.success) {
@@ -1116,6 +1210,178 @@
                 }
             } catch (error) {
                 console.error('加载财务报表失败:', error);
+            }
+        }
+
+        // ==================== 评价管理 ====================
+        
+        let currentRatingPage = 1;
+        let ratingTotalPages = 1;
+        let currentRatingId = null;
+
+        // 加载评价列表
+        async function loadRatings() {
+            const driverId = document.getElementById('ratingDriverFilter').value;
+            const ratingFilter = document.getElementById('ratingValueFilter').value;
+            
+            try {
+                const params = new URLSearchParams({
+                    page: currentRatingPage,
+                    limit: 50
+                });
+                if (driverId) params.append('driver_id', driverId);
+                if (ratingFilter) params.append('rating_filter', ratingFilter);
+                
+                const res = await fetch(`${API_BASE}/api/admin/ratings?${params}`);
+                const data = await res.json();
+                
+                const tbody = document.getElementById('ratingsTable');
+                if (!data.ratings || data.ratings.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#5a6d7e;padding:40px;">暂无评价数据</td></tr>';
+                } else {
+                    tbody.innerHTML = data.ratings.map(r => {
+                        const stars = '⭐'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
+                        return `
+                            <tr>
+                                <td style="font-family:monospace;">${r.order_no}</td>
+                                <td>${r.driver_name}<br/><small style="color:#5a6d7e;">${r.driver_phone}</small></td>
+                                <td>${r.user_name}</td>
+                                <td style="font-size:16px;">${stars}</td>
+                                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.comment || '无评价内容'}">${r.comment || '无评价内容'}</td>
+                                <td style="font-size:12px;color:#5a6d7e;">${new Date(r.created_at).toLocaleString('zh-CN')}</td>
+                                <td>
+                                    <button class="action-btn btn-view" onclick="viewRatingDetail(${r.id})">查看</button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
+                
+                // 更新分页信息
+                document.getElementById('ratingCurrentPage').textContent = data.page || 1;
+                ratingTotalPages = Math.ceil((data.total || 0) / 50);
+                document.getElementById('ratingTotalPages').textContent = ratingTotalPages || 1;
+                document.getElementById('ratingTotalCount').textContent = data.total || 0;
+                
+                document.getElementById('ratingPrevBtn').disabled = currentRatingPage <= 1;
+                document.getElementById('ratingNextBtn').disabled = currentRatingPage >= ratingTotalPages;
+            } catch (error) {
+                console.error('加载评价列表失败:', error);
+            }
+        }
+        
+        // 加载司机筛选列表
+        async function loadRatingDrivers() {
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/drivers`);
+                const data = await res.json();
+                
+                const select = document.getElementById('ratingDriverFilter');
+                if (data.drivers && data.drivers.length > 0) {
+                    const options = data.drivers.map(d => 
+                        `<option value="${d.id}">${d.name} (${d.phone})</option>`
+                    ).join('');
+                    select.innerHTML = '<option value="">所有司机</option>' + options;
+                }
+            } catch (error) {
+                console.error('加载司机列表失败:', error);
+            }
+        }
+        
+        // 重置筛选
+        function resetRatingFilters() {
+            document.getElementById('ratingDriverFilter').value = '';
+            document.getElementById('ratingValueFilter').value = '';
+            currentRatingPage = 1;
+            loadRatings();
+        }
+        
+        // 切换页码
+        function changeRatingPage(delta) {
+            const newPage = currentRatingPage + delta;
+            if (newPage >= 1 && newPage <= ratingTotalPages) {
+                currentRatingPage = newPage;
+                loadRatings();
+            }
+        }
+        
+        // 查看评价详情
+        async function viewRatingDetail(ratingId) {
+            currentRatingId = ratingId;
+            
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/ratings/${ratingId}`);
+                const data = await res.json();
+                const r = data.rating;
+                
+                const stars = '⭐'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
+                
+                document.getElementById('ratingDetailContent').innerHTML = `
+                    <div style="margin-bottom:20px;">
+                        <div style="font-size:12px;color:#5a6d7e;margin-bottom:5px;">订单号</div>
+                        <div style="font-size:14px;color:var(--primary-color);font-family:monospace;">${r.order_no}</div>
+                    </div>
+                    <div style="margin-bottom:20px;">
+                        <div style="font-size:12px;color:#5a6d7e;margin-bottom:5px;">评价用户</div>
+                        <div style="font-size:14px;">${r.user_name || '匿名用户'}</div>
+                    </div>
+                    <div style="margin-bottom:20px;">
+                        <div style="font-size:12px;color:#5a6d7e;margin-bottom:5px;">被评价司机</div>
+                        <div style="font-size:14px;">${r.driver_name} (${r.driver_phone})</div>
+                    </div>
+                    <div style="margin-bottom:20px;">
+                        <div style="font-size:12px;color:#5a6d7e;margin-bottom:5px;">评分</div>
+                        <div style="font-size:24px;">${stars}</div>
+                        <div style="font-size:14px;color:var(--warning-color);">${r.rating} / 5</div>
+                    </div>
+                    ${r.comment ? `
+                    <div style="margin-bottom:20px;">
+                        <div style="font-size:12px;color:#5a6d7e;margin-bottom:5px;">评价内容</div>
+                        <div style="font-size:14px;padding:15px;background:rgba(0,240,255,0.05);border-radius:8px;">${r.comment}</div>
+                    </div>
+                    ` : ''}
+                    <div style="margin-bottom:20px;">
+                        <div style="font-size:12px;color:#5a6d7e;margin-bottom:5px;">服务地点</div>
+                        <div style="font-size:14px;">${r.location || '未知'}</div>
+                        ${r.destination ? `<div style="font-size:12px;color:#5a6d7e;margin-top:10px;">目的地</div><div style="font-size:14px;">${r.destination}</div>` : ''}
+                    </div>
+                    <div style="font-size:12px;color:#5a6d7e;">
+                        评价时间：${new Date(r.created_at).toLocaleString('zh-CN')}
+                    </div>
+                `;
+                
+                document.getElementById('ratingDetailModal').classList.add('active');
+            } catch (error) {
+                console.error('加载评价详情失败:', error);
+                showAlert('错误', '加载评价详情失败');
+            }
+        }
+        
+        // 删除评价
+        async function deleteCurrentRating() {
+            if (!currentRatingId) return;
+            
+            if (!confirm('确定要删除这条评价吗？此操作不可恢复！')) {
+                return;
+            }
+            
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/ratings/${currentRatingId}`, {
+                    method: 'DELETE'
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    showAlert('成功', '评价已删除', () => {
+                        closeModal('ratingDetailModal');
+                        loadRatings();
+                    });
+                } else {
+                    showAlert('错误', data.error || '删除失败');
+                }
+            } catch (error) {
+                console.error('删除评价失败:', error);
+                showAlert('错误', '删除评价失败');
             }
         }
 
@@ -1356,10 +1622,111 @@
             if (alert.callback) { alert.callback(); alert.callback = null; }
         }
 
-        // 回车登录
-        document.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && document.getElementById('loginPage').style.display !== 'none') login();
+        // 图片查看（支持组切换）
+        let currentPhotoGroup = [];
+        let currentPhotoIndex = 0;
+        
+        function viewPhotoGroup(photos, index) {
+            if (!photos || photos.length === 0) return;
+            
+            const modal = document.getElementById('photoViewModal');
+            const img = document.getElementById('photoViewImage');
+            const prevBtn = document.getElementById('photoPrevBtn');
+            const nextBtn = document.getElementById('photoNextBtn');
+            const countDiv = document.getElementById('photoCount');
+            const thumbsDiv = document.getElementById('photoThumbnails');
+            
+            currentPhotoGroup = photos;
+            currentPhotoIndex = index || 0;
+            
+            const photoUrl = photos[currentPhotoIndex].startsWith('http') ? photos[currentPhotoIndex] : 
+                           (photos[currentPhotoIndex].startsWith('/uploads') ? photos[currentPhotoIndex] : `${API_BASE}${photos[currentPhotoIndex]}`);
+            img.src = photoUrl;
+            countDiv.textContent = `${currentPhotoIndex + 1}/${photos.length}`;
+            
+            if (photos.length > 1) {
+                prevBtn.style.display = 'block';
+                nextBtn.style.display = 'block';
+                countDiv.style.display = 'block';
+                thumbsDiv.style.display = 'flex';
+                renderThumbnails();
+            } else {
+                prevBtn.style.display = 'none';
+                nextBtn.style.display = 'none';
+                countDiv.style.display = 'none';
+                thumbsDiv.style.display = 'none';
+            }
+            
+            modal.classList.add('active');
+        }
+        
+        function updatePhotoDisplay() {
+            const img = document.getElementById('photoViewImage');
+            const countDiv = document.getElementById('photoCount');
+            
+            if (currentPhotoGroup.length > 0) {
+                const photoUrl = currentPhotoGroup[currentPhotoIndex].startsWith('http') ? currentPhotoGroup[currentPhotoIndex] : 
+                               (currentPhotoGroup[currentPhotoIndex].startsWith('/uploads') ? currentPhotoGroup[currentPhotoIndex] : `${API_BASE}${currentPhotoGroup[currentPhotoIndex]}`);
+                img.src = photoUrl;
+                countDiv.textContent = `${currentPhotoIndex + 1}/${currentPhotoGroup.length}`;
+                updateThumbnails();
+            }
+        }
+        
+        function prevPhoto() {
+            if (currentPhotoIndex > 0) {
+                currentPhotoIndex--;
+                updatePhotoDisplay();
+            }
+        }
+        
+        function nextPhoto() {
+            if (currentPhotoIndex < currentPhotoGroup.length - 1) {
+                currentPhotoIndex++;
+                updatePhotoDisplay();
+            }
+        }
+        
+        function closePhotoModal() {
+            document.getElementById('photoViewModal').classList.remove('active');
+            currentPhotoGroup = [];
+            currentPhotoIndex = 0;
+        }
+        
+        function renderThumbnails() {
+            const thumbsDiv = document.getElementById('photoThumbnails');
+            thumbsDiv.innerHTML = currentPhotoGroup.map((photo, index) => {
+                const photoUrl = photo.startsWith('http') ? photo : (photo.startsWith('/uploads') ? photo : `${API_BASE}${photo}`);
+                return `<img src="${photoUrl}" onclick="switchPhoto(${index})" 
+                    style="width:60px;height:60px;object-fit:cover;border-radius:4px;cursor:pointer;opacity:${index === currentPhotoIndex ? '1' : '0.5'};border:${index === currentPhotoIndex ? '2px solid var(--primary-color)' : '2px solid transparent'}" />`;
+            }).join('');
+        }
+        
+        function updateThumbnails() {
+            const thumbsDiv = document.getElementById('photoThumbnails');
+            if (thumbsDiv.children.length === currentPhotoGroup.length) {
+                Array.from(thumbsDiv.children).forEach((thumb, index) => {
+                    thumb.style.opacity = index === currentPhotoIndex ? '1' : '0.5';
+                    thumb.style.border = index === currentPhotoIndex ? '2px solid var(--primary-color)' : '2px solid transparent';
+                });
+            }
+        }
+        
+        function switchPhoto(index) {
+            currentPhotoIndex = index;
+            updatePhotoDisplay();
+        }
+        
+        document.addEventListener('keydown', function(e) {
+            const modal = document.getElementById('photoViewModal');
+            if (modal && modal.classList.contains('active')) {
+                if (e.key === 'ArrowLeft' && currentPhotoGroup.length > 0) prevPhoto();
+                else if (e.key === 'ArrowRight' && currentPhotoGroup.length > 0) nextPhoto();
+                else if (e.key === 'Escape') closePhotoModal();
+            }
         });
+
+        // 回车登录
 
         // 页面加载检查登录状态
         window.addEventListener('load', () => {

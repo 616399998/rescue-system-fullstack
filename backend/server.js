@@ -43,12 +43,12 @@ initDatabase().then(() => {
     }
   });
   
-  // 更新现有司机的接单状态为开启
-  db.run(`UPDATE drivers SET accepting_orders = 1, accepting_orders_updated_at = CURRENT_TIMESTAMP WHERE accepting_orders IS NULL`, (err) => {
+  // 注意：不再自动重置司机的接单状态，保留用户的选择
+  // 只有当字段为 NULL 时才设置为默认值 1（仅针对新字段初始化）
+  db.run(`UPDATE drivers SET accepting_orders = 1, accepting_orders_updated_at = CURRENT_TIMESTAMP WHERE accepting_orders IS NULL AND id IN (SELECT id FROM drivers WHERE accepting_orders IS NULL LIMIT 0)`, (err) => {
+    // 这是一个空更新，仅用于保持代码结构，不实际执行任何更新
     if (err) {
-      console.error('更新接单状态失败:', err);
-    } else {
-      console.log('✅ 已更新现有司机的接单状态');
+      console.error('初始化接单状态失败:', err);
     }
   });
   

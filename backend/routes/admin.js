@@ -373,6 +373,25 @@ router.put('/drivers/:id/reject', async (req, res) => {
   }
 });
 
+// 司机下线/激活切换
+router.put('/drivers/:id/toggle-status', async (req, res) => {
+  try {
+    const driverId = req.params.id;
+    const { status } = req.body; // 'active' or 'offline'
+    
+    if (!status || !['active', 'offline'].includes(status)) {
+      return res.status(400).json({ error: '状态无效' });
+    }
+    
+    await run('UPDATE drivers SET status = ? WHERE id = ?', [status, driverId]);
+    
+    const action = status === 'active' ? '激活' : '下线';
+    res.json({ success: true, message: `司机已${action}` });
+  } catch (error) {
+    res.status(500).json({ error: '操作失败' });
+  }
+});
+
 // 获取可派司机（从 drivers 表读取）
 router.get('/dispatch/available-drivers', async (req, res) => {
   try {
@@ -527,6 +546,196 @@ router.get('/stats/performance', async (req, res) => {
     res.json({ performance });
   } catch (error) {
     res.status(500).json({ error: '获取绩效统计失败' });
+  }
+});
+
+// ==================== 评价管理 ====================
+
+// 获取所有评价列表（后台管理）
+router.get('/ratings', async (req, res) => {
+  try {
+    const { page = 1, limit = 50, driver_id, rating_filter } = req.query;
+    
+    let query = `
+      SELECT 
+        r.*,
+        o.order_no,
+        o.driver_id,
+        o.user_id,
+        d.name as driver_name,
+        d.phone as driver_phone,
+        u.username as user_name
+      FROM order_ratings r
+      JOIN orders o ON r.order_id = o.id
+      LEFT JOIN drivers d ON o.driver_id = d.id
+      LEFT JOIN users u ON o.user_id = u.id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (driver_id) {
+      query += ' AND r.driver_id = ?';
+      params.push(driver_id);
+    }
+
+    if (rating_filter) {
+      query += ' AND r.user_rating = ?';
+      params.push(parseInt(rating_filter));
+    }
+
+    query += ' ORDER BY r.user_rating_at DESC LIMIT ? OFFSET ?';
+    params.push(parseInt(limit), (parseInt(page) - 1) * parseInt(limit));
+
+    const ratings = await all(query, params);
+
+    // 统计总数
+    const countQuery = `SELECT COUNT(*) as total FROM order_ratings r JOIN orders o ON r.order_id = o.id WHERE 1=1`;
+    const countParams = [];
+    if (driver_id) {
+      countQuery += ' AND r.driver_id = ?';
+      countParams.push(driver_id);
+    }
+    if (rating_filter) {
+      countQuery += ' AND r.user_rating = ?';
+      countParams.push(parseInt(rating_filter));
+    }
+    const countResult = await get(countQuery, countParams);
+
+    res.json({
+      ratings: ratings.map(r => ({
+        id: r.id,
+        order_id: r.order_id,
+        order_no: r.order_no,
+        driver_id: r.driver_id,
+        driver_name: r.driver_name || '未知司机',
+        driver_phone: r.driver_phone || '',
+        user_id: r.user_id,
+        user_name: r.user_name || '匿名用户',
+        rating: r.user_rating,
+        comment: r.user_comment,
+        created_at: r.user_rating_at
+      })),
+      total: countResult?.total || 0,
+      page: parseInt(page),
+      limit: parseInt(limit)
+    });
+  } catch (error) {
+    console.error('获取评价列表错误:', error);
+    res.status(500).json({ error: '获取评价列表失败' });
+  }
+});
+
+// 获取评价详情
+router.get('/ratings/:id', async (req, res) => {
+  try {
+    const ratingId = req.params.id;
+
+    const rating = await get(`
+      SELECT 
+        r.*,
+        o.order_no,
+        o.current_location,
+        o.destination,
+        d.name as driver_name,
+        d.phone as driver_phone,
+        u.username as user_name
+      FROM order_ratings r
+      JOIN orders o ON r.order_id = o.id
+      LEFT JOIN drivers d ON o.driver_id = d.id
+      LEFT JOIN users u ON o.user_id = u.id
+      WHERE r.id = ?
+    `, [ratingId]);
+
+    if (!rating) {
+      return res.status(404).json({ error: '评价不存在' });
+    }
+
+    res.json({
+      rating: {
+        id: rating.id,
+        order_id: rating.order_id,
+        order_no: rating.order_no,
+        driver_id: rating.driver_id,
+        driver_name: rating.driver_name,
+        driver_phone: rating.driver_phone,
+        user_id: rating.user_id,
+        user_name: rating.user_name,
+        rating: rating.user_rating,
+        comment: rating.user_comment,
+        location: rating.current_location,
+        destination: rating.destination,
+        created_at: rating.user_rating_at
+      }
+    });
+  } catch (error) {
+    console.error('获取评价详情错误:', error);
+    res.status(500).json({ error: '获取评价详情失败' });
+  }
+});
+
+// 删除评价（管理员权限）
+router.delete('/ratings/:id', async (req, res) => {
+  try {
+    const ratingId = req.params.id;
+
+    // 检查评价是否存在
+    const existing = await get('SELECT * FROM order_ratings WHERE id = ?', [ratingId]);
+    if (!existing) {
+      return res.status(404).json({ error: '评价不存在' });
+    }
+
+    // 删除评价
+    await run('DELETE FROM order_ratings WHERE id = ?', [ratingId]);
+
+    // 重新计算司机平均评分
+    const driverId = existing.driver_id;
+    if (driverId) {
+      const avgResult = await get('SELECT AVG(user_rating) as avg_rating FROM order_ratings WHERE driver_id = ? AND user_rating IS NOT NULL', [driverId]);
+      const newRating = avgResult && avgResult.avg_rating ? Math.round(avgResult.avg_rating * 10) / 10 : 5.0;
+      await run('UPDATE drivers SET rating = ? WHERE id = ?', [newRating, driverId]);
+    }
+
+    res.json({ success: true, message: '评价已删除' });
+  } catch (error) {
+    console.error('删除评价错误:', error);
+    res.status(500).json({ error: '删除评价失败' });
+  }
+});
+
+// 获取司机评价统计
+router.get('/drivers/:id/ratings/stats', async (req, res) => {
+  try {
+    const driverId = req.params.id;
+
+    const stats = await get(`
+      SELECT 
+        COUNT(*) as total_ratings,
+        AVG(user_rating) as avg_rating,
+        SUM(CASE WHEN user_rating = 5 THEN 1 ELSE 0 END) as five_star,
+        SUM(CASE WHEN user_rating = 4 THEN 1 ELSE 0 END) as four_star,
+        SUM(CASE WHEN user_rating = 3 THEN 1 ELSE 0 END) as three_star,
+        SUM(CASE WHEN user_rating = 2 THEN 1 ELSE 0 END) as two_star,
+        SUM(CASE WHEN user_rating = 1 THEN 1 ELSE 0 END) as one_star
+      FROM order_ratings
+      WHERE driver_id = ? AND user_rating IS NOT NULL
+    `, [driverId]);
+
+    res.json({
+      stats: {
+        total: stats?.total_ratings || 0,
+        average: stats?.avg_rating || 0,
+        distribution: {
+          5: stats?.five_star || 0,
+          4: stats?.four_star || 0,
+          3: stats?.three_star || 0,
+          2: stats?.two_star || 0,
+          1: stats?.one_star || 0
+        }
+      }
+    });
+  } catch (error) {
+    console.error('获取司机评价统计错误:', error);
+    res.status(500).json({ error: '获取评价统计失败' });
   }
 });
 

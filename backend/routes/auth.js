@@ -63,4 +63,27 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// 获取当前用户信息（需要 JWT 认证）
+router.get('/me', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: '未授权' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const user = await get('SELECT id, username, phone, avatar, balance, points, level FROM users WHERE id = ?', [decoded.userId]);
+
+    if (!user) {
+      return res.status(404).json({ error: '用户不存在' });
+    }
+
+    res.json({ user });
+  } catch (error) {
+    console.error('获取用户信息错误:', error);
+    res.status(401).json({ error: 'Token 无效或已过期' });
+  }
+});
+
 module.exports = router;

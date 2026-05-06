@@ -95,6 +95,21 @@ function initDatabase() {
           description TEXT NOT NULL,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )`,
+        // 订单评价表（新增）- 用户评价司机，司机只能查看
+        `CREATE TABLE IF NOT EXISTS order_ratings (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          order_id INTEGER NOT NULL,
+          user_id INTEGER,
+          driver_id INTEGER,
+          user_rating INTEGER,
+          user_comment TEXT,
+          user_rating_at DATETIME,
+          driver_rating INTEGER,
+          driver_comment TEXT,
+          driver_rating_at DATETIME,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`,
         // 充值记录
         `CREATE TABLE IF NOT EXISTS recharge_records (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
