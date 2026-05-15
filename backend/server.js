@@ -3,7 +3,7 @@ const cors = require('cors');
 const path = require('path');
 const { initDatabase } = require('./config/database');
 
-const authRoutes = require('./routes/auth');
+const { router: authRoutes, authMiddleware } = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const orderRoutes = require('./routes/orders');
 const rechargeRoutes = require('./routes/recharge');

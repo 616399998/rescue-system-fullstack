@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { run, all, get } = require('../config/database');
+const { authMiddleware } = require('./auth');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -22,7 +23,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ 
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
@@ -35,14 +36,6 @@ const upload = multer({
   }
 });
 
-// 管理员账号
-const ADMIN_USER = {
-  username: 'admin',
-  password: 'admin123'
-};
-
-// ==================== 公共接口 ====================
-
 // 腾讯地图 Key
 const TENCENT_MAP_KEY = '67MBZ-EF6RT-THAX4-VEGBL-7AYMJ-LGBXX';
 
@@ -54,38 +47,22 @@ async function geocodeAddress(address) {
     const data = await response.json();
     
     if (data.status === 0 && data.result && data.result.location) {
-      return {
-        lat: data.result.location.lat,
-        lng: data.result.location.lng
-      };
+      return { lat: data.result.location.lat, lng: data.result.location.lng };
     }
   } catch (error) {
     console.error('地理编码失败:', error);
   }
-  // 返回北京默认坐标
   return { lat: 39.9042, lng: 116.4074 };
 }
 
-// 创建订单（个人端、交管端、执法端、保险端）
-router.post('/', async (req, res) => {
+// 创建订单（需登录）
+router.post('/', authMiddleware, async (req, res) => {
   try {
+    const userId = req.user.userId;
     const {
-      service_type,
-      vehicle_type,
-      vehicle_plate,
-      vehicle_brand,
-      vehicle_color,
-      current_location,
-      current_coord,
-      destination,
-      destination_coord,
-      address,
-      problem_description,
-      owner_name,
-      owner_phone,
-      movable,
-      special_note,
-      photos = []
+      service_type, vehicle_type, vehicle_plate, vehicle_brand, vehicle_color,
+      current_location, current_coord, destination, destination_coord, address,
+      problem_description, owner_name, owner_phone, movable, special_note, photos = []
     } = req.body;
 
     if (!service_type || !current_location || !owner_phone) {
@@ -97,18 +74,15 @@ router.post('/', async (req, res) => {
     const prices = { 'tow': 200, 'accident': 200, 'violation': 200, 'breakdown': 200 };
     const price = prices[service_type] || 200;
 
-    // 如果前端没有传坐标，后端自动地理编码
+    // 自动地理编码
     let finalCurrentCoord = current_coord || '';
     let finalDestCoord = destination_coord || '';
     
     if (!finalCurrentCoord && current_location) {
-      console.log('自动地理编码获取起点坐标:', current_location);
       const coord = await geocodeAddress(current_location);
       finalCurrentCoord = `${coord.lat},${coord.lng}`;
     }
-    
     if (!finalDestCoord && destination) {
-      console.log('自动地理编码获取终点坐标:', destination);
       const coord = await geocodeAddress(destination);
       finalDestCoord = `${coord.lat},${coord.lng}`;
     }
@@ -118,12 +92,13 @@ router.post('/', async (req, res) => {
         order_no, user_id, service_type, vehicle_type, vehicle_plate,
         vehicle_brand, vehicle_color, current_location, destination,
         address, current_coord, destination_coord, problem_description, status, price,
-        owner_name, owner_phone, movable, special_note, photos,
+        owner_name, owner_phone, movable, special_note, photos, channel,
         driver_id, driver_name, driver_phone, driver_rating,
         rescue_vehicle_plate, rescue_vehicle_model, progress
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, 'personal',
+        ?, ?, ?, ?, ?, ?, 0)
     `, [
-      orderNo, 1, service_type,
+      orderNo, userId, service_type,
       vehicle_type || 'sedan', vehicle_plate || '',
       vehicle_brand || '', vehicle_color || '',
       current_location, destination || '',
@@ -134,13 +109,13 @@ router.post('/', async (req, res) => {
       null, null, null, null, null, null
     ]);
 
-    // 插入时间线
     await run(
       'INSERT INTO order_timeline (order_id, status, description) VALUES (?, ?, ?)',
       [result.lastInsertRowid, 'pending', '订单已提交，等待调度中心审核']
     );
 
     res.status(201).json({ 
+      success: true,
       message: '订单创建成功', 
       orderId: result.lastInsertRowid, 
       orderNo 
@@ -151,23 +126,14 @@ router.post('/', async (req, res) => {
   }
 });
 
-// 获取订单列表（个人端、司机端）
-router.get('/', async (req, res) => {
+// 获取订单列表（需登录）
+router.get('/', authMiddleware, async (req, res) => {
   try {
-    const { status, page = 1, limit = 10, driver_id } = req.query;
+    const userId = req.user.userId;
+    const { status, page = 1, limit = 10 } = req.query;
     
-    let query = 'SELECT * FROM orders WHERE 1=1';
-    const params = [];
-
-    // 司机端查询分配给自己的订单
-    if (driver_id) {
-      query += ' AND driver_id = ?';
-      params.push(driver_id);
-    } else {
-      // 个人端查询自己的订单
-      query += ' AND user_id = ?';
-      params.push(1);
-    }
+    let query = 'SELECT * FROM orders WHERE user_id = ?';
+    const params = [userId];
 
     if (status && status !== 'all') {
       query += ' AND status = ?';
@@ -204,24 +170,24 @@ router.get('/', async (req, res) => {
           name: order.driver_name,
           phone: order.driver_phone,
           rating: order.driver_rating,
-          orders: 0,
+          orders: order.driver_total_orders || 0,
           vehicle_plate: order.rescue_vehicle_plate,
           vehicle_model: order.rescue_vehicle_model
         } : null
       };
     });
 
-    res.json({ orders: formattedOrders });
+    res.json({ success: true, orders: formattedOrders });
   } catch (error) {
     console.error('获取订单列表错误:', error);
     res.status(500).json({ error: '获取订单失败' });
   }
 });
 
-// 获取订单详情（个人端）
-router.get('/:id', async (req, res) => {
+// 获取订单详情
+router.get('/:id', authMiddleware, async (req, res) => {
   try {
-    const order = await get('SELECT * FROM orders WHERE id = ?', [req.params.id]);
+    const order = await get('SELECT * FROM orders WHERE id = ? AND user_id = ?', [req.params.id, req.user.userId]);
 
     if (!order) {
       return res.status(404).json({ error: '订单不存在' });
@@ -270,31 +236,29 @@ router.get('/:id', async (req, res) => {
       }))
     };
 
-    res.json({ order: formattedOrder });
+    res.json({ success: true, order: formattedOrder });
   } catch (error) {
     console.error('获取订单详情错误:', error);
     res.status(500).json({ error: '获取订单失败' });
   }
 });
 
-// 取消订单（个人端）- 文档第 35 项
-router.put('/:id/cancel', async (req, res) => {
+// 取消订单
+router.put('/:id/cancel', authMiddleware, async (req, res) => {
   try {
     const orderId = req.params.id;
     const { reason } = req.body;
 
-    const order = await get('SELECT * FROM orders WHERE id = ?', [orderId]);
+    const order = await get('SELECT * FROM orders WHERE id = ? AND user_id = ?', [orderId, req.user.userId]);
     if (!order) {
       return res.status(404).json({ error: '订单不存在' });
     }
 
-    // 只有待处理状态可以取消
     if (order.status !== 'pending') {
       return res.status(400).json({ error: '订单已开始处理，无法取消' });
     }
 
     await run('UPDATE orders SET status = ? WHERE id = ?', ['cancelled', orderId]);
-
     await run(
       'INSERT INTO order_timeline (order_id, status, description) VALUES (?, ?, ?)',
       [orderId, 'cancelled', `用户取消订单${reason ? '：' + reason : ''}`]
@@ -307,8 +271,8 @@ router.put('/:id/cancel', async (req, res) => {
   }
 });
 
-// 提交评价（个人端/用户端）- 用户评价司机
-router.post('/:id/rate', async (req, res) => {
+// 提交评价
+router.post('/:id/rate', authMiddleware, async (req, res) => {
   try {
     const orderId = req.params.id;
     const { rating, comment, driver_id } = req.body;
@@ -317,7 +281,7 @@ router.post('/:id/rate', async (req, res) => {
       return res.status(400).json({ error: '评分无效' });
     }
 
-    const order = await get('SELECT * FROM orders WHERE id = ?', [orderId]);
+    const order = await get('SELECT * FROM orders WHERE id = ? AND user_id = ?', [orderId, req.user.userId]);
     if (!order) {
       return res.status(404).json({ error: '订单不存在' });
     }
@@ -326,37 +290,33 @@ router.post('/:id/rate', async (req, res) => {
       return res.status(400).json({ error: '订单未完成，无法评价' });
     }
 
-    // 检查是否已评价
     const existing = await get('SELECT * FROM order_ratings WHERE order_id = ?', [orderId]);
     if (existing && existing.user_rating) {
       return res.status(400).json({ error: '已评价过该订单' });
     }
 
-    const userId = req.body.user_id || 1; // 默认用户 ID
+    const userId = req.user.userId;
 
     if (existing) {
-      // 更新评价
       await run(`
         UPDATE order_ratings SET 
           user_rating = ?, user_comment = ?, user_rating_at = ?, updated_at = ?
         WHERE order_id = ?
       `, [rating, comment || '', new Date().toISOString(), new Date().toISOString(), orderId]);
     } else {
-      // 插入新评价
       await run(`
         INSERT INTO order_ratings (order_id, user_id, driver_id, user_rating, user_comment, user_rating_at)
         VALUES (?, ?, ?, ?, ?, ?)
       `, [orderId, userId, driver_id || order.driver_id, rating, comment || '', new Date().toISOString()]);
     }
 
-    // 更新订单状态
     await run('UPDATE orders SET rated = 1, rated_at = ? WHERE id = ?', [new Date().toISOString(), orderId]);
 
-    // 更新司机评分（平均分）
-    if (driver_id) {
-      const avgResult = await get('SELECT AVG(user_rating) as avg_rating FROM order_ratings WHERE driver_id = ? AND user_rating IS NOT NULL', [driver_id]);
+    if (driver_id || order.driver_id) {
+      const did = driver_id || order.driver_id;
+      const avgResult = await get('SELECT AVG(user_rating) as avg_rating FROM order_ratings WHERE driver_id = ? AND user_rating IS NOT NULL', [did]);
       if (avgResult && avgResult.avg_rating) {
-        await run('UPDATE drivers SET rating = ? WHERE id = ?', [Math.round(avgResult.avg_rating * 10) / 10, driver_id]);
+        await run('UPDATE drivers SET rating = ? WHERE id = ?', [Math.round(avgResult.avg_rating * 10) / 10, did]);
       }
     }
 
@@ -367,24 +327,23 @@ router.post('/:id/rate', async (req, res) => {
   }
 });
 
-// 获取订单评价（用户端可以查看）
-router.get('/:id/rating', async (req, res) => {
+// 获取订单评价
+router.get('/:id/rating', authMiddleware, async (req, res) => {
   try {
     const orderId = req.params.id;
-
     const rating = await get('SELECT * FROM order_ratings WHERE order_id = ?', [orderId]);
     
     if (!rating) {
       return res.json({ rating: null, can_rate: true });
     }
 
-    const order = await get('SELECT order_no, driver_id FROM orders WHERE id = ?', [orderId]);
+    const order = await get('SELECT order_no, driver_id FROM orders WHERE id = ? AND user_id = ?', [orderId, req.user.userId]);
 
     res.json({
       rating: {
         ...rating,
         order_no: order?.order_no || '',
-        can_rate: !rating.user_rating // 如果还没有用户评价，就可以评价
+        can_rate: !rating.user_rating
       }
     });
   } catch (error) {
@@ -393,7 +352,7 @@ router.get('/:id/rating', async (req, res) => {
   }
 });
 
-// 上传照片
+// 上传照片（无需登录，创建订单前上传）
 router.post('/upload', upload.array('photos', 9), (req, res) => {
   try {
     const files = req.files || [];
@@ -405,24 +364,18 @@ router.post('/upload', upload.array('photos', 9), (req, res) => {
   }
 });
 
-// 坐标转换 + 逆地理编码（调用腾讯地图 Web Service API）
+// 坐标转换 + 逆地理编码
 router.post('/geocode', async (req, res) => {
   try {
     const { lat, lng } = req.body;
-    
     if (!lat || !lng) {
       return res.status(400).json({ error: '缺少经纬度参数' });
     }
 
     const axios = require('axios');
-    const key = '67MBZ-EF6RT-THAX4-VEGBL-7AYMJ-LGBXX';
+    const key = TENCENT_MAP_KEY;
+    const headers = { 'Referer': 'https://akesurescue.com', 'User-Agent': 'Mozilla/5.0' };
     
-    const headers = {
-      'Referer': 'https://akesurescue.com',
-      'User-Agent': 'Mozilla/5.0'
-    };
-    
-    // 坐标转换（GPS 坐标转腾讯坐标）
     const coordUrl = `https://apis.map.qq.com/ws/coord/v1/translate?locations=${lat},${lng}&type=1&key=${key}`;
     const coordResponse = await axios.get(coordUrl, { headers });
     const coordData = coordResponse.data;
@@ -435,19 +388,13 @@ router.post('/geocode', async (req, res) => {
       finalLng = coordData.locations[0].lng;
     }
     
-    // 逆地理编码
     const geocodeUrl = `https://apis.map.qq.com/ws/geocoder/v1/?location=${finalLat},${finalLng}&key=${key}`;
     const geocodeResponse = await axios.get(geocodeUrl, { headers });
     const geocodeData = geocodeResponse.data;
     
     if (geocodeData.status === 0 && geocodeData.result) {
       const address = geocodeData.result.address || geocodeData.result.formatted_addresses?.recommend || '';
-      res.json({ 
-        success: true, 
-        address,
-        fullResult: geocodeData.result,
-        coordConverted: coordData.status === 0
-      });
+      res.json({ success: true, address, fullResult: geocodeData.result, coordConverted: coordData.status === 0 });
     } else {
       res.json({ success: false, error: geocodeData.message || '逆地理编码失败' });
     }
