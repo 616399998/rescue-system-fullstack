@@ -167,10 +167,42 @@ async function loadOrders() {
     document.getElementById('ordersPagination').innerHTML = pgHtml;
 }
 
+var currentPhotoGroup = [];
+var currentPhotoIndex = 0;
+
 async function viewOrder(id) {
     var data = await api('/orders/' + id);
     if (!data || !data.order) return;
     var o = data.order;
+
+    // 照片区
+    var photoHtml = '';
+    if (o.photos && o.photos.length > 0) {
+        photoHtml = '<div style="margin:12px 0;"><strong>📷 现场照片</strong><div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">';
+        o.photos.forEach(function(p, i) {
+            var url = p.startsWith('http') ? p : (p.startsWith('/uploads') ? p : window.location.origin + p);
+            photoHtml += '<img src="' + url + '" style="width:80px;height:80px;object-fit:cover;border-radius:8px;cursor:pointer;border:1px solid var(--border);" onclick="viewPhotoGroup(' + JSON.stringify(o.photos).replace(/"/g, '&quot;') + ',' + i + ')">';
+        });
+        photoHtml += '</div></div>';
+    }
+
+    // 地图区
+    var mapHtml = '<div style="margin:12px 0;"><strong>📍 路线地图</strong><div id="orderMap" style="width:100%;height:250px;border-radius:8px;margin-top:8px;border:1px solid var(--border);"></div></div>';
+
+    // 时间线
+    var timelineHtml = '';
+    if (o.timeline && o.timeline.length) {
+        timelineHtml = '<div style="margin:12px 0;"><strong>📋 时间线</strong><div class="timeline" style="margin-top:8px;">' +
+            o.timeline.map(function(t){ return '<div class="timeline-item"><div class="timeline-time">' + t.time + '</div><div class="timeline-content">' + t.content + '</div></div>'; }).join('') +
+            '</div></div>';
+    }
+
+    // 结算信息
+    var settleHtml = '';
+    if (o.tow_fee || o.mileage_fee || o.extra_fee) {
+        settleHtml = '<div style="background:#f8fafc;border-radius:8px;padding:12px;margin:12px 0;"><strong>💰 结算明细</strong><br>拖车费：¥' + (o.tow_fee||0) + ' | 里程费：¥' + (o.mileage_fee||0) + ' | 附加费：¥' + (o.extra_fee||0) + ' | <strong>总计：¥' + (o.total_fee||o.price) + '</strong></div>';
+    }
+
     var body = '<div class="detail-grid">' +
         '<div class="detail-item"><div class="dt">订单号</div><div class="dd">' + o.order_no + '</div></div>' +
         '<div class="detail-item"><div class="dt">状态</div><div class="dd">' + badge(o.status) + '</div></div>' +
@@ -182,10 +214,75 @@ async function viewOrder(id) {
         '<div class="detail-item"><div class="dt">目的地</div><div class="dd">' + (o.destination||'-') + '</div></div>' +
         '<div class="detail-item"><div class="dt">车主</div><div class="dd">' + (o.owner_name||'-') + '</div></div>' +
         '<div class="detail-item"><div class="dt">联系电话</div><div class="dd">' + (o.owner_phone||'-') + '</div></div>' +
+        (o.problem_description ? '<div class="detail-item" style="grid-column:span 2"><div class="dt">问题描述</div><div class="dd">' + o.problem_description + '</div></div>' : '') +
         '</div>' +
-        (o.driver ? '<div style="background:#f8fafc;border-radius:8px;padding:12px;margin:12px 0;"><strong>司机：</strong>' + o.driver.name + ' | ' + o.driver.phone + ' | ' + (o.driver.vehicle_plate||'-') + '</div>' : '') +
-        (o.timeline && o.timeline.length ? '<div class="timeline">' + o.timeline.map(function(t){ return '<div class="timeline-item"><div class="timeline-time">' + t.time + '</div><div class="timeline-content">' + t.content + '</div></div>'; }).join('') + '</div>' : '');
+        (o.driver ? '<div style="background:#f8fafc;border-radius:8px;padding:12px;margin:12px 0;"><strong>🚗 司机：</strong>' + o.driver.name + ' | ' + o.driver.phone + ' | ⭐' + (o.driver.rating||'-') + ' | ' + (o.driver.vehicle_plate||'-') + ' ' + (o.driver.vehicle_model||'') + '</div>' : '') +
+        settleHtml + photoHtml + mapHtml + timelineHtml;
+
     openModal('订单详情 - ' + o.order_no, body, '<button class="btn btn-outline" onclick="closeModal()">关闭</button>');
+
+    // 延迟初始化地图
+    setTimeout(function() { initOrderMap(o); }, 400);
+}
+
+// 照片查看器
+function viewPhotoGroup(photos, index) {
+    currentPhotoGroup = photos;
+    currentPhotoIndex = index || 0;
+    var overlay = document.createElement('div');
+    overlay.id = 'photoOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:2000;display:flex;align-items:center;justify-content:center;flex-direction:column;';
+    updatePhotoDisplay(overlay);
+    document.body.appendChild(overlay);
+    overlay.onclick = function(e) { if (e.target === overlay) { overlay.remove(); } };
+}
+
+function updatePhotoDisplay(overlay) {
+    if (!overlay) overlay = document.getElementById('photoOverlay');
+    if (!overlay || !currentPhotoGroup.length) return;
+    var p = currentPhotoGroup[currentPhotoIndex];
+    var url = p.startsWith('http') ? p : (p.startsWith('/uploads') ? p : window.location.origin + p);
+    overlay.innerHTML = '<div style="position:relative;">' +
+        '<img src="' + url + '" style="max-width:90vw;max-height:70vh;object-fit:contain;border-radius:8px;">' +
+        (currentPhotoGroup.length > 1 ? '<button onclick="event.stopPropagation();prevPhoto()" style="position:absolute;left:-50px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:50%;width:40px;height:40px;font-size:20px;cursor:pointer;">‹</button><button onclick="event.stopPropagation();nextPhoto()" style="position:absolute;right:-50px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:50%;width:40px;height:40px;font-size:20px;cursor:pointer;">›</button>' : '') +
+        '</div>' +
+        '<div style="color:#fff;margin-top:12px;font-size:14px;">' + (currentPhotoIndex+1) + ' / ' + currentPhotoGroup.length + '</div>' +
+        '<div style="margin-top:12px;display:flex;gap:8px;">' + currentPhotoGroup.map(function(ph, i) {
+            var u = ph.startsWith('http') ? ph : (ph.startsWith('/uploads') ? ph : window.location.origin + ph);
+            return '<img src="' + u + '" style="width:48px;height:48px;object-fit:cover;border-radius:6px;cursor:pointer;opacity:' + (i===currentPhotoIndex?'1':'.5') + ';border:' + (i===currentPhotoIndex?'2px solid #fff':'1px solid rgba(255,255,255,.3)') + ';" onclick="event.stopPropagation();currentPhotoIndex=' + i + ';updatePhotoDisplay();">';
+        }).join('') + '</div>';
+}
+
+function prevPhoto() { if (currentPhotoIndex > 0) { currentPhotoIndex--; updatePhotoDisplay(); } }
+function nextPhoto() { if (currentPhotoIndex < currentPhotoGroup.length - 1) { currentPhotoIndex++; updatePhotoDisplay(); } }
+
+// 订单地图（腾讯地图）
+var orderTencentMap = null;
+function initOrderMap(order) {
+    var mapContainer = document.getElementById('orderMap');
+    if (!mapContainer) return;
+    if (typeof qq === 'undefined' || typeof qq.maps === 'undefined') {
+        mapContainer.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text2);font-size:13px;">地图 API 加载中...</div>';
+        return;
+    }
+    var lat = 39.9042, lng = 116.4074;
+    if (order.address && typeof order.address === 'string' && order.address.includes(',')) {
+        var coords = order.address.split(',');
+        if (coords.length === 2) { lat = parseFloat(coords[0]); lng = parseFloat(coords[1]); }
+    }
+    orderTencentMap = new qq.maps.Map(mapContainer, { center: new qq.maps.LatLng(lat, lng), zoom: 13 });
+    new qq.maps.Marker({ position: new qq.maps.LatLng(lat, lng), map: orderTencentMap, title: '起点：' + order.current_location });
+    if (order.destination_coord && typeof order.destination_coord === 'string' && order.destination_coord.includes(',')) {
+        var dc = order.destination_coord.split(',');
+        if (dc.length === 2) {
+            var toLat = parseFloat(dc[0]), toLng = parseFloat(dc[1]);
+            new qq.maps.Marker({ position: new qq.maps.LatLng(toLat, toLng), map: orderTencentMap, title: '终点：' + order.destination });
+            var bounds = new qq.maps.LatLngBounds();
+            bounds.extend(new qq.maps.LatLng(lat, lng));
+            bounds.extend(new qq.maps.LatLng(toLat, toLng));
+            orderTencentMap.fitBounds(bounds);
+        }
+    }
 }
 
 async function dispatchOrder(orderId) {

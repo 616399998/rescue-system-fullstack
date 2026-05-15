@@ -79,7 +79,7 @@ tr:hover td { background: #f8fafc; }
 .date-input { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; outline: none; }
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 1000; align-items: center; justify-content: center; }
 .modal-overlay.active { display: flex; }
-.modal { background: #fff; border-radius: 12px; width: 90%; max-width: 600px; max-height: 85vh; overflow-y: auto; }
+.modal { background: #fff; border-radius: 12px; width: 90%; max-width: 750px; max-height: 85vh; overflow-y: auto; }
 .modal-header { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
 .modal-header h3 { font-size: 16px; }
 .modal-close { width: 32px; height: 32px; border: none; background: none; font-size: 20px; cursor: pointer; color: var(--text2); border-radius: 6px; }
