@@ -1011,6 +1011,22 @@ router.get('/ratings/export', adminAuth, async (req, res) => {
   }
 });
 
+// ==================== 评价审核 ====================
+router.put('/ratings/:id/audit', adminAuth, async (req, res) => {
+  try {
+    const { action, reason } = req.body; // action: 'approve' | 'reject'
+    if (!['approve', 'reject'].includes(action)) return res.status(400).json({ error: '操作无效' });
+    const existing = await get('SELECT * FROM order_ratings WHERE id = ?', [req.params.id]);
+    if (!existing) return res.status(404).json({ error: '评价不存在' });
+    const auditStatus = action === 'approve' ? 'approved' : 'rejected';
+    await run('UPDATE order_ratings SET audit_status = ?, audit_reason = ?, audited_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [auditStatus, reason || '', req.params.id]);
+    res.json({ success: true, message: action === 'approve' ? '评价已审核通过' : '评价已驳回' });
+  } catch (error) {
+    res.status(500).json({ error: '审核失败' });
+  }
+});
+
 // ==================== 司机评价统计 ====================
 router.get('/drivers/:id/ratings/stats', adminAuth, async (req, res) => {
   try {
@@ -1032,6 +1048,434 @@ router.get('/drivers/:id/ratings/stats', adminAuth, async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: '获取评价统计失败' });
   }
+});
+
+// ==================== 商户管理 ====================
+router.get('/merchants', adminAuth, async (req, res) => {
+  try {
+    const { keyword, status } = req.query;
+    let query = 'SELECT * FROM merchants WHERE 1=1';
+    const params = [];
+    if (status && status !== 'all') { query += ' AND status = ?'; params.push(status); }
+    if (keyword) { query += ' AND (name LIKE ? OR contact_name LIKE ? OR license_no LIKE ?)'; params.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`); }
+    query += ' ORDER BY created_at DESC';
+    const merchants = await all(query, params);
+    res.json({ merchants });
+  } catch (error) { res.status(500).json({ error: '获取商户列表失败' }); }
+});
+
+router.post('/merchants', adminAuth, async (req, res) => {
+  try {
+    const { name, license_no, contact_name, contact_phone, address, service_scope, contract_start, contract_end } = req.body;
+    if (!name) return res.status(400).json({ error: '商户名称必填' });
+    const result = await run(
+      `INSERT INTO merchants (name, license_no, contact_name, contact_phone, address, service_scope, contract_start, contract_end) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [name, license_no || '', contact_name || '', contact_phone || '', address || '', service_scope || '', contract_start || null, contract_end || null]
+    );
+    res.json({ success: true, message: '商户添加成功', id: result.lastInsertRowid });
+  } catch (error) { res.status(500).json({ error: '添加失败' }); }
+});
+
+router.put('/merchants/:id', adminAuth, async (req, res) => {
+  try {
+    const { name, license_no, contact_name, contact_phone, address, service_scope, contract_start, contract_end, status } = req.body;
+    await run(`UPDATE merchants SET name=?, license_no=?, contact_name=?, contact_phone=?, address=?, service_scope=?, contract_start=?, contract_end=?, status=? WHERE id=?`,
+      [name, license_no||'', contact_name||'', contact_phone||'', address||'', service_scope||'', contract_start||null, contract_end||null, status||'active', req.params.id]);
+    res.json({ success: true, message: '修改成功' });
+  } catch (error) { res.status(500).json({ error: '修改失败' }); }
+});
+
+router.delete('/merchants/:id', adminAuth, async (req, res) => {
+  try {
+    await run('DELETE FROM merchants WHERE id = ?', [req.params.id]);
+    res.json({ success: true, message: '商户已删除' });
+  } catch (error) { res.status(500).json({ error: '删除失败' }); }
+});
+
+router.get('/merchants/export', adminAuth, async (req, res) => {
+  try {
+    const merchants = await all('SELECT * FROM merchants ORDER BY created_at DESC');
+    const statusMap = { active: '正常', inactive: '停用' };
+    const BOM = '\uFEFF';
+    let csv = BOM + '商户名称,营业执照,联系人,联系电话,地址,服务范围,合同开始,合同结束,状态,创建时间\n';
+    merchants.forEach(m => {
+      csv += `"${m.name}","${m.license_no||''}","${m.contact_name||''}","${m.contact_phone||''}","${(m.address||'').replace(/"/g,'""')}","${(m.service_scope||'').replace(/"/g,'""')}","${m.contract_start||''}","${m.contract_end||''}","${statusMap[m.status]||m.status}","${m.created_at}"\n`;
+    });
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename=merchants_${new Date().toISOString().slice(0,10)}.csv`);
+    res.send(csv);
+  } catch (error) { res.status(500).json({ error: '导出失败' }); }
+});
+
+// ==================== 消息通知管理 ====================
+router.get('/notifications', adminAuth, async (req, res) => {
+  try {
+    const { type, user_type, page = 1, limit = 50 } = req.query;
+    let query = 'SELECT * FROM notifications WHERE 1=1';
+    const params = [];
+    if (type) { query += ' AND type = ?'; params.push(type); }
+    if (user_type && user_type === 'driver') { query += ' AND driver_id IS NOT NULL'; }
+    else if (user_type && user_type === 'user') { query += ' AND user_id IS NOT NULL'; }
+    query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+    params.push(parseInt(limit), (parseInt(page) - 1) * parseInt(limit));
+    const notifications = await all(query, params);
+    const countResult = await get('SELECT COUNT(*) as total FROM notifications WHERE 1=1');
+    res.json({ notifications, total: countResult?.total || 0, page: parseInt(page), limit: parseInt(limit) });
+  } catch (error) { res.status(500).json({ error: '获取通知列表失败' }); }
+});
+
+router.post('/notifications', adminAuth, async (req, res) => {
+  try {
+    const { user_id, driver_id, type, title, content } = req.body;
+    if (!title || !content) return res.status(400).json({ error: '标题和内容必填' });
+    const result = await run(
+      'INSERT INTO notifications (user_id, driver_id, type, title, content) VALUES (?, ?, ?, ?, ?)',
+      [user_id || null, driver_id || null, type || 'system', title, content]
+    );
+    res.json({ success: true, message: '通知发送成功', id: result.lastInsertRowid });
+  } catch (error) { res.status(500).json({ error: '发送失败' }); }
+});
+
+router.post('/notifications/broadcast', adminAuth, async (req, res) => {
+  try {
+    const { target, type, title, content } = req.body; // target: 'all_users' | 'all_drivers' | 'all'
+    if (!title || !content) return res.status(400).json({ error: '标题和内容必填' });
+    let count = 0;
+    if (target === 'all_users' || target === 'all') {
+      const users = await all('SELECT id FROM users');
+      for (const u of users) {
+        await run('INSERT INTO notifications (user_id, type, title, content) VALUES (?, ?, ?, ?)', [u.id, type || 'system', title, content]);
+        count++;
+      }
+    }
+    if (target === 'all_drivers' || target === 'all') {
+      const drivers = await all("SELECT id FROM drivers WHERE status = 'active'");
+      for (const d of drivers) {
+        await run('INSERT INTO notifications (driver_id, type, title, content) VALUES (?, ?, ?, ?)', [d.id, type || 'system', title, content]);
+        count++;
+      }
+    }
+    res.json({ success: true, message: `已发送 ${count} 条通知` });
+  } catch (error) { res.status(500).json({ error: '群发失败' }); }
+});
+
+router.delete('/notifications/:id', adminAuth, async (req, res) => {
+  try {
+    await run('DELETE FROM notifications WHERE id = ?', [req.params.id]);
+    res.json({ success: true, message: '通知已删除' });
+  } catch (error) { res.status(500).json({ error: '删除失败' }); }
+});
+
+// ==================== 配置中心 ====================
+router.get('/config', adminAuth, async (req, res) => {
+  try {
+    const configs = await all('SELECT * FROM system_config ORDER BY id');
+    res.json({ configs });
+  } catch (error) { res.status(500).json({ error: '获取配置失败' }); }
+});
+
+router.put('/config/:key', adminAuth, async (req, res) => {
+  try {
+    const { config_value } = req.body;
+    await run('UPDATE system_config SET config_value = ?, updated_at = CURRENT_TIMESTAMP WHERE config_key = ?',
+      [config_value, req.params.key]);
+    res.json({ success: true, message: '配置已更新' });
+  } catch (error) { res.status(500).json({ error: '更新失败' }); }
+});
+
+router.post('/config', adminAuth, async (req, res) => {
+  try {
+    const { config_key, config_value } = req.body;
+    if (!config_key) return res.status(400).json({ error: '配置键名必填' });
+    await run('INSERT OR REPLACE INTO system_config (config_key, config_value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)',
+      [config_key, config_value || '']);
+    res.json({ success: true, message: '配置已保存' });
+  } catch (error) { res.status(500).json({ error: '保存失败' }); }
+});
+
+// 拍照模板
+router.get('/config/templates', adminAuth, async (req, res) => {
+  try {
+    const templates = await all('SELECT * FROM config_templates ORDER BY type, id');
+    res.json({ templates });
+  } catch (error) { res.status(500).json({ error: '获取模板失败' }); }
+});
+
+router.post('/config/templates', adminAuth, async (req, res) => {
+  try {
+    const { type, name, content, is_active } = req.body;
+    if (!type || !name) return res.status(400).json({ error: '类型和名称必填' });
+    const result = await run('INSERT INTO config_templates (type, name, content, is_active) VALUES (?, ?, ?, ?)',
+      [type, name, content || '', is_active !== undefined ? is_active : 1]);
+    res.json({ success: true, message: '模板添加成功', id: result.lastInsertRowid });
+  } catch (error) { res.status(500).json({ error: '添加失败' }); }
+});
+
+router.put('/config/templates/:id', adminAuth, async (req, res) => {
+  try {
+    const { type, name, content, is_active } = req.body;
+    await run('UPDATE config_templates SET type=?, name=?, content=?, is_active=? WHERE id=?',
+      [type, name, content||'', is_active !== undefined ? is_active : 1, req.params.id]);
+    res.json({ success: true, message: '模板已更新' });
+  } catch (error) { res.status(500).json({ error: '更新失败' }); }
+});
+
+router.delete('/config/templates/:id', adminAuth, async (req, res) => {
+  try {
+    await run('DELETE FROM config_templates WHERE id = ?', [req.params.id]);
+    res.json({ success: true, message: '模板已删除' });
+  } catch (error) { res.status(500).json({ error: '删除失败' }); }
+});
+
+// 短信模板配置
+router.get('/config/sms-templates', adminAuth, async (req, res) => {
+  try {
+    const templates = await all("SELECT * FROM config_templates WHERE type = 'sms' ORDER BY id");
+    res.json({ templates });
+  } catch (error) { res.status(500).json({ error: '获取短信模板失败' }); }
+});
+
+// ==================== 审批管理 ====================
+router.get('/approvals', adminAuth, async (req, res) => {
+  try {
+    const { type, status, page = 1, limit = 50 } = req.query;
+    let query = 'SELECT vm.*, v.plate_no, v.model, d.name as applicant_name FROM vehicle_maintenance vm LEFT JOIN vehicles v ON vm.vehicle_id = v.id LEFT JOIN drivers d ON vm.applicant_id = d.id WHERE 1=1';
+    const params = [];
+    if (type) { query += ' AND vm.type = ?'; params.push(type); }
+    if (status && status !== 'all') { query += ' AND vm.status = ?'; params.push(status); }
+    query += ' ORDER BY vm.created_at DESC LIMIT ? OFFSET ?';
+    params.push(parseInt(limit), (parseInt(page) - 1) * parseInt(limit));
+    const approvals = await all(query, params);
+    const countResult = await get('SELECT COUNT(*) as total FROM vehicle_maintenance WHERE 1=1');
+    res.json({ approvals, total: countResult?.total || 0, page: parseInt(page), limit: parseInt(limit) });
+  } catch (error) { res.status(500).json({ error: '获取审批列表失败' }); }
+});
+
+router.put('/approvals/:id', adminAuth, async (req, res) => {
+  try {
+    const { action, reason } = req.body; // action: 'approve' | 'reject'
+    if (!['approve', 'reject'].includes(action)) return res.status(400).json({ error: '操作无效' });
+    const existing = await get('SELECT * FROM vehicle_maintenance WHERE id = ?', [req.params.id]);
+    if (!existing) return res.status(404).json({ error: '记录不存在' });
+    const newStatus = action === 'approve' ? 'approved' : 'rejected';
+    await run('UPDATE vehicle_maintenance SET status = ?, approved_by = ?, approved_reason = ? WHERE id = ?',
+      [newStatus, req.admin.username, reason || '', req.params.id]);
+    res.json({ success: true, message: action === 'approve' ? '已审批通过' : '已驳回' });
+  } catch (error) { res.status(500).json({ error: '审批失败' }); }
+});
+
+// ==================== 异常处理 ====================
+router.put('/orders/:id/intervene', adminAuth, async (req, res) => {
+  try {
+    const { action, reason, new_driver_id } = req.body; // action: 'reassign' | 'force_cancel' | 'force_complete'
+    const order = await get('SELECT * FROM orders WHERE id = ?', [req.params.id]);
+    if (!order) return res.status(404).json({ error: '订单不存在' });
+
+    if (action === 'reassign' && new_driver_id) {
+      const driver = await get('SELECT * FROM drivers WHERE id = ?', [new_driver_id]);
+      if (!driver) return res.status(404).json({ error: '司机不存在' });
+      await run(`UPDATE orders SET driver_id=?, driver_name=?, driver_phone=?, driver_rating=?, status='processing' WHERE id=?`,
+        [driver.id, driver.name, driver.phone, driver.rating, req.params.id]);
+      await run('INSERT INTO order_timeline (order_id, status, description) VALUES (?, ?, ?)',
+        [req.params.id, 'processing', `异常干预：重新派单给 ${driver.name}，原因：${reason || '无'}`]);
+    } else if (action === 'force_cancel') {
+      await run("UPDATE orders SET status = 'cancelled' WHERE id = ?", [req.params.id]);
+      await run('INSERT INTO order_timeline (order_id, status, description) VALUES (?, ?, ?)',
+        [req.params.id, 'cancelled', `异常干预：强制取消订单，原因：${reason || '无'}`]);
+    } else if (action === 'force_complete') {
+      await run("UPDATE orders SET status = 'completed' WHERE id = ?", [req.params.id]);
+      await run('INSERT INTO order_timeline (order_id, status, description) VALUES (?, ?, ?)',
+        [req.params.id, 'completed', `异常干预：强制完成订单，原因：${reason || '无'}`]);
+    } else {
+      return res.status(400).json({ error: '操作无效' });
+    }
+    res.json({ success: true, message: '异常处理完成' });
+  } catch (error) { res.status(500).json({ error: '异常处理失败' }); }
+});
+
+// ==================== 订单归档 ====================
+router.post('/orders/archive', adminAuth, async (req, res) => {
+  try {
+    const { days = 90 } = req.body;
+    const cutoff = new Date(Date.now() - days * 86400000).toISOString();
+    const result = await run(
+      "UPDATE orders SET archived = 1 WHERE status IN ('completed', 'cancelled') AND created_at < ? AND (archived IS NULL OR archived = 0)",
+      [cutoff]
+    );
+    res.json({ success: true, message: `已归档 ${result.changes || 0} 条订单` });
+  } catch (error) {
+    // archived 字段可能不存在，先添加
+    try {
+      const sqlite3 = require('sqlite3').verbose();
+      const path = require('path');
+      const dbPath = path.join(__dirname, '../config/rescue.db');
+      const db = new sqlite3.Database(dbPath);
+      db.run('ALTER TABLE orders ADD COLUMN archived INTEGER DEFAULT 0', (err) => {
+        db.close();
+      });
+      res.json({ success: true, message: '归档字段已添加，请重新执行' });
+    } catch (e2) {
+      res.status(500).json({ error: '归档失败' });
+    }
+  }
+});
+
+router.get('/orders/archived', adminAuth, async (req, res) => {
+  try {
+    const { page = 1, limit = 50 } = req.query;
+    let query = "SELECT * FROM orders WHERE archived = 1 ORDER BY created_at DESC LIMIT ? OFFSET ?";
+    const orders = await all(query, [parseInt(limit), (parseInt(page) - 1) * parseInt(limit)]);
+    const countResult = await get("SELECT COUNT(*) as total FROM orders WHERE archived = 1");
+    res.json({ orders, total: countResult?.total || 0 });
+  } catch (error) {
+    res.json({ orders: [], total: 0 });
+  }
+});
+
+// ==================== 角色权限管理 (RBAC) ====================
+// 简化版 RBAC：基于角色+权限列表
+router.get('/roles', adminAuth, async (req, res) => {
+  try {
+    const roles = await all('SELECT * FROM system_config WHERE config_key LIKE "role_%" ORDER BY id');
+    res.json({ roles });
+  } catch (error) { res.status(500).json({ error: '获取角色列表失败' }); }
+});
+
+router.post('/roles', adminAuth, async (req, res) => {
+  try {
+    const { name, permissions } = req.body; // permissions: JSON string array
+    if (!name) return res.status(400).json({ error: '角色名称必填' });
+    const key = 'role_' + name.replace(/\s/g, '_');
+    await run('INSERT OR REPLACE INTO system_config (config_key, config_value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)',
+      [key, JSON.stringify({ name, permissions: permissions || [] })]);
+    res.json({ success: true, message: '角色已创建' });
+  } catch (error) { res.status(500).json({ error: '创建失败' }); }
+});
+
+router.delete('/roles/:key', adminAuth, async (req, res) => {
+  try {
+    await run("DELETE FROM system_config WHERE config_key = ?", ['role_' + req.params.key]);
+    res.json({ success: true, message: '角色已删除' });
+  } catch (error) { res.status(500).json({ error: '删除失败' }); }
+});
+
+// ==================== 日志审计 ====================
+router.get('/audit-log', adminAuth, async (req, res) => {
+  try {
+    const { page = 1, limit = 50 } = req.query;
+    // 从 order_timeline 和其他表聚合操作日志
+    const timelines = await all(
+      'SELECT ot.*, o.order_no FROM order_timeline ot JOIN orders o ON ot.order_id = o.id ORDER BY ot.created_at DESC LIMIT ? OFFSET ?',
+      [parseInt(limit), (parseInt(page) - 1) * parseInt(limit)]
+    );
+    const countResult = await get('SELECT COUNT(*) as total FROM order_timeline');
+    res.json({ logs: timelines, total: countResult?.total || 0, page: parseInt(page), limit: parseInt(limit) });
+  } catch (error) { res.status(500).json({ error: '获取日志失败' }); }
+});
+
+// ==================== 短信网关 ====================
+// 短信发送接口（预留，需要接入实际短信服务商如阿里云/腾讯云SMS）
+router.post('/sms/send', adminAuth, async (req, res) => {
+  try {
+    const { phone, template_code, params } = req.body;
+    if (!phone || !template_code) return res.status(400).json({ error: '手机号和模板编码必填' });
+
+    // 读取短信网关配置
+    const gatewayConfig = await get("SELECT config_value FROM system_config WHERE config_key = 'sms_gateway'");
+    const gateway = gatewayConfig ? JSON.parse(gatewayConfig.config_value) : null;
+
+    if (!gateway || !gateway.provider || !gateway.api_key) {
+      // 未配置网关时，记录到通知表作为站内信
+      await run('INSERT INTO notifications (type, title, content) VALUES (?, ?, ?)',
+        ['sms_pending', '待发送短信', `手机号: ${phone}, 模板: ${template_code}, 参数: ${JSON.stringify(params || {})}`]);
+      return res.json({ success: true, message: '短信网关未配置，已转为站内信', simulated: true });
+    }
+
+    // 实际发送逻辑（根据 provider 调用不同 API）
+    // TODO: 接入阿里云/腾讯云 SMS SDK
+    res.json({ success: true, message: '短信已发送（模拟）', simulated: true });
+  } catch (error) { res.status(500).json({ error: '发送失败' }); }
+});
+
+// 配置短信网关
+router.post('/sms/gateway', adminAuth, async (req, res) => {
+  try {
+    const { provider, api_key, api_secret, sign_name } = req.body;
+    if (!provider || !api_key) return res.status(400).json({ error: '服务商和API Key必填' });
+    await run('INSERT OR REPLACE INTO system_config (config_key, config_value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)',
+      ['sms_gateway', JSON.stringify({ provider, api_key, api_secret: api_secret || '', sign_name: sign_name || '' })]);
+    res.json({ success: true, message: '短信网关配置已保存' });
+  } catch (error) { res.status(500).json({ error: '配置失败' }); }
+});
+
+// 获取短信网关配置
+router.get('/sms/gateway', adminAuth, async (req, res) => {
+  try {
+    const config = await get("SELECT config_value FROM system_config WHERE config_key = 'sms_gateway'");
+    if (config) {
+      const gateway = JSON.parse(config.config_value);
+      gateway.api_key = gateway.api_key ? gateway.api_key.slice(0, 6) + '****' : '';
+      gateway.api_secret = gateway.api_secret ? '****' : '';
+      res.json({ gateway });
+    } else {
+      res.json({ gateway: null });
+    }
+  } catch (error) { res.status(500).json({ error: '获取配置失败' }); }
+});
+
+// ==================== 实时监控（司机位置） ====================
+router.get('/monitor/drivers', adminAuth, async (req, res) => {
+  try {
+    const drivers = await all(`
+      SELECT d.id, d.name, d.phone, d.status, d.rating, d.latitude, d.longitude, d.last_location_update,
+        d.accepting_orders,
+        (SELECT COUNT(*) FROM orders WHERE driver_id = d.id AND status = 'processing') as active_orders
+      FROM drivers d WHERE d.status = 'active'
+      ORDER BY d.last_location_update DESC
+    `);
+    res.json({ drivers: drivers.map(d => ({
+      ...d,
+      is_online: d.last_location_update && (Date.now() - new Date(d.last_location_update).getTime() < 300000), // 5分钟内
+      active_orders: d.active_orders || 0
+    }))});
+  } catch (error) { res.status(500).json({ error: '获取监控数据失败' }); }
+});
+
+// 仪表盘补充统计
+router.get('/stats/realtime', adminAuth, async (req, res) => {
+  try {
+    const onlineDrivers = await get("SELECT COUNT(*) as count FROM drivers WHERE status = 'active' AND last_location_update > datetime('now', '-5 minutes')");
+    const processingOrders = await all("SELECT id, order_no, driver_name, current_location, status, progress FROM orders WHERE status = 'processing' ORDER BY updated_at DESC LIMIT 20");
+    const pendingOrders = await get("SELECT COUNT(*) as count FROM orders WHERE status = 'pending'");
+    const todayCompleted = await get("SELECT COUNT(*) as count FROM orders WHERE status = 'completed' AND DATE(created_at) = DATE('now')");
+    const todayRevenue = await get("SELECT SUM(price) as total FROM orders WHERE status = 'completed' AND DATE(created_at) = DATE('now')");
+    res.json({
+      onlineDrivers: onlineDrivers?.count || 0,
+      processingOrders,
+      pendingOrders: pendingOrders?.count || 0,
+      todayCompleted: todayCompleted?.count || 0,
+      todayRevenue: todayRevenue?.total || 0
+    });
+  } catch (error) { res.status(500).json({ error: '获取实时数据失败' }); }
+});
+
+// ==================== 字典管理 ====================
+router.get('/dict', adminAuth, async (req, res) => {
+  try {
+    const dicts = await all("SELECT * FROM system_config WHERE config_key LIKE 'dict_%' ORDER BY id");
+    res.json({ dicts: dicts.map(d => ({ key: d.config_key, value: JSON.parse(d.config_value) })) });
+  } catch (error) { res.status(500).json({ error: '获取字典失败' }); }
+});
+
+router.post('/dict', adminAuth, async (req, res) => {
+  try {
+    const { name, items } = req.body; // items: [{label, value}]
+    if (!name) return res.status(400).json({ error: '字典名称必填' });
+    const key = 'dict_' + name.replace(/\s/g, '_');
+    await run('INSERT OR REPLACE INTO system_config (config_key, config_value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)',
+      [key, JSON.stringify({ name, items: items || [] })]);
+    res.json({ success: true, message: '字典已保存' });
+  } catch (error) { res.status(500).json({ error: '保存失败' }); }
 });
 
 module.exports = router;

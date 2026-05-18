@@ -62,6 +62,9 @@ tr:hover td { background: #f8fafc; }
 .badge-pending_review { background: var(--warning-bg); color: var(--warning); }
 .badge-maintenance { background: var(--warning-bg); color: var(--warning); }
 .badge-retired { background: var(--danger-bg); color: var(--danger); }
+.badge-approved { background: var(--success-bg); color: var(--success); }
+.badge-rejected { background: var(--danger-bg); color: var(--danger); }
+.badge-inactive { background: var(--danger-bg); color: var(--danger); }
 .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all .15s; }
 .btn-primary { background: var(--primary); color: #fff; }
 .btn-primary:hover { background: #4338ca; }

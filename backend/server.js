@@ -69,6 +69,47 @@ initDatabase().then(() => {
     }
   });
   
+  // 评价审核字段
+  db.run(`ALTER TABLE order_ratings ADD COLUMN audit_status TEXT DEFAULT 'pending'`, (err) => {
+    if (err && !err.message.includes('duplicate column')) {
+      console.error('添加 audit_status 字段失败:', err);
+    } else if (!err) {
+      console.log('✅ 已添加 audit_status 字段');
+    }
+  });
+  db.run(`ALTER TABLE order_ratings ADD COLUMN audit_reason TEXT`, (err) => {
+    if (err && !err.message.includes('duplicate column')) {
+      console.error('添加 audit_reason 字段失败:', err);
+    } else if (!err) {
+      console.log('✅ 已添加 audit_reason 字段');
+    }
+  });
+  db.run(`ALTER TABLE order_ratings ADD COLUMN audited_at DATETIME`, (err) => {
+    if (err && !err.message.includes('duplicate column')) {
+      console.error('添加 audited_at 字段失败:', err);
+    } else if (!err) {
+      console.log('✅ 已添加 audited_at 字段');
+    }
+  });
+  
+  // 订单归档字段
+  db.run(`ALTER TABLE orders ADD COLUMN archived INTEGER DEFAULT 0`, (err) => {
+    if (err && !err.message.includes('duplicate column')) {
+      console.error('添加 archived 字段失败:', err);
+    } else if (!err) {
+      console.log('✅ 已添加 archived 字段');
+    }
+  });
+
+  // 审批表补充字段
+  db.run(`ALTER TABLE vehicle_maintenance ADD COLUMN approved_reason TEXT`, (err) => {
+    if (err && !err.message.includes('duplicate column')) {
+      console.error('添加 approved_reason 字段失败:', err);
+    } else if (!err) {
+      console.log('✅ 已添加 approved_reason 字段');
+    }
+  });
+  
   db.close();
 }).catch(err => {
   console.error('❌ 数据库初始化失败:', err);
